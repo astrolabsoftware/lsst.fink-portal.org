@@ -51,6 +51,8 @@ layout_lightcurve_preview = dict(
     automargin=True,
     margin=dict(l=50, r=0, b=0, t=0),
     hovermode="closest",
+    plot_bgcolor="white",
+    paper_bgcolor="white",
     hoverlabel={
         "align": "left",
     },
@@ -59,8 +61,8 @@ layout_lightcurve_preview = dict(
         orientation="h",
         xanchor="right",
         x=1,
-        y=1.2,
-        bgcolor="rgba(218, 223, 225, 0.3)",
+        y=0.95,
+        bgcolor="rgba(218, 223, 225, 0.8)",
     ),
     xaxis={
         "title": "Observation date",
@@ -256,7 +258,7 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
         variant="outline",
 	    position="bottom-center",
         size=16,
-        label="{}px / {}''".format(shape[0], shape[0] * pixel_size),
+        label="{}px / {:.1f}''".format(shape[0], shape[0] * pixel_size),
     )
 
 
@@ -422,9 +424,9 @@ def draw_lightcurve_preview(name) -> dict:
 
     # layout["yaxis"]["title"] = "Difference magnitude"
     # layout["yaxis"]["autorange"] = "reversed"
-    layout["paper_bgcolor"] = "rgba(0,0,0,0.0)"
-    layout["plot_bgcolor"] = "rgba(0,0,0,0.2)"
-    layout["showlegend"] = False
+    # layout["paper_bgcolor"] = "rgba(0,0,0,0.0)"
+    # layout["plot_bgcolor"] = "rgba(0,0,0,0.2)"
+    layout["showlegend"] = True
     layout["shapes"] = []
 
     # if is_dc_corrected:
@@ -535,7 +537,7 @@ def draw_lightcurve_preview(name) -> dict:
                     "opacity": 0.5,
                 },
                 "mode": "markers",
-                "name": f"{fname} band",
+                "name": f"{fname}",
                 "customdata": np.stack(
                     (pdf["i:midpointMjdTai"][idx],),
                     axis=-1,
