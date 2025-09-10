@@ -12,28 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Various cards in the portal"""
 import textwrap
 
-from dash import (
-    html,
-    dcc,
-)
+from dash import html, dcc
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
+
 import numpy as np
 import pandas as pd
+
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+
 from fink_utils.photometry.utils import is_source_behind
 
-
-# from apps.plotting import all_radio_options
 from apps.dataclasses import simbad_types
 from apps.utils import class_colors
-
-# from apps.plotting import draw_cutouts_quickview
-# from apps.plotting import draw_lightcurve_preview
 
 from apps.configuration import extract_configuration
 
@@ -51,7 +47,7 @@ def card_search_result(row, i):
 
     # Handle different variants for key names from different API entry points
     classification = None
-    for key in ["d:classification"]:
+    for key in ["d:finkclass"]:
         if key in row:
             # Classification
             classification = row.get(key)

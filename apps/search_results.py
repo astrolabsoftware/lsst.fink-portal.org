@@ -76,7 +76,6 @@ def display_table_results(table):
         "v:constellation",
         "v:g-r",
         "v:rate(g-r)",
-        "v:classification",
         "v:lastdate",
         "v:firstdate",
         "v:lapse",
@@ -265,14 +264,9 @@ def display_skymap(data, columns, is_open):
         # FIXME: get the mean flux in g, and make marker size accordingly
         # mags = pdf["i:p"].to_numpy()
 
-        if "v:classification" not in pdf.columns:
-            if "d:classification" in pdf.columns:
-                pdf["v:classification"] = pdf["d:classification"]
-            else:
-                pdf["v:classification"] = "Unknown"
-        classes = pdf["v:classification"].to_numpy()
+        classes = pdf["d:finkclass"].to_numpy()
         n_alert_per_class = (
-            pdf.groupby("v:classification").count().to_dict()["i:diaObjectId"]
+            pdf.groupby("d:finkclass").count().to_dict()["i:diaObjectId"]
         )
         cats = []
         for ra, dec, time_, title, class_ in zip(ras, decs, times, titles, classes):
@@ -556,7 +550,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         "i:ra": "RA (deg)",
         "i:dec": "Dec (deg)",
         "v:lastdate": "Last alert",
-        "v:classification": "Classification",
+        "d:finkclass": "Classification",
         "i:ndethist": "Number of measurements",
         "v:lapse": "Time variation (day)",
     }
@@ -680,7 +674,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         colnames_to_display = {
             "i:diaObjectId": "diaObjectId",
             "v:separation_degree": "Separation (degree)",
-            "d:classification": "Classification",
+            "d:finkclass": "Classification",
             "d:nalerthist": "Number of measurements",
             "v:lapse": "Time variation (day)",
         }
