@@ -89,7 +89,7 @@ def card_search_result(row, i):
     else:
         ndethist = "?"
 
-    # FIXME
+    # FIXME: use first/last
     jdend = 2460928.8554911325 + 3  # row.get("i:jdendhist", row.get("i:jd"))
     jdstart = 2460928.8554911325  # row.get("i:jdstarthist")
     lastdate = row.get("i:lastdate", Time(jdend, format="jd").iso)
@@ -115,8 +115,9 @@ def card_search_result(row, i):
     )
 
     text = textwrap.dedent(text)
+    # FIXME: reliability is not in rubin.objects
     if "i:reliability" in row:
-        text += "RealBogus: `{:.2f}`\n".format(row["i:rb"])
+        text += "RealBogus: `{:.2f}`\n".format(row["i:reliability"])
     if "d:anomaly_score" in row:
         text += "Anomaly score: `{:.2f}`\n".format(row["d:anomaly_score"])
 
@@ -127,24 +128,25 @@ def card_search_result(row, i):
 
     item = dbc.Card(
         [
-            # dbc.CardHeader(
+            dbc.CardHeader(
+                html.A(
+                    dmc.Group(
+                        [
+                            dmc.Text(
+                                f"{name}", style={"fontWeight": 700, "fontSize": 26}
+                            ),
+                            dmc.Space(w="sm"),
+                            *badges,
+                        ],
+                        gap=3,
+                    ),
+                    href=f"/{name}",
+                    target="_blank",
+                    className="text-decoration-none",
+                ),
+            ),
             dbc.CardBody(
                 [
-                    html.A(
-                        dmc.Group(
-                            [
-                                dmc.Text(
-                                    f"{name}", style={"fontWeight": 700, "fontSize": 26}
-                                ),
-                                dmc.Space(w="sm"),
-                                *badges,
-                            ],
-                            gap=3,
-                        ),
-                        href=f"/{name}",
-                        target="_blank",
-                        className="text-decoration-none",
-                    ),
                     dbc.Row(
                         [
                             dbc.Col(
@@ -198,14 +200,99 @@ def card_search_result(row, i):
                 ],
             ),
         ],
-        color="white",
+        color="light",
         className="mb-2 shadow border-1",
+        outline=True,
     )
+
+    # Test with Mantine
+    # FIXME: does not work properly
+    # item = dmc.Card(
+    #     [
+    #         dmc.CardSection(
+    #             html.A(
+    #                 dmc.Group(
+    #                     [
+    #                         dmc.Text(
+    #                             f"{name}", style={"fontWeight": 700, "fontSize": 26}
+    #                         ),
+    #                         dmc.Space(w="sm"),
+    #                         *badges,
+    #                     ],
+    #                     gap=3,
+    #                 ),
+    #                 href=f"/{name}",
+    #                 target="_blank",
+    #                 className="text-decoration-none",
+    #             ),
+    #             withBorder=True,
+    #             inheritPadding=True,
+    #             py="xs",
+    #         ),
+    #         dbc.Row(
+    #             [
+    #                 dbc.Col(
+    #                     dmc.Skeleton(
+    #                         style={
+    #                             "width": "12pc",
+    #                             "height": "12pc",
+    #                         },
+    #                     ),
+    #                     id={
+    #                         "type": "search_results_cutouts",
+    #                         "diaObjectId": str(name),
+    #                         "index": i,
+    #                     },
+    #                     width="auto",
+    #                 ),
+    #                 dbc.Col(
+    #                     dcc.Markdown(
+    #                         text,
+    #                         style={"white-space": "pre-wrap"},
+    #                     ),
+    #                     width="auto",
+    #                 ),
+    #                 dbc.Col(
+    #                     dmc.Skeleton(
+    #                         style={
+    #                             "width": "100%",
+    #                             "height": "15pc",
+    #                         },
+    #                     ),
+    #                     id={
+    #                         "type": "search_results_lightcurve",
+    #                         "diaObjectId": str(name),
+    #                         "index": i,
+    #                     },
+    #                     xs=12,
+    #                     md=True,
+    #                 ),
+    #             ],
+    #             justify="start",
+    #             className="g-2",
+    #         ),
+    #         # Upper right corner badge
+    #         dbc.Badge(
+    #             corner_str,
+    #             color="light",
+    #             pill=True,
+    #             text_color="dark",
+    #             className="position-absolute top-0 start-100 translate-middle border",
+    #         ),
+    #     ],
+    #     # color="light",
+    #     withBorder=True,
+    #     shadow="sm",
+    #     radius="md",
+    #     # className="mb-2 shadow border-1",
+    #     # outline=True,
+    # )
 
     return item
 
 
 def make_badge(text="", color=None, outline=None, tooltip=None, **kwargs):
+    """Make badges for card view"""
     style = kwargs.pop("style", {})
     if outline is not None:
         style["border-color"] = outline
@@ -232,6 +319,7 @@ def make_badge(text="", color=None, outline=None, tooltip=None, **kwargs):
 
 def generate_generic_badges(row, variant="dot"):
     """Operates on first row of a DataFrame, or directly on Series from pdf.iterrow()"""
+    # FIXME: many ZTF leftover
     if isinstance(row, pd.DataFrame):
         # for VSX, aggregate values
         vsx_label = get_multi_labels(row, "d:vsx", default="Unknown", to_avoid=["nan"])

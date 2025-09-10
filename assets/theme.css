@@ -121,6 +121,11 @@ h2 {
   border-color: #dee2e6;
 }
 
+a {
+  color: #15284F;
+}
+
+
 a:hover {
   color: #297ac2;
 }
