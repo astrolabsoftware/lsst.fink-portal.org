@@ -24,8 +24,11 @@ import pandas as pd
 import plotly.graph_objects as go
 from astropy.time import Time
 from dash import (
-    dcc,
+    dcc, html
 )
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
+
 import nifty_ls  # noqa: F401
 
 
@@ -210,14 +213,52 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
     classname = "zoom"
     classname = ""
 
-    graph = dcc.Graph(
-        id={"type": id_type, "id": title} if zoom else "undefined",
-        figure=fig,
-        style=style,
-        config={"displayModeBar": False},
-        className=classname,
-        responsive=True,
+    pixel_size = 0.2 # arcsec/pixel
+
+    # graph = html.Div(
+    #     [
+    #         dcc.Graph(
+    #             id={"type": id_type, "id": title} if zoom else "undefined",
+    #             figure=fig,
+    #             style=style,
+    #             config={"displayModeBar": False},
+    #             className=classname,
+    #             responsive=True,
+    #         ),
+    #         dmc.Center(
+    #             # dbc.Badge(
+    #             #     "{} pixels / {}''".format(shape[0], shape[0] * pixel_size),
+    #             #     color="light",
+    #             #     pill=True,
+    #             #     text_color="dark",
+    #             # ),
+    #             dmc.Badge(
+    #                 "{} pixels / {}''".format(shape[0], shape[0] * pixel_size),
+    #                 color="gray",
+    #                 variant="outline",
+    #                 size="md",
+    #                 # pill=True,
+    #                 # text_color="dark",
+    #             ),
+    #         )
+    #     ]
+    # )
+    graph = dmc.Indicator(
+        dcc.Graph(
+            id={"type": id_type, "id": title} if zoom else "undefined",
+            figure=fig,
+            style=style,
+            config={"displayModeBar": False},
+            className=classname,
+            responsive=True,
+        ),
+        color="blue",
+        variant="outline",
+	    position="bottom-center",
+        size=16,
+        label="{}px / {}''".format(shape[0], shape[0] * pixel_size),
     )
+
 
     return graph
 
