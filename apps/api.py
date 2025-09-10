@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Wrapper for the Fink REST API"""
 import io
 import requests
 import urllib
@@ -21,7 +22,25 @@ from apps.configuration import extract_configuration
 
 
 def request_api(endpoint, json=None, output="pandas", method="POST", **kwargs):
-    """Output is one of 'pandas' (default), 'raw' or 'json'"""
+    """Wrapper to query the Fink REST API
+
+    Parameters
+    ----------
+    endpoint: str
+        Path to an endpoint
+    json: dict
+        Payload containing input arguments for POST queries.
+        Default is None.
+    output: str
+        Output format among: pandas (default), raw, or json.
+    method: str
+        POST or GET
+
+    Returns
+    -------
+    out: Any
+        Format depends on `output`: DataFrame, bytes, or dictionary.
+    """
     args = extract_configuration("config.yml")
     APIURL = args["APIURL"]
     if method == "POST":
