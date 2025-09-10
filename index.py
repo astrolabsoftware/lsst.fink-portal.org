@@ -432,9 +432,13 @@ app.layout = dmc.MantineProvider(
     # theme={
     #     "primaryColor": "teal",
     #     "defaultRadius": "md",
-    #     "components": {"Card": {"defaultProps": {"shadow": "md"}}},
+    #     "components": {
+    #         "Card": {"defaultProps": {"shadow": "md"}},
+    #         "Div": {"defaultProps": {"shadow": "md"}}
+    #     },
     # },
-    # forceColorScheme="dark"
+    # forceColorScheme="dark",
+    # defaultColorScheme="dark"
 )
 
 
@@ -503,7 +507,10 @@ def display_page(pathname, searchurl):
         # theme={
         #     "primaryColor": "teal",
         #     "defaultRadius": "md",
-        #     "components": {"Card": {"defaultProps": {"shadow": "md"}}},
+        #     "components": {
+        #         "Card": {"defaultProps": {"shadow": "md"}},
+        #         "Div": {"defaultProps": {"shadow": "md"}}
+        #     },
         # },
         # forceColorScheme="dark",
         # defaultColorScheme="dark"

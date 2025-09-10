@@ -294,6 +294,7 @@ def display_skymap(data, columns, is_open):
                     cat, class_ + " ({})".format(n_alert_per_class[class_]), color
                 )
                 cats.append(cat)
+
             img += """{}.addSources([A.source({}, {}, {{diaObjectId: '{}', 'Last alert': '{}', 'Fink label': '{}'}})]);""".format(
                 cat, ra, dec, title, time_, class_
             )
