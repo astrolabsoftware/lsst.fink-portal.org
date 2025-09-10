@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""All functionalities for displaying results on the search page"""
 import io
 import dash
 from dash import (
@@ -27,32 +28,31 @@ from dash import (
     MATCH,
 )
 from dash.exceptions import PreventUpdate
-
-from apps.plotting import draw_cutouts_quickview
-from apps.plotting import draw_lightcurve_preview
-from apps.utils import class_colors
+import dash_mantine_components as dmc
+import dash_bootstrap_components as dbc
 
 import numpy as np
 import pandas as pd
 from dash_iconify import DashIconify
 
+from apps.configuration import extract_configuration
 from apps.helpers import help_popover, msg_info
 from apps.parse import parse_query
 from apps.dataclasses import simbad_types
 from apps.api import request_api
 from apps.utils import markdownify_objectid
+from apps.utils import class_colors
 from apps.cards import card_search_result
-from apps.configuration import extract_configuration
+from apps.plotting import draw_cutouts_quickview
+from apps.plotting import draw_lightcurve_preview
 
 from app import app
-import dash_mantine_components as dmc
-import dash_bootstrap_components as dbc
 
 
 def display_table_results(table):
     """Display explorer results in the form of a table with a dropdown menu on top to insert more data columns.
 
-    The dropdown menu options are taken from the client schema (ZTF & Fink). It also
+    The dropdown menu options are taken from the client schema (Rubin & Fink). It also
     contains other derived fields from the portal (fink_additional_fields).
 
     Parameters
@@ -310,6 +310,16 @@ def display_skymap(data, columns, is_open):
 
 
 def modal_skymap():
+    """Modal containing the Sky Map
+
+    Notes
+    -----
+    It uses visdcc to execute javascript from Aladin Lite
+
+    Returns
+    -------
+    out: Modal
+    """
     import visdcc
 
     button = dmc.Button(
@@ -361,7 +371,6 @@ def modal_skymap():
                 id="modal_skymap",
                 is_open=False,
                 size="lg",
-                # fullscreen="lg-down",
             ),
         ]
     )
@@ -515,6 +524,7 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
     State("results_table_switch", "checked"),
     # prevent_initial_call=True
     prevent_initial_call="initial_duplicate",
+    # FIXME: Hum, why this one is needed?
     _allow_dynamic_callbacks=True,
 )
 def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_table):
@@ -925,9 +935,8 @@ clientside_callback(
     ),
 )
 def on_load_lightcurve(lc_id):
-    # print(lc_id)
+    """Draw lightcurve on cards"""
     if lc_id:
-        print(lc_id)
         fig = draw_lightcurve_preview(lc_id["diaObjectId"])
         return dcc.Graph(
             figure=fig,
@@ -949,6 +958,7 @@ def on_load_lightcurve(lc_id):
     ),
 )
 def on_load_cutouts(lc_id):
+    """Display Science cutouts on cards"""
     if lc_id:
         return html.Div(
             draw_cutouts_quickview(lc_id["diaObjectId"]),
