@@ -40,7 +40,7 @@ from apps.helpers import help_popover, msg_info
 from apps.parse import parse_query
 from apps.dataclasses import simbad_types
 from apps.api import request_api
-from apps.utils import markdownify_objectid, convert_time
+from apps.utils import markdownify_objectid
 from apps.cards import card_search_result
 from apps.configuration import extract_configuration
 
@@ -275,9 +275,7 @@ def display_skymap(data, columns, is_open):
             pdf.groupby("v:classification").count().to_dict()["i:diaObjectId"]
         )
         cats = []
-        for ra, dec, time_, title, class_ in zip(
-            ras, decs, times, titles, classes
-        ):
+        for ra, dec, time_, title, class_ in zip(ras, decs, times, titles, classes):
             if class_ in simbad_types:
                 cat = "cat_{}".format(simbad_types.index(class_))
                 color = class_colors["Simbad"]
@@ -915,13 +913,15 @@ clientside_callback(
     prevent_initial_call=True,
 )
 
+
 @app.callback(
     Output(
         {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
         "children",
     ),
     Input(
-        {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH}, "id"
+        {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
+        "id",
     ),
 )
 def on_load_lightcurve(lc_id):
@@ -944,7 +944,9 @@ def on_load_lightcurve(lc_id):
         {"type": "search_results_cutouts", "diaObjectId": MATCH, "index": MATCH},
         "children",
     ),
-    Input({"type": "search_results_cutouts", "diaObjectId": MATCH, "index": MATCH}, "id"),
+    Input(
+        {"type": "search_results_cutouts", "diaObjectId": MATCH, "index": MATCH}, "id"
+    ),
 )
 def on_load_cutouts(lc_id):
     if lc_id:

@@ -17,13 +17,6 @@ import textwrap
 from dash import (
     html,
     dcc,
-    Input,
-    Output,
-    State,
-    no_update,
-    clientside_callback,
-    ALL,
-    MATCH,
 )
 
 import dash_bootstrap_components as dbc
@@ -32,10 +25,8 @@ import numpy as np
 import pandas as pd
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-from dash import dcc, html
 from fink_utils.photometry.utils import is_source_behind
 
-from app import app
 
 # from apps.plotting import all_radio_options
 from apps.dataclasses import simbad_types

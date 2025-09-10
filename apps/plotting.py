@@ -35,7 +35,14 @@ from apps.utils import convert_time
 
 # FIXME
 COLORS_LSST = ["#15284F", "#F5622E", "#15284F", "#F5622E", "#15284F", "#F5622E"]
-COLORS_LSST_NEGATIVE = ["#274667", "#F57A2E", "#274667", "#F57A2E", "#274667", "#F57A2E"]
+COLORS_LSST_NEGATIVE = [
+    "#274667",
+    "#F57A2E",
+    "#274667",
+    "#F57A2E",
+    "#274667",
+    "#F57A2E",
+]
 
 layout_lightcurve_preview = dict(
     automargin=True,
@@ -214,6 +221,7 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
 
     return graph
 
+
 def readstamp(stamp: str, return_type="array", gzipped=True) -> np.array:
     """Read the stamp data inside an alert.
 
@@ -250,6 +258,7 @@ def readstamp(stamp: str, return_type="array", gzipped=True) -> np.array:
     else:
         return extract_stamp(stamp)
 
+
 def plain_normalizer(
     img: list, vmin: float, vmax: float, stretch="linear", pmin=0.5, pmax=99.5
 ) -> list:
@@ -271,6 +280,7 @@ def plain_normalizer(
     data = (vmax - vmin) * data + vmin
 
     return data
+
 
 def _data_stretch(
     image,
@@ -322,6 +332,7 @@ def _data_stretch(
     # data = np.clip(data * 255., 0., 255.)
 
     return data  # .astype(np.uint8)
+
 
 def draw_lightcurve_preview(name) -> dict:
     """Draw object lightcurve with errorbars (SM view - DC mag fixed)
@@ -485,9 +496,7 @@ def draw_lightcurve_preview(name) -> dict:
                 "mode": "markers",
                 "name": f"{fname} band",
                 "customdata": np.stack(
-                    (
-                        pdf["i:midpointMjdTai"][idx],
-                    ),
+                    (pdf["i:midpointMjdTai"][idx],),
                     axis=-1,
                 ),
                 "hovertemplate": hovertemplate,
