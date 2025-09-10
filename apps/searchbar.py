@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Utilities for managing the Fink search bar"""
 import dash
 from dash import (
     html,
@@ -446,17 +447,3 @@ clientside_callback(
     Input("search_bar_clear", "n_clicks"),
     prevent_initial_call=True,
 )
-
-# Disable clear button for empty input field
-# clientside_callback(
-#    """
-#    function on_input(value) {
-#        if (value)
-#            return false;
-#        else
-#            return true;
-#    }
-#    """,
-#    Output("search_bar_clear", "disabled"),
-#    Input("search_bar_input", "value"),
-# )
