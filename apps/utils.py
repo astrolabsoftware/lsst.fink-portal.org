@@ -13,6 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Collection of utilities for the portal"""
+from dash import html
+import dash_mantine_components as dmc
+
+import numpy as np
+
 from astropy.time import Time
 
 # Colors for the Sky map & badges
@@ -66,3 +71,42 @@ def convert_time(time_in, format_in="mjd", format_out="iso", scale_in="tai"):
         Time in format `format_out`
     """
     return Time(time_in, format=format_in, scale=scale_in).to_value(format_out)
+
+def loading(item):
+    return html.Div(
+        [
+            item,
+            dmc.LoadingOverlay(
+                loaderProps={"variant": "dots", "color": "orange", "size": "xl"},
+                overlayProps={"radius": "sm", "blur": 2},
+                zIndex=100000,
+            ),
+        ]
+    )
+
+
+def flux_to_mag(flux, flux_err):
+    """Convert flux to magnitude (and errors)
+
+    Parameters
+    ----------
+    flux: array-like
+        Total flux in nJy
+    flux_err: array-like
+        Total flux error in nJy
+
+    Returns
+    -------
+    mag, mag_err: array-like
+    """
+    mag = 31.4 - 2.5 * np.log10(flux)
+    mag_err = 2.5 / np.log(10) * flux_err / flux
+
+    return mag, mag_err
+
+def get_first_value(pdf, colname, default=None):
+    """Get first value from given column of a DataFrame, or default value if not exists."""
+    if colname in pdf.columns:
+        return pdf.loc[0, colname]
+    else:
+        return default

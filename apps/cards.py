@@ -14,8 +14,8 @@
 # limitations under the License.
 """Various cards in the portal"""
 import textwrap
-
-from dash import html, dcc
+import io
+from dash import html, dcc, Output, Input, State
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -28,10 +28,24 @@ from astropy.time import Time
 
 from fink_utils.photometry.utils import is_source_behind
 
+from apps.api import request_api
 from apps.dataclasses import simbad_types
 from apps.utils import class_colors
+from apps.utils import convert_time
+from apps.utils import loading
+
+from apps.utils import get_first_value
+from apps.plotting import all_radio_options, make_modal_stamps
+from apps.helpers import help_popover, lc_help
+from dash_iconify import DashIconify
+
+# Callbacks
+from apps.plotting import draw_lightcurve  # noqa: F401
+from apps.plotting import draw_cutouts  # noqa: F401
 
 from apps.configuration import extract_configuration
+
+from app import app
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
@@ -504,142 +518,582 @@ def get_multi_labels(pdf, colname, default=None, to_avoid=None):
         return default
 
 
-# lc_help = r"""
-# ##### Difference magnitude
+def card_lightcurve_summary():
+    """Add a card containing the lightcurve
 
-# Circles (&#9679;) with error bars show valid alerts that pass the Fink quality cuts.
-# In addition, the _Difference magnitude_ view shows:
-# - upper triangles with errors (&#9650;), representing alert measurements that do not satisfy Fink quality cuts, but are nevetheless contained in the history of valid alerts and used by classifiers.
-# - lower triangles (&#9661;), representing 5-sigma magnitude limit in difference image based on PSF-fit photometry contained in the history of valid alerts.
+    Returns
+    -------
+    card: dbc.Card
+        Card with the lightcurve drawn inside
+    """
+    card = html.Div(
+        [
+            loading(
+                dcc.Graph(
+                    id="lightcurve_object_page",
+                    style={
+                        "width": "100%",
+                        "height": "30pc",
+                    },
+                    config={"displayModeBar": False},
+                    className="mb-2 rounded-5",
+                ),
+            ),
+            dmc.Stack(
+                [
+                    dmc.Group(
+                        [
+                            dmc.RadioGroup(
+                                id="switch-mag-flux",
+                                children=dmc.Group(
+                                    [
+                                        dmc.Radio(k, value=k, color="orange")
+                                        for k in all_radio_options.keys()
+                                    ]
+                                ),
+                                value="Total flux",
+                                size="sm",
+                            ),
+                        ],
+                        justify="center",
+                        align="center",
+                    ),
+                    dmc.Group(
+                        [
+                            dmc.Switch(
+                                "Color",
+                                id="lightcurve_show_color",
+                                color="gray",
+                                radius="xl",
+                                size="sm",
+                                persistence=True,
+                            ),
+                            dmc.Button(
+                                "Get DR photometry",
+                                id={
+                                    "type": "lightcurve_request_release",
+                                    "name": "main",
+                                },
+                                variant="outline",
+                                color="gray",
+                                radius="xl",
+                                size="xs",
+                            ),
+                            help_popover(
+                                dcc.Markdown(
+                                    lc_help,
+                                    mathjax=True,
+                                ),
+                                "help_lc",
+                                trigger=dmc.ActionIcon(
+                                    DashIconify(icon="mdi:help"),
+                                    id="help_lc",
+                                    color="gray",
+                                    variant="outline",
+                                    radius="xl",
+                                    size="md",
+                                ),
+                            ),
+                        ],
+                        justify="center",
+                        align="center",
+                    ),
+                ]
+            ),
+        ],
+    )
+    return card  # dmc.Paper([comp1, comp2, comp3]) #card
 
-# If the `Color` switch is turned on, the view also shows the panel with `g - r` color, estimated by combining nearby (closer than 0.3 days) measurements in two filters.
+def card_id(pdf):
+    """Add a card containing basic alert data"""
+    diaObjectid = pdf["i:diaObjectId"].to_numpy()[0]
+    ra0 = pdf["i:ra"].to_numpy()[0]
+    dec0 = pdf["i:dec"].to_numpy()[0]
 
-# ##### DC magnitude
-# DC magnitude is computed by combining the nearest reference image catalog magnitude (`magnr`),
-# differential magnitude (`magpsf`), and `isdiffpos` (positive or negative difference image detection) as follows:
-# $$
-# m_{DC} = -2.5\log_{10}(10^{-0.4m_{magnr}} + \texttt{sign} 10^{-0.4m_{magpsf}})
-# $$
+    python_download = f"""import requests
+import pandas as pd
+import io
 
-# where `sign` = 1 if `isdiffpos` = 't' or `sign` = -1 if `isdiffpos` = 'f'.
-# Before using the nearest reference image source magnitude (`magnr`), you will need
-# to ensure the source is close enough to be considered an association
-# (e.g., `distnr` $\leq$ 1.5 arcsec). It is also advised you check the other associated metrics
-# (`chinr` and/or `sharpnr`) to ensure it is a point source. ZTF recommends
-# 0.5 $\leq$ `chinr` $\leq$ 1.5 and/or -0.5 $\leq$ `sharpnr` $\leq$ 0.5.
+# get lightcurve data for {diaObjectid}
+r = requests.post(
+    '{APIURL}/api/v1/sources',
+    json={{
+        'diaObjectId': '{diaObjectid}',
+        'output-format': 'json'
+    }}
+)
 
-# The view also shows, with dashed horizontal lines, the levels corresponding to the magnitudes of the nearest reference image catalog entry (`magnr`) used in computing DC magnitudes.
+# Format output in a DataFrame
+pdf = pd.read_json(io.BytesIO(r.content))"""
 
-# This view may be augmented with the photometric points from [ZTF Data Releases](https://www.ztf.caltech.edu/ztf-public-releases.html) by clicking `Get DR photometry` button. The points will be shown with semi-transparent dots (&#8226;).
+    curl_download = f"""
+curl -H "Content-Type: application/json" -X POST \\
+    -d '{{"diaObjectid":"{diaObjectid}", "output-format":"csv"}}' \\
+    {APIURL}/api/v1/sources \\
+    -o {diaObjectid}.csv
+    """
 
-# ##### Difference flux
-# Difference flux (in Jansky) is constructed from difference magnitude by using the following:
-# $$
-# f = 3631 \times \texttt{sign} 10^{-0.4m_{magpsf}}
-# $$
-# where `sign` = 1 if `isdiffpos` = 't' or `sign` = -1 if `isdiffpos` = 'f'.
+    download_tab = dmc.Tabs(
+        [
+            dmc.TabsList(
+                [
+                    dmc.TabsTab("Python", value="Python"),
+                    dmc.TabsTab("Curl", value="Curl"),
+                ],
+            ),
+            dmc.TabsPanel(
+                dmc.CodeHighlight(code=python_download, language="python"),
+                value="Python",
+            ),
+            dmc.TabsPanel(
+                children=dmc.CodeHighlight(code=curl_download, language="bash"),
+                value="Curl",
+            ),
+        ],
+        color="red",
+        value="Python",
+    )
 
-# This view also shows the photometry from ZTF Data Releases (see above), which is converted to fluxes using the same formula. Then, the "baseline" flux, which is computed from the nearest reference image catalog magnitude (`magnr`), is subtracted from it, so that the value represent the flux variation w.r.t. the template image, i.e. the difference flux.
+    card = dmc.Accordion(
+        multiple=True,
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Alert cutouts",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:flare",
+                                color=dmc.DEFAULT_THEME["colors"]["dark"][6],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        [
+                            loading(
+                                dmc.Paper(
+                                    [
+                                        dbc.Row(
+                                            dmc.Skeleton(
+                                                style={
+                                                    "width": "100%",
+                                                    "aspect-ratio": "3/1",
+                                                }
+                                            ),
+                                            id="stamps",
+                                            justify="around",
+                                            className="g-0",
+                                        ),
+                                    ],
+                                    radius="sm",
+                                    shadow="sm",
+                                    withBorder=True,
+                                    style={"padding": "0px"},
+                                ),
+                            ),
+                            dmc.Space(h=10),
+                            *make_modal_stamps(pdf),
+                        ],
+                    ),
+                ],
+                value="stamps",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Alert content",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:file-description",
+                                color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        html.Div([], id="alert_table"),
+                    ),
+                ],
+                value="last_alert",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Coordinates",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:target",
+                                color=dmc.DEFAULT_THEME["colors"]["orange"][6],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        [
+                            html.Div(id="coordinates"),
+                            dmc.Center(
+                                dmc.RadioGroup(
+                                    id="coordinates_chips",
+                                    value="EQU",
+                                    size="sm",
+                                    children=dmc.Group(
+                                        [
+                                            dmc.Radio(k, value=k, color="orange")
+                                            for k in ["EQU", "GAL"]
+                                        ]
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+                value="coordinates",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Download data",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:database-export",
+                                color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        html.Div(
+                            [
+                                dmc.Group(
+                                    [
+                                        dmc.Button(
+                                            "JSON",
+                                            id="download_json",
+                                            variant="outline",
+                                            color="indigo",
+                                            size="compact-sm",
+                                            leftSection=DashIconify(
+                                                icon="mdi:code-json"
+                                            ),
+                                        ),
+                                        dmc.Button(
+                                            "CSV",
+                                            id="download_csv",
+                                            variant="outline",
+                                            color="indigo",
+                                            size="compact-sm",
+                                            leftSection=DashIconify(
+                                                icon="mdi:file-csv-outline"
+                                            ),
+                                        ),
+                                        dmc.Button(
+                                            "VOTable",
+                                            id="download_votable",
+                                            variant="outline",
+                                            color="indigo",
+                                            size="compact-sm",
+                                            leftSection=DashIconify(icon="mdi:xml"),
+                                        ),
+                                        help_popover(
+                                            [
+                                                dcc.Markdown(
+                                                    "You may also download the data programmatically."
+                                                ),
+                                                download_tab,
+                                                dcc.Markdown(
+                                                    f"See {APIURL} for more options"
+                                                ),
+                                            ],
+                                            "help_download",
+                                            trigger=dmc.ActionIcon(
+                                                DashIconify(icon="mdi:help"),
+                                                id="help_download",
+                                                variant="outline",
+                                                color="indigo",
+                                            ),
+                                        ),
+                                        html.Div(
+                                            diaObjectid,
+                                            id="download_objectid",
+                                            className="d-none",
+                                        ),
+                                        html.Div(
+                                            APIURL,
+                                            id="download_apiurl",
+                                            className="d-none",
+                                        ),
+                                    ],
+                                    align="center",
+                                    justify="center",
+                                    gap="xs",
+                                ),
+                            ],
+                        ),
+                    ),
+                ],
+                value="api",
+            ),
+            # dmc.AccordionItem(
+            #     [
+            #         dmc.AccordionControl(
+            #             "Neighbourhood",
+            #             icon=[
+            #                 DashIconify(
+            #                     icon="tabler:external-link",
+            #                     color="#15284F",
+            #                     width=20,
+            #                 ),
+            #             ],
+            #         ),
+            #         dmc.AccordionPanel(
+            #             dmc.Stack(
+            #                 [
+            #                     card_neighbourhood(pdf),
+            #                     *create_external_conesearches(ra0, dec0),
+            #                 ],
+            #                 align="center",
+            #             ),
+            #         ),
+            #     ],
+            #     value="external",
+            # ),
+            # dmc.AccordionItem(
+            #     [
+            #         dmc.AccordionControl(
+            #             "Other brokers",
+            #             icon=[
+            #                 DashIconify(
+            #                     icon="tabler:atom-2",
+            #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
+            #                     width=20,
+            #                 ),
+            #             ],
+            #         ),
+            #         dmc.AccordionPanel(
+            #             dmc.Stack(
+            #                 [
+            #                     create_external_links_brokers(objectid),
+            #                 ],
+            #                 align="center",
+            #             ),
+            #         ),
+            #     ],
+            #     value="external_brokers",
+            # ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Share",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:share",
+                                color=dmc.DEFAULT_THEME["colors"]["gray"][6],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        [
+                            dmc.Center(
+                                html.Div(id="qrcode"),
+                                style={"width": "100%", "height": "200"},
+                            ),
+                        ],
+                    ),
+                ],
+                value="qr",
+            ),
+        ],
+        value=["stamps"],
+        styles={"content": {"padding": "5px"}},
+    )
 
-# Note that we display the flux in milli-Jansky.
+    return card
 
-# ##### DC flux
-# DC flux (in Jansky) is constructed from DC magnitude by using the following:
-# $$
-# f_{DC} = 3631 \times 10^{-0.4m_{DC}}
-# $$
+@app.callback(
+    Output("card_id_left", "children"),
+    [
+        Input("object-data", "data"),
+    ],
+    prevent_initial_call=True,
+)
+def card_id_left(object_data):
+    """Add a card containing basic alert data"""
+    pdf = pd.read_json(io.StringIO(object_data), dtype={"i:diaObjectId": np.int64, "i:diaSourceId": np.int64})
 
-# This view also shows the fluxes from ZTF Data Releases, without any baseline correction.
+    diaObjectid = pdf["i:diaObjectId"].to_numpy()[0]
 
-# Note that we display the flux in milli-Jansky.
-# """
+    # FIXME
+    date_end = convert_time(pdf["i:midpointMjdTai"].to_numpy()[0], format_in="mjd", format_out="iso")
+    discovery_date = convert_time(pdf["i:midpointMjdTai"].to_numpy()[-1], format_in="mjd", format_out="iso")
+    mjds = pdf["i:midpointMjdTai"].to_numpy()
+    ndet = len(pdf)
+
+    badges = []
+    for c in np.unique(pdf["d:finkclass"]):
+        if c in simbad_types:
+            color = class_colors["Simbad"]
+        elif c in class_colors.keys():
+            color = class_colors[c]
+        else:
+            # Sometimes SIMBAD mess up names :-)
+            color = class_colors["Simbad"]
+
+        badges.append(
+            make_badge(
+                c,
+                color=color,
+                tooltip="Fink classification",
+            ),
+        )
+
+    tns_badge = generate_tns_badge(get_first_value(pdf, "i:diaObjectId"))
+    if tns_badge is not None:
+        badges.append(tns_badge)
+
+    badges += generate_generic_badges(pdf, variant="dot")
+
+    meta_name = generate_metadata_name(get_first_value(pdf, "i:diaObjectId"))
+    if meta_name is not None:
+        extra_div = dbc.Row(
+            [
+                dbc.Col(
+                    dmc.Title(meta_name, order=4, style={"color": "#15284F"}), width=10
+                ),
+            ],
+            justify="start",
+            align="center",
+        )
+    else:
+        extra_div = html.Div()
+
+    coords = SkyCoord(
+        get_first_value(pdf, "i:ra"), get_first_value(pdf, "i:dec"), unit="deg"
+    )
+
+    c1 = dmc.Avatar(src="/assets/Fink_SecondaryLogo_WEB.png", size="lg")
+    c2 = dmc.Title(
+        str(diaObjectid), order=1, style={"color": "#15284F", "wordWrap": "break-word"}
+    )
+    card = dmc.Paper(
+        [
+            dmc.Grid(
+                [dmc.GridCol(c1, span="content"), dmc.GridCol(c2, span="auto")],
+                gutter="xs",
+            ),
+            extra_div,
+            html.Div(badges),
+            dcc.Markdown(
+                """
+                Discovery date: `{}`
+                Last detection: `{}`
+                SNR: `{:.2f}`
+                Duration: `{:.2f}` days
+                Number of detections: `{}`
+                RA/Dec: `{} {}`
+                """.format(
+                    discovery_date[:19],
+                    date_end[:19],
+                    pdf["i:snr"].to_numpy()[0],
+                    mjds[0] - mjds[-1],
+                    # get_first_value(pdf, "i:last") # FIXME with first/last
+                    # - get_first_value(pdf, "i:first"),
+                    ndet,
+                    coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
+                    coords.dec.to_string(
+                        pad=True, unit="deg", alwayssign=True, precision=1, sep=" "
+                    ),
+                ),
+                className="markdown markdown-pre ps-2 pe-2 mt-2",
+            ),
+        ],
+        radius="xl",
+        p="md",
+        shadow="xl",
+        withBorder=True,
+    )
+    return card
+
+def generate_tns_badge(oid):
+    """Generate TNS badge
+
+    Parameters
+    ----------
+    oid: str
+        LSST object ID
+
+    Returns
+    -------
+    badge: dmc.Badge or None
+    """
+    r = request_api(
+        "/api/v1/resolver",
+        json={
+            "resolver": "tns",
+            "name": str(oid),
+            "reverse": True,
+        },
+        output="json",
+    )
+
+    if r != []:
+        entries = [i["d:fullname"] for i in r]
+        if len(entries) > 1:
+            # AT & SN?
+            try:
+                # Keep SN
+                index = [i.startswith("SN") for i in entries].index(True)
+            except ValueError:
+                # no SN in list -- take the first one (most recent)
+                index = 0
+        else:
+            index = 0
+
+        payload = r[index]
+
+        if payload["d:type"] != "nan":
+            msg = "TNS: {} ({})".format(payload["d:fullname"], payload["d:type"])
+        else:
+            msg = "TNS: {}".format(payload["d:fullname"])
+        badge = make_badge(
+            msg,
+            color="red",
+            tooltip="Transient Name Server classification",
+        )
+    else:
+        badge = None
+
+    return badge
 
 
-# def card_lightcurve_summary():
-#     """Add a card containing the lightcurve
+def generate_metadata_name(oid):
+    """Generate name from metadata
 
-#     Returns
-#     -------
-#     card: dbc.Card
-#         Card with the lightcurve drawn inside
-#     """
-#     card = dmc.Paper(
-#         [
-#             loading(
-#                 dcc.Graph(
-#                     id="lightcurve_cutouts",
-#                     style={
-#                         "width": "100%",
-#                         "height": "30pc",
-#                     },
-#                     config={"displayModeBar": False},
-#                     className="mb-2",
-#                 ),
-#             ),
-#             dmc.Stack(
-#                 [
-#                     dmc.Group(
-#                         [
-#                             dmc.RadioGroup(
-#                                 id="switch-mag-flux",
-#                                 children=dmc.Group(
-#                                     [
-#                                         dmc.Radio(k, value=k, color="orange")
-#                                         for k in all_radio_options.keys()
-#                                     ]
-#                                 ),
-#                                 value="Difference magnitude",
-#                                 size="sm",
-#                             ),
-#                         ],
-#                         justify="center",
-#                         align="center",
-#                     ),
-#                     dmc.Group(
-#                         [
-#                             dmc.Switch(
-#                                 "Color",
-#                                 id="lightcurve_show_color",
-#                                 color="gray",
-#                                 radius="xl",
-#                                 size="sm",
-#                                 persistence=True,
-#                             ),
-#                             dmc.Button(
-#                                 "Get DR photometry",
-#                                 id={
-#                                     "type": "lightcurve_request_release",
-#                                     "name": "main",
-#                                 },
-#                                 variant="outline",
-#                                 color="gray",
-#                                 radius="xl",
-#                                 size="xs",
-#                             ),
-#                             help_popover(
-#                                 dcc.Markdown(
-#                                     lc_help,
-#                                     mathjax=True,
-#                                 ),
-#                                 "help_lc",
-#                                 trigger=dmc.ActionIcon(
-#                                     DashIconify(icon="mdi:help"),
-#                                     id="help_lc",
-#                                     color="gray",
-#                                     variant="outline",
-#                                     radius="xl",
-#                                     size="md",
-#                                 ),
-#                             ),
-#                         ],
-#                         justify="center",
-#                         align="center",
-#                     ),
-#                 ]
-#             ),
-#         ],
-#     )
-#     return card  # dmc.Paper([comp1, comp2, comp3]) #card
+    Parameters
+    ----------
+    oid: str
+        LSST object ID
+
+    Returns
+    -------
+    name: str
+    """
+    r = request_api(
+        "/api/v1/metadata",
+        json={
+            "diaObjectId": str(oid),
+        },
+        method="GET",
+        output="json",
+    )
+
+    if r != []:
+        name = r[0]["d:internal_name"]
+    else:
+        name = None
+
+    return name
 
 
 # def card_explanation_xmatch():
@@ -817,726 +1271,58 @@ def get_multi_labels(pdf, colname, default=None, to_avoid=None):
 
 #     return card
 
-
-# def make_modal_stamps(pdf):
-#     return [
-#         dbc.Modal(
-#             [
-#                 dbc.ModalHeader(
-#                     [
-#                         dmc.ActionIcon(
-#                             DashIconify(icon="tabler:chevron-left"),
-#                             id="stamps_prev",
-#                             # title="Next alert",
-#                             n_clicks=0,
-#                             variant="default",
-#                             size=36,
-#                             color="gray",
-#                             className="me-1",
-#                         ),
-#                         dmc.Select(
-#                             label="",
-#                             placeholder="Select a date",
-#                             searchable=True,
-#                             nothingFoundMessage="No options found",
-#                             id="date_modal_select",
-#                             value=pdf["v:lastdate"].to_numpy()[0],
-#                             data=[
-#                                 {"value": i, "label": i}
-#                                 for i in pdf["v:lastdate"].to_numpy()
-#                             ],
-#                             style={"z-index": 10000000},
-#                         ),
-#                         dmc.ActionIcon(
-#                             DashIconify(icon="tabler:chevron-right"),
-#                             id="stamps_next",
-#                             # title="Previous alert",
-#                             n_clicks=0,
-#                             variant="default",
-#                             size=36,
-#                             color="gray",
-#                             className="ms-1",
-#                         ),
-#                     ],
-#                     close_button=True,
-#                     className="p-2 pe-4",
-#                 ),
-#                 loading(
-#                     dbc.ModalBody(
-#                         [
-#                             dbc.Row(
-#                                 id="stamps_modal_content",
-#                                 justify="around",
-#                                 className="g-0 mx-auto",
-#                             ),
-#                         ],
-#                     )
-#                 ),
-#             ],
-#             id="stamps_modal",
-#             scrollable=True,
-#             centered=True,
-#             size="xl",
-#             # style={'max-width': '800px'}
-#         ),
-#         dmc.Center(
-#             dmc.ActionIcon(
-#                 DashIconify(icon="tabler:arrows-maximize"),
-#                 id="maximise_stamps",
-#                 n_clicks=0,
-#                 variant="default",
-#                 radius=30,
-#                 size=36,
-#                 color="gray",
-#             ),
-#         ),
-#     ]
+# Downloads handling. Requires CORS to be enabled on the server.
+# TODO: We are mostly using it like this until GET requests properly initiate
+# downloads instead of just opening the file (so, Content-Disposition etc)
+download_js = """
+function(n_clicks, name, apiurl){
+    if(n_clicks > 0){
+        fetch(apiurl + '/api/v1/sources', {
+            method: 'POST',
+            body: JSON.stringify({
+                 'diaObjectId': name,
+                 'withupperlim': true,
+                 'output-format': '$FORMAT'
+            }),
+            headers: {
+                'Content-type': 'application/json'
+            }
+        }).then(function(response) {
+            return response.blob();
+        }).then(function(data) {
+            window.saveAs(data, name + '.$EXTENSION');
+        }).catch(error => console.error('Error:', error));
+    };
+    return true;
+}
+"""
+app.clientside_callback(
+    download_js.replace("$FORMAT", "json").replace("$EXTENSION", "json"),
+    Output("download_json", "n_clicks"),
+    [
+        Input("download_json", "n_clicks"),
+        Input("download_objectid", "children"),
+        Input("download_apiurl", "children"),
+    ],
+)
+app.clientside_callback(
+    download_js.replace("$FORMAT", "csv").replace("$EXTENSION", "csv"),
+    Output("download_csv", "n_clicks"),
+    [
+        Input("download_csv", "n_clicks"),
+        Input("download_objectid", "children"),
+        Input("download_apiurl", "children"),
+    ],
+)
+app.clientside_callback(
+    download_js.replace("$FORMAT", "votable").replace("$EXTENSION", "vot"),
+    Output("download_votable", "n_clicks"),
+    [
+        Input("download_votable", "n_clicks"),
+        Input("download_objectid", "children"),
+        Input("download_apiurl", "children"),
+    ],
+)
 
 
-# # Toggle stamps modal
-# clientside_callback(
-#     """
-#     function toggle_stamps_modal(n_clicks, is_open) {
-#         return !is_open;
-#     }
-#     """,
-#     Output("stamps_modal", "is_open"),
-#     Input("maximise_stamps", "n_clicks"),
-#     State("stamps_modal", "is_open"),
-#     prevent_initial_call=True,
-# )
 
-# # Prev/Next for stamps modal
-# clientside_callback(
-#     """
-#     function stamps_prev_next(n_clicks_prev, n_clicks_next, clickData, value, data) {
-#         let id = data.findIndex((x) => x.value === value);
-#         let step = 1;
-
-#         const triggered = dash_clientside.callback_context.triggered.map(t => t.prop_id);
-
-#         if (triggered == 'lightcurve_cutouts.clickData')
-#             return clickData.points[0].x;
-
-#         if (triggered == 'stamps_prev.n_clicks')
-#             step = -1;
-
-#         id += step;
-#         if (step > 0 && id >= data.length)
-#             id = 0;
-#         if (step < 0 && id < 0)
-#             id = data.length - 1;
-
-#         return data[id].value;
-#     }
-#     """,
-#     Output("date_modal_select", "value"),
-#     [
-#         Input("stamps_prev", "n_clicks"),
-#         Input("stamps_next", "n_clicks"),
-#         Input("lightcurve_cutouts", "clickData"),
-#     ],
-#     State("date_modal_select", "value"),
-#     State("date_modal_select", "data"),
-#     prevent_initial_call=True,
-# )
-
-
-# def card_id(pdf):
-#     """Add a card containing basic alert data"""
-#     objectid = pdf["i:objectId"].to_numpy()[0]
-#     ra0 = pdf["i:ra"].to_numpy()[0]
-#     dec0 = pdf["i:dec"].to_numpy()[0]
-
-#     python_download = f"""import requests
-# import pandas as pd
-# import io
-
-# # get data for {objectid}
-# r = requests.post(
-#     '{APIURL}/api/v1/objects',
-#     json={{
-#         'objectId': '{objectid}',
-#         'output-format': 'json'
-#     }}
-# )
-
-# # Format output in a DataFrame
-# pdf = pd.read_json(io.BytesIO(r.content))"""
-
-#     curl_download = f"""
-# curl -H "Content-Type: application/json" -X POST \\
-#     -d '{{"objectId":"{objectid}", "output-format":"csv"}}' \\
-#     {APIURL}/api/v1/objects \\
-#     -o {objectid}.csv
-#     """
-
-#     download_tab = dmc.Tabs(
-#         [
-#             dmc.TabsList(
-#                 [
-#                     dmc.TabsTab("Python", value="Python"),
-#                     dmc.TabsTab("Curl", value="Curl"),
-#                 ],
-#             ),
-#             dmc.TabsPanel(
-#                 dmc.CodeHighlight(code=python_download, language="python"),
-#                 value="Python",
-#             ),
-#             dmc.TabsPanel(
-#                 children=dmc.CodeHighlight(code=curl_download, language="bash"),
-#                 value="Curl",
-#             ),
-#         ],
-#         color="red",
-#         value="Python",
-#     )
-
-#     card = dmc.Accordion(
-#         multiple=True,
-#         children=[
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Alert cutouts",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:flare",
-#                                 color=dmc.DEFAULT_THEME["colors"]["dark"][6],
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         [
-#                             loading(
-#                                 dmc.Paper(
-#                                     [
-#                                         dbc.Row(
-#                                             dmc.Skeleton(
-#                                                 style={
-#                                                     "width": "100%",
-#                                                     "aspect-ratio": "3/1",
-#                                                 }
-#                                             ),
-#                                             id="stamps",
-#                                             justify="around",
-#                                             className="g-0",
-#                                         ),
-#                                     ],
-#                                     radius="sm",
-#                                     shadow="sm",
-#                                     withBorder=True,
-#                                     style={"padding": "5px"},
-#                                 ),
-#                             ),
-#                             dmc.Space(h=4),
-#                             *make_modal_stamps(pdf),
-#                         ],
-#                     ),
-#                 ],
-#                 value="stamps",
-#             ),
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Alert content",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:file-description",
-#                                 color=dmc.DEFAULT_THEME["colors"]["blue"][6],
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         html.Div([], id="alert_table"),
-#                     ),
-#                 ],
-#                 value="last_alert",
-#             ),
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Coordinates",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:target",
-#                                 color=dmc.DEFAULT_THEME["colors"]["orange"][6],
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         [
-#                             html.Div(id="coordinates"),
-#                             dmc.Center(
-#                                 dmc.RadioGroup(
-#                                     id="coordinates_chips",
-#                                     value="EQU",
-#                                     size="sm",
-#                                     children=dmc.Group(
-#                                         [
-#                                             dmc.Radio(k, value=k, color="orange")
-#                                             for k in ["EQU", "GAL"]
-#                                         ]
-#                                     ),
-#                                 ),
-#                             ),
-#                         ],
-#                     ),
-#                 ],
-#                 value="coordinates",
-#             ),
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Download data",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:database-export",
-#                                 color=dmc.DEFAULT_THEME["colors"]["red"][6],
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         html.Div(
-#                             [
-#                                 dmc.Group(
-#                                     [
-#                                         dmc.Button(
-#                                             "JSON",
-#                                             id="download_json",
-#                                             variant="outline",
-#                                             color="indigo",
-#                                             size="compact-sm",
-#                                             leftSection=DashIconify(
-#                                                 icon="mdi:code-json"
-#                                             ),
-#                                         ),
-#                                         dmc.Button(
-#                                             "CSV",
-#                                             id="download_csv",
-#                                             variant="outline",
-#                                             color="indigo",
-#                                             size="compact-sm",
-#                                             leftSection=DashIconify(
-#                                                 icon="mdi:file-csv-outline"
-#                                             ),
-#                                         ),
-#                                         dmc.Button(
-#                                             "VOTable",
-#                                             id="download_votable",
-#                                             variant="outline",
-#                                             color="indigo",
-#                                             size="compact-sm",
-#                                             leftSection=DashIconify(icon="mdi:xml"),
-#                                         ),
-#                                         help_popover(
-#                                             [
-#                                                 dcc.Markdown(
-#                                                     "You may also download the data programmatically."
-#                                                 ),
-#                                                 download_tab,
-#                                                 dcc.Markdown(
-#                                                     f"See {APIURL} for more options"
-#                                                 ),
-#                                             ],
-#                                             "help_download",
-#                                             trigger=dmc.ActionIcon(
-#                                                 DashIconify(icon="mdi:help"),
-#                                                 id="help_download",
-#                                                 variant="outline",
-#                                                 color="indigo",
-#                                             ),
-#                                         ),
-#                                         html.Div(
-#                                             objectid,
-#                                             id="download_objectid",
-#                                             className="d-none",
-#                                         ),
-#                                         html.Div(
-#                                             APIURL,
-#                                             id="download_apiurl",
-#                                             className="d-none",
-#                                         ),
-#                                     ],
-#                                     align="center",
-#                                     justify="center",
-#                                     gap="xs",
-#                                 ),
-#                             ],
-#                         ),
-#                     ),
-#                 ],
-#                 value="api",
-#             ),
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Neighbourhood",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:external-link",
-#                                 color="#15284F",
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         dmc.Stack(
-#                             [
-#                                 card_neighbourhood(pdf),
-#                                 *create_external_conesearches(ra0, dec0),
-#                             ],
-#                             align="center",
-#                         ),
-#                     ),
-#                 ],
-#                 value="external",
-#             ),
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Other brokers",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:atom-2",
-#                                 color=dmc.DEFAULT_THEME["colors"]["green"][6],
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         dmc.Stack(
-#                             [
-#                                 create_external_links_brokers(objectid),
-#                             ],
-#                             align="center",
-#                         ),
-#                     ),
-#                 ],
-#                 value="external_brokers",
-#             ),
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Share",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:share",
-#                                 color=dmc.DEFAULT_THEME["colors"]["gray"][6],
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         [
-#                             dmc.Center(
-#                                 html.Div(id="qrcode"),
-#                                 style={"width": "100%", "height": "200"},
-#                             ),
-#                         ],
-#                     ),
-#                 ],
-#                 value="qr",
-#             ),
-#         ],
-#         value=["stamps"],
-#         styles={"content": {"padding": "5px"}},
-#     )
-
-#     return card
-
-
-# # Downloads handling. Requires CORS to be enabled on the server.
-# # TODO: We are mostly using it like this until GET requests properly initiate
-# # downloads instead of just opening the file (so, Content-Disposition etc)
-# download_js = """
-# function(n_clicks, name, apiurl){
-#     if(n_clicks > 0){
-#         fetch(apiurl + '/api/v1/objects', {
-#             method: 'POST',
-#             body: JSON.stringify({
-#                  'objectId': name,
-#                  'withupperlim': true,
-#                  'output-format': '$FORMAT'
-#             }),
-#             headers: {
-#                 'Content-type': 'application/json'
-#             }
-#         }).then(function(response) {
-#             return response.blob();
-#         }).then(function(data) {
-#             window.saveAs(data, name + '.$EXTENSION');
-#         }).catch(error => console.error('Error:', error));
-#     };
-#     return true;
-# }
-# """
-# app.clientside_callback(
-#     download_js.replace("$FORMAT", "json").replace("$EXTENSION", "json"),
-#     Output("download_json", "n_clicks"),
-#     [
-#         Input("download_json", "n_clicks"),
-#         Input("download_objectid", "children"),
-#         Input("download_apiurl", "children"),
-#     ],
-# )
-# app.clientside_callback(
-#     download_js.replace("$FORMAT", "csv").replace("$EXTENSION", "csv"),
-#     Output("download_csv", "n_clicks"),
-#     [
-#         Input("download_csv", "n_clicks"),
-#         Input("download_objectid", "children"),
-#         Input("download_apiurl", "children"),
-#     ],
-# )
-# app.clientside_callback(
-#     download_js.replace("$FORMAT", "votable").replace("$EXTENSION", "vot"),
-#     Output("download_votable", "n_clicks"),
-#     [
-#         Input("download_votable", "n_clicks"),
-#         Input("download_objectid", "children"),
-#         Input("download_apiurl", "children"),
-#     ],
-# )
-
-
-# def generate_tns_badge(oid):
-#     """Generate TNS badge
-
-#     Parameters
-#     ----------
-#     oid: str
-#         ZTF object ID
-
-#     Returns
-#     -------
-#     badge: dmc.Badge or None
-#     """
-#     r = request_api(
-#         "/api/v1/resolver",
-#         json={
-#             "resolver": "tns",
-#             "name": oid,
-#             "reverse": True,
-#         },
-#         output="json",
-#     )
-
-#     if r != []:
-#         entries = [i["d:fullname"] for i in r]
-#         if len(entries) > 1:
-#             # AT & SN?
-#             try:
-#                 # Keep SN
-#                 index = [i.startswith("SN") for i in entries].index(True)
-#             except ValueError:
-#                 # no SN in list -- take the first one (most recent)
-#                 index = 0
-#         else:
-#             index = 0
-
-#         payload = r[index]
-
-#         if payload["d:type"] != "nan":
-#             msg = "TNS: {} ({})".format(payload["d:fullname"], payload["d:type"])
-#         else:
-#             msg = "TNS: {}".format(payload["d:fullname"])
-#         badge = make_badge(
-#             msg,
-#             color="red",
-#             tooltip="Transient Name Server classification",
-#         )
-#     else:
-#         badge = None
-
-#     return badge
-
-
-# def generate_metadata_name(oid):
-#     """Generate name from metadata
-
-#     Parameters
-#     ----------
-#     oid: str
-#         ZTF object ID
-
-#     Returns
-#     -------
-#     name: str
-#     """
-#     r = request_api(
-#         "/api/v1/metadata",
-#         json={
-#             "objectId": oid,
-#         },
-#         method="GET",
-#         output="json",
-#     )
-
-#     if r != []:
-#         name = r[0]["d:internal_name"]
-#     else:
-#         name = None
-
-#     return name
-
-
-# @app.callback(
-#     Output("card_id_left", "children"),
-#     [
-#         Input("object-data", "data"),
-#         Input("object-uppervalid", "data"),
-#         Input("object-upper", "data"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def card_id1(object_data, object_uppervalid, object_upper):
-#     """Add a card containing basic alert data"""
-#     pdf = pd.read_json(io.StringIO(object_data))
-
-#     objectid = pdf["i:objectId"].to_numpy()[0]
-#     date_end = pdf["v:lastdate"].to_numpy()[0]
-#     discovery_date = pdf["v:lastdate"].to_numpy()[-1]
-#     jds = pdf["i:jd"].to_numpy()
-#     ndet = len(pdf)
-
-#     pdf_upper_valid = pd.read_json(io.StringIO(object_uppervalid))
-#     if not pdf_upper_valid.empty:
-#         mask = pdf_upper_valid["i:jd"].apply(lambda x: x not in jds)
-#         nupper_valid = len(pdf_upper_valid[mask])
-#     else:
-#         nupper_valid = 0
-
-#     pdf_upper = pd.read_json(io.StringIO(object_upper))
-#     if not pdf_upper.empty:
-#         nupper = len(pdf_upper)
-#     else:
-#         nupper = 0
-
-#     badges = []
-#     for c in np.unique(pdf["v:classification"]):
-#         if c in simbad_types:
-#             color = class_colors["Simbad"]
-#         elif c in class_colors.keys():
-#             color = class_colors[c]
-#         else:
-#             # Sometimes SIMBAD mess up names :-)
-#             color = class_colors["Simbad"]
-
-#         badges.append(
-#             make_badge(
-#                 c,
-#                 color=color,
-#                 tooltip="Fink classification",
-#             ),
-#         )
-
-#     tns_badge = generate_tns_badge(get_first_value(pdf, "i:objectId"))
-#     if tns_badge is not None:
-#         badges.append(tns_badge)
-
-#     badges += generate_generic_badges(pdf, variant="dot")
-
-#     meta_name = generate_metadata_name(get_first_value(pdf, "i:objectId"))
-#     if meta_name is not None:
-#         extra_div = dbc.Row(
-#             [
-#                 dbc.Col(
-#                     dmc.Title(meta_name, order=4, style={"color": "#15284F"}), width=10
-#                 ),
-#             ],
-#             justify="start",
-#             align="center",
-#         )
-#     else:
-#         extra_div = html.Div()
-
-#     coords = SkyCoord(
-#         get_first_value(pdf, "i:ra"), get_first_value(pdf, "i:dec"), unit="deg"
-#     )
-
-#     c1 = dmc.Avatar(src="/assets/Fink_SecondaryLogo_WEB.png", size="lg")
-#     c2 = dmc.Title(
-#         objectid, order=1, style={"color": "#15284F", "wordWrap": "break-word"}
-#     )
-#     card = dmc.Paper(
-#         [
-#             dmc.Grid(
-#                 [dmc.GridCol(c1, span="content"), dmc.GridCol(c2, span="auto")],
-#                 gutter="xs",
-#             ),
-#             extra_div,
-#             html.Div(badges),
-#             dcc.Markdown(
-#                 """
-#                 Discovery date: `{}`
-#                 Last detection: `{}`
-#                 Duration: `{:.2f}` / `{:.2f}` days
-#                 Detections: `{}` good, `{}` bad, `{}` upper
-#                 RA/Dec: `{} {}`
-#                 """.format(
-#                     discovery_date[:19],
-#                     date_end[:19],
-#                     jds[0] - jds[-1],
-#                     get_first_value(pdf, "i:jdendhist")
-#                     - get_first_value(pdf, "i:jdstarthist"),
-#                     ndet,
-#                     nupper_valid,
-#                     nupper,
-#                     coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
-#                     coords.dec.to_string(
-#                         pad=True, unit="deg", alwayssign=True, precision=1, sep=" "
-#                     ),
-#                 ),
-#                 className="markdown markdown-pre ps-2 pe-2 mt-2",
-#             ),
-#         ],
-#         radius="xl",
-#         p="md",
-#         shadow="xl",
-#         withBorder=True,
-#     )
-#     return card
-
-# @app.callback(
-#     Output(
-#         {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
-#         "children",
-#     ),
-#     Input(
-#         {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH}, "id"
-#     ),
-# )
-# def on_load_lightcurve(lc_id):
-#     if lc_id:
-#         # print(lc_id['diaObjectId'])
-#         fig = draw_lightcurve_preview(lc_id["diaObjectId"])
-#         return dcc.Graph(
-#             figure=fig,
-#             config={"displayModeBar": False},
-#             style={"width": "100%", "height": "15pc"},
-#             responsive=True,
-#         )
-
-#     return no_update
-
-
-# @app.callback(
-#     Output(
-#         {"type": "search_results_cutouts", "diaObjectId": MATCH, "index": MATCH},
-#         "children",
-#     ),
-#     Input({"type": "search_results_cutouts", "diaObjectId": MATCH, "index": MATCH}, "id"),
-# )
-# def on_load_cutouts(lc_id):
-#     if lc_id:
-#         return html.Div(
-#             draw_cutouts_quickview(lc_id["diaObjectId"]),
-#             style={"width": "12pc", "height": "12pc"},
-#         )
-
-#     return no_update

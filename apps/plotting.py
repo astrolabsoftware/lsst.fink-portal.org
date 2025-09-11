@@ -12,10 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from dash import Output, Input, no_update, clientside_callback, State
+from dash.exceptions import PreventUpdate
+from dash_iconify import DashIconify
+
 import io
 import gzip
 from astropy.io import fits
 from copy import deepcopy
+
+from app import app
 
 from astropy.visualization import AsymmetricPercentileInterval, simple_norm
 
@@ -35,6 +41,8 @@ import nifty_ls  # noqa: F401
 # from apps import __file__
 from apps.api import request_api
 from apps.utils import convert_time
+from apps.utils import flux_to_mag
+from apps.utils import loading
 
 # FIXME
 COLORS_LSST = ["#15284F", "#F5622E", "#15284F", "#F5622E", "#15284F", "#F5622E"]
@@ -47,34 +55,8 @@ COLORS_LSST_NEGATIVE = [
     "#F57A2E",
 ]
 
-layout_lightcurve_preview = dict(
-    automargin=True,
-    margin=dict(l=50, r=0, b=0, t=0),
-    hovermode="closest",
-    plot_bgcolor="white",
-    paper_bgcolor="white",
-    hoverlabel={
-        "align": "left",
-    },
-    legend=dict(
-        font=dict(size=10),
-        orientation="h",
-        xanchor="right",
-        x=1,
-        y=0.95,
-        bgcolor="rgba(218, 223, 225, 0.8)",
-    ),
-    xaxis={
-        "title": "Observation date",
-        "automargin": True,
-    },
-    yaxis={
-        # "autorange": "reversed",
-        "title": "Flux (nJy)",
-        "automargin": True,
-    },
-)
-
+default_radio_options = ["Total flux", "Difference flux", "Magnitude"]
+all_radio_options = {v: default_radio_options for v in default_radio_options}
 
 def draw_cutouts_quickview(name, kinds=None):
     """Draw Science cutout data for the preview service"""
@@ -110,17 +92,17 @@ def extract_cutout(object_data, time0, kind):
     data: np.array
         2D array containing cutout data
     """
-    pdf_ = pd.read_json(io.StringIO(object_data), dtype=np.int64)
+    pdf_ = pd.read_json(io.StringIO(object_data))
 
     if time0 is None:
         position = 0
     else:
         pdf_ = pdf_.sort_values("i:midpointMjdTai", ascending=False)
         # Round to avoid numerical precision issues
-        jds = pdf_["i:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
-        jd0 = np.round(Time(time0, format="iso").jd, 3)
-        if jd0 in jds:
-            position = np.where(jds == jd0)[0][0]
+        mjds = pdf_["i:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
+        mjd0 = np.round(Time(time0, format="iso").mjd, 3)
+        if mjd0 in mjds:
+            position = np.where(mjds == mjd0)[0][0]
         else:
             return None
 
@@ -135,7 +117,6 @@ def extract_cutout(object_data, time0, kind):
         payload["diaSourceId"] = str(pdf_["i:diaSourceId"].to_numpy()[position])
 
     # Extract the cutout data
-    print(payload)
     r = request_api(
         "/api/v1/cutouts",
         json=payload,
@@ -204,8 +185,8 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
         xaxis=axis_template,
         yaxis=axis_template,
         showlegend=True,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="#f0f0f0",
+        plot_bgcolor="#f0f0f0",
     )
 
     fig.update_layout(width=shape[1], height=shape[0])
@@ -261,9 +242,206 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
         label="{}px / {:.1f}''".format(shape[0], shape[0] * pixel_size),
     )
 
-
     return graph
 
+
+@app.callback(
+    Output("stamps", "children"),
+    [
+        Input("lightcurve_object_page", "clickData"),
+        Input("object-data", "data"),
+    ],
+    prevent_initial_call=True,
+)
+def draw_cutouts(clickData, object_data):
+    """Draw cutouts data based on lightcurve data"""
+    if clickData is not None:
+        jd0 = clickData["points"][0]["x"]
+    else:
+        jd0 = None
+
+    figs = []
+    for kind in ["science", "template", "difference"]:
+        try:
+            cutout = extract_cutout(object_data, jd0, kind=kind)
+            if cutout is None:
+                return no_update
+
+            data = draw_cutout(cutout, kind)
+        except OSError:
+            data = dcc.Markdown("Load fail, refresh the page")
+
+        figs.append(
+            dbc.Col(
+                data,
+                xs=4,
+                className="p-0",
+            ),
+        )
+
+    return figs
+
+
+@app.callback(
+    Output("stamps_modal_content", "children"),
+    [
+        Input("object-data", "data"),
+        Input("date_modal_select", "value"),
+        Input("stamps_modal", "is_open"),
+    ],
+    prevent_initial_call=True,
+)
+def draw_cutouts_modal(object_data, date_modal_select, is_open):
+    """Draw cutouts data based on lightcurve data"""
+    if not is_open:
+        raise PreventUpdate
+
+    figs = []
+    for kind in ["science", "template", "difference"]:
+        try:
+            cutout = extract_cutout(object_data, date_modal_select, kind=kind)
+            if cutout is None:
+                return no_update
+            data = draw_cutout(cutout, kind, id_type="stamp_modal")
+        except OSError:
+            data = dcc.Markdown("Load fail, refresh the page")
+
+        figs.append(
+            dbc.Col(
+                [
+                    html.Div(kind.capitalize(), className="text-center"),
+                    data,
+                ],
+                xs=4,
+                className="p-0",
+            ),
+        )
+
+    return figs
+
+def make_modal_stamps(pdf):
+    dates = convert_time(pdf["i:midpointMjdTai"].to_numpy(), format_in="mjd", format_out="iso")
+    return [
+        dbc.Modal(
+            [
+                dbc.ModalHeader(
+                    [
+                        dmc.ActionIcon(
+                            DashIconify(icon="tabler:chevron-left"),
+                            id="stamps_prev",
+                            # title="Next alert",
+                            n_clicks=0,
+                            variant="default",
+                            size=36,
+                            color="gray",
+                            className="me-1",
+                        ),
+                        dmc.Select(
+                            label="",
+                            placeholder="Select a date",
+                            searchable=True,
+                            nothingFoundMessage="No options found",
+                            id="date_modal_select",
+                            value=dates[0],
+                            data=[
+                                {"value": i, "label": i}
+                                for i in dates
+                            ],
+                            style={"z-index": 10000000},
+                        ),
+                        dmc.ActionIcon(
+                            DashIconify(icon="tabler:chevron-right"),
+                            id="stamps_next",
+                            # title="Previous alert",
+                            n_clicks=0,
+                            variant="default",
+                            size=36,
+                            color="gray",
+                            className="ms-1",
+                        ),
+                    ],
+                    close_button=True,
+                    className="p-2 pe-4",
+                ),
+                loading(
+                    dbc.ModalBody(
+                        [
+                            dbc.Row(
+                                id="stamps_modal_content",
+                                justify="around",
+                                className="g-0 mx-auto",
+                            ),
+                        ],
+                    )
+                ),
+            ],
+            id="stamps_modal",
+            scrollable=True,
+            centered=True,
+            size="xl",
+            # style={'max-width': '800px'}
+        ),
+        dmc.Center(
+            dmc.ActionIcon(
+                DashIconify(icon="tabler:arrows-maximize"),
+                id="maximise_stamps",
+                n_clicks=0,
+                variant="default",
+                radius=30,
+                size=36,
+                color="gray",
+            ),
+        ),
+    ]
+
+
+# Toggle stamps modal
+clientside_callback(
+    """
+    function toggle_stamps_modal(n_clicks, is_open) {
+        return !is_open;
+    }
+    """,
+    Output("stamps_modal", "is_open"),
+    Input("maximise_stamps", "n_clicks"),
+    State("stamps_modal", "is_open"),
+    prevent_initial_call=True,
+)
+
+# Prev/Next for stamps modal
+clientside_callback(
+    """
+    function stamps_prev_next(n_clicks_prev, n_clicks_next, clickData, value, data) {
+        let id = data.findIndex((x) => x.value === value);
+        let step = 1;
+
+        const triggered = dash_clientside.callback_context.triggered.map(t => t.prop_id);
+
+        if (triggered == 'lightcurve_object_page.clickData')
+            return clickData.points[0].x;
+
+        if (triggered == 'stamps_prev.n_clicks')
+            step = -1;
+
+        id += step;
+        if (step > 0 && id >= data.length)
+            id = 0;
+        if (step < 0 && id < 0)
+            id = data.length - 1;
+
+        return data[id].value;
+    }
+    """,
+    Output("date_modal_select", "value"),
+    [
+        Input("stamps_prev", "n_clicks"),
+        Input("stamps_next", "n_clicks"),
+        Input("lightcurve_object_page", "clickData"),
+    ],
+    State("date_modal_select", "value"),
+    State("date_modal_select", "data"),
+    prevent_initial_call=True,
+)
 
 def readstamp(stamp: str, return_type="array", gzipped=True) -> np.array:
     """Read the stamp data inside an alert.
@@ -386,71 +564,61 @@ def draw_lightcurve_preview(name) -> dict:
     """
     cols = [
         "i:midpointMjdTai",
-        "i:psfFlux",
-        "i:psfFluxErr",
+        "i:scienceFlux",
+        "i:scienceFluxErr",
         "i:band",
-        # "i:distnr",
-        # "i:magnr",
-        # "i:sigmagnr",
-        # "d:tag",
     ]
     pdf = request_api(
         "/api/v1/sources",
         json={
             "diaObjectId": str(name),
-            # "withupperlim": "True",
             "columns": ",".join(cols),
             "output-format": "json",
         },
     )
 
-    # Mask upper-limits (but keep measurements with bad quality)
-    mag_ = pdf["i:psfFlux"]
-    mask = ~np.isnan(mag_)
-    pdf = pdf[mask]
-
     # type conversion
     dates = convert_time(pdf["i:midpointMjdTai"], format_in="mjd", format_out="iso")
-
-    # shortcuts
-    mag = pdf["i:psfFlux"]
-    err = pdf["i:psfFluxErr"]
 
     # Should we correct DC magnitudes for the nearby source?..
     # is_dc_corrected = is_source_behind(pdf["i:distnr"].to_numpy()[0])
 
+    # shortcuts -- in milliJansky
+    flux = pdf["i:scienceFlux"] * 1e-3
+    flux_err = pdf["i:scienceFluxErr"] * 1e-3
+
     # We should never modify global variables!!!
-    layout = deepcopy(layout_lightcurve_preview)
+    layout = dict(
+        automargin=True,
+        margin=dict(l=50, r=0, b=0, t=0),
+        hovermode="closest",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            xanchor="right",
+            x=1,
+            y=0.95,
+            bgcolor="rgba(218, 223, 225, 0.8)",
+        ),
+        xaxis={
+            "title": "Observation date",
+            "automargin": True,
+        },
+        yaxis={
+            # "autorange": "reversed",
+            "title": "Total flux (milliJansky)",
+            "automargin": True,
+        },
+    )
 
     layout["showlegend"] = True
     layout["shapes"] = []
 
-    # if is_dc_corrected:
-    #     # inplace replacement for DC corrected flux
-    #     mag, err = np.transpose(
-    #         [
-    #             dc_mag(*args)
-    #             for args in zip(
-    #                 mag.astype(float).to_numpy(),
-    #                 err.astype(float).to_numpy(),
-    #                 pdf["i:magnr"].astype(float).to_numpy(),
-    #                 pdf["i:sigmagnr"].astype(float).to_numpy(),
-    #                 pdf["i:isdiffpos"].to_numpy(),
-    #             )
-    #         ],
-    #     )
-    #     # Keep only "good" measurements
-    #     idx = err < 1
-    #     pdf, dates, mag, err = (_[idx] for _ in [pdf, dates, mag, err])
-
-    #     layout["yaxis"]["title"] = "Apparent DC magnitude"
-
-    # hovertemplate = r"""
-    # <b>%{yaxis.title.text}%{customdata[2]}</b>: %{customdata[1]}%{y:.2f} &plusmn; %{error_y.array:.2f}<br>
-    # <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-    # <b>mjd</b>: %{customdata[0]}
-    # <extra></extra>
-    # """
     hovertemplate = r"""
     <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
     <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
@@ -469,7 +637,7 @@ def draw_lightcurve_preview(name) -> dict:
         (3, "r", COLORS_LSST[2], COLORS_LSST_NEGATIVE[2]),
         (4, "i", COLORS_LSST[3], COLORS_LSST_NEGATIVE[3]),
         (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
-        (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[4]),
+        (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
     ):
         idx = pdf["i:band"] == fname
 
@@ -479,10 +647,10 @@ def draw_lightcurve_preview(name) -> dict:
         figure["data"].append(
             {
                 "x": dates[idx],
-                "y": mag[idx],
+                "y": flux[idx],
                 "error_y": {
                     "type": "data",
-                    "array": err[idx],
+                    "array": flux_err[idx],
                     "visible": True,
                     "width": 0,
                     "color": color,  # It does not support arrays of colors so let's use positive one for all points
@@ -507,39 +675,20 @@ def draw_lightcurve_preview(name) -> dict:
 
         # Daily average
         # In [8]: pdf.groupby(pdf["i:midpointMjdTai"].apply(lambda x: Time(x, format="mjd", scale="ta
-        # ...: i").datetime).dt.strftime('%b %Y %m'))["i:psfFlux"].mean().reset_index(name='Daily
+        # ...: i").datetime).dt.strftime('%b %Y %m'))["i:scienceFlux"].mean().reset_index(name='Daily
         # ...: Average')
 
-        if len(mag[idx]) > 1:
+        if len(flux[idx]) > 1:
             axis_name = "{} band".format(fname)
             sparklines.append(
                 dmc.Stack(
                     [
                         dmc.Text(axis_name),
-                        sparklines.append(make_sparkline(mag[idx][::-1]))
+                        sparklines.append(make_sparkline(flux[idx][::-1]))
                     ],
                     gap="xs",
                 )
             )
-
-        # if is_dc_corrected:
-        #     # Overplot the levels of nearby source magnitudes
-        #     ref = np.mean(pdf["i:magnr"][idx])
-
-        #     figure["layout"]["shapes"].append(
-        #         {
-        #             "type": "line",
-        #             "yref": "y",
-        #             "y0": ref,
-        #             "y1": ref,  # adding a horizontal line
-        #             "xref": "paper",
-        #             "x0": 0,
-        #             "x1": 1,
-        #             "line": {"color": color, "dash": "dash", "width": 1},
-        #             "legendgroup": f"{fname} band",
-        #             "opacity": 0.3,
-        #         },
-        #     )
 
     return figure, sparklines
 
@@ -553,3 +702,155 @@ def make_sparkline(data):
         trendColors={"positive": "teal.6", "negative": "red.6", "neutral": "gray.5"},
         fillOpacity=0.2,
     )
+
+
+@app.callback(
+    Output("lightcurve_object_page", "figure"),
+    [
+        Input("switch-mag-flux", "value"),
+        Input("object-data", "data"),
+        Input("lightcurve_show_color", "checked"),
+    ],
+    prevent_initial_call=True,
+)
+def draw_lightcurve(
+    switch: int,
+    object_data,
+    show_color,
+) -> dict:
+    """Draw object lightcurve with errorbars
+
+    Parameters
+    ----------
+    switch: int
+        Choose:
+          - 0 to display Total Flux
+          - 1 to display Difference Flux
+          - 2 to display Magnitude
+
+    Returns
+    -------
+    figure: dict
+    """
+    # Primary high-quality data points
+    pdf = pd.read_json(io.StringIO(object_data))
+
+    # date type conversion
+    dates = convert_time(pdf["i:midpointMjdTai"], format_in="mjd", format_out="iso")
+
+    # We should never modify global variables!!!
+    layout = dict(
+        autosize=True,
+        automargin=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            xanchor="right",
+            x=1,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        xaxis={
+            "title": "Observation date",
+            "automargin": True,
+            "zeroline": False,
+        },
+        yaxis={
+            "title": "Total flux (mJy)",
+            "automargin": True,
+            "zeroline": False,
+        },
+    )
+
+    if switch == "Magnitude":
+        # Using same names as others despite being magnitudes
+        flux, flux_err = flux_to_mag(pdf["i:scienceFlux"], pdf["i:scienceFluxErr"])
+        layout["yaxis"]["title"] = "Magnitude"
+        layout["yaxis"]["autorange"] = "reversed"
+        scale = 1.0
+    elif switch == "Difference flux":
+        # shortcuts
+        flux = pdf["i:psfFlux"]
+        flux_err = pdf["i:psfFluxErr"]
+
+        layout["yaxis"]["title"] = "Difference flux (milliJansky)"
+        layout["yaxis"]["autorange"] = True
+        scale = 1e-3
+    elif switch == "Total flux":
+        # shortcuts
+        flux = pdf["i:scienceFlux"]
+        flux_err = pdf["i:scienceFluxErr"]
+
+        layout["yaxis"]["title"] = "Total flux (milliJansky)"
+        layout["yaxis"]["autorange"] = True
+        scale = 1e-3
+
+    layout["showlegend"] = True
+    layout["shapes"] = []
+
+    layout["paper_bgcolor"] = "#f0f0f0"
+    layout["plot_bgcolor"] = "#f0f0f0"
+
+    figure = {
+        "data": [],
+        "layout": layout,
+    }
+
+    for fid, fname, color, color_negative in (
+        (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
+        (2, "g", COLORS_LSST[1], COLORS_LSST_NEGATIVE[1]),
+        (3, "r", COLORS_LSST[2], COLORS_LSST_NEGATIVE[2]),
+        (4, "i", COLORS_LSST[3], COLORS_LSST_NEGATIVE[3]),
+        (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
+        (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
+    ):
+        # High-quality measurements
+        hovertemplate = r"""
+        <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
+        <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
+        <b>mjd</b>: %{customdata[0]}
+        <extra></extra>
+        """
+        idx = pdf["i:band"] == fname
+        figure["data"].append(
+            {
+                "x": dates[idx],
+                "y": flux[idx] * scale,
+                "error_y": {
+                    "type": "data",
+                    "array": flux_err[idx] * scale,
+                    "visible": True,
+                    "width": 0,
+                    "opacity": 0.5,
+                    "color": color,
+                },
+                "mode": "markers",
+                "name": f"{fname} band",
+                "customdata": np.stack(
+                    (
+                        pdf["i:midpointMjdTai"][idx],
+                    ),
+                    axis=-1,
+                ),
+                "hovertemplate": hovertemplate,
+                "legendgroup": f"{fname} band",
+                "legendrank": 100 + 10 * fid,
+                "marker": {
+                    "size": 12,
+                    "color": flux[idx].apply(
+                        lambda x,
+                        color_negative=color_negative,
+                        color=color: color_negative if x < 0 else color
+                    ),
+                    "symbol": "o",
+                },
+            },
+        )
+
+    return figure
