@@ -422,10 +422,6 @@ def draw_lightcurve_preview(name) -> dict:
     # We should never modify global variables!!!
     layout = deepcopy(layout_lightcurve_preview)
 
-    # layout["yaxis"]["title"] = "Difference magnitude"
-    # layout["yaxis"]["autorange"] = "reversed"
-    # layout["paper_bgcolor"] = "rgba(0,0,0,0.0)"
-    # layout["plot_bgcolor"] = "rgba(0,0,0,0.2)"
     layout["showlegend"] = True
     layout["shapes"] = []
 
@@ -466,6 +462,7 @@ def draw_lightcurve_preview(name) -> dict:
         "layout": layout,
     }
 
+    sparklines = []
     for fid, fname, color, color_negative in (
         (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
         (2, "g", COLORS_LSST[1], COLORS_LSST_NEGATIVE[1]),
@@ -478,51 +475,6 @@ def draw_lightcurve_preview(name) -> dict:
 
         if not np.sum(idx):
             continue
-
-        # figure["data"].append(
-        #     {
-        #         "x": dates[idx],
-        #         "y": mag[idx],
-        #         "error_y": {
-        #             "type": "data",
-        #             "array": err[idx],
-        #             "visible": True,
-        #             "width": 0,
-        #             "color": color,  # It does not support arrays of colors so let's use positive one for all points
-        #             "opacity": 0.5,
-        #         },
-        #         "mode": "markers",
-        #         "name": f"{fname} band",
-        #         "customdata": np.stack(
-        #             (
-        #                 pdf["i:midpointMjdTai"][idx],
-        #                 pdf["i:isdiffpos"].apply(lambda x: "(-) " if x == "f" else "")[
-        #                     idx
-        #                 ],
-        #                 pdf["d:tag"].apply(
-        #                     lambda x: "" if x == "valid" else " (low quality)"
-        #                 )[idx],
-        #             ),
-        #             axis=-1,
-        #         ),
-        #         "hovertemplate": hovertemplate,
-        #         "marker": {
-        #             "size": pdf["d:tag"].apply(lambda x: 12 if x == "valid" else 6)[
-        #                 idx
-        #             ],
-        #             "color": pdf["i:isdiffpos"].apply(
-        #                 lambda x,
-        #                 color_negative=color_negative,
-        #                 color=color: color_negative if x == "f" else color
-        #             )[idx],
-        #             "symbol": pdf["d:tag"].apply(
-        #                 lambda x: "o" if x == "valid" else "triangle-up"
-        #             )[idx],
-        #             "line": {"width": 0},
-        #             "opacity": 1,
-        #         },
-        #     },
-        # )
 
         figure["data"].append(
             {
@@ -553,6 +505,23 @@ def draw_lightcurve_preview(name) -> dict:
             },
         )
 
+        # Daily average
+        # In [8]: pdf.groupby(pdf["i:midpointMjdTai"].apply(lambda x: Time(x, format="mjd", scale="ta
+        # ...: i").datetime).dt.strftime('%b %Y %m'))["i:psfFlux"].mean().reset_index(name='Daily
+        # ...: Average')
+
+        if len(mag[idx]) > 1:
+            axis_name = "{} band".format(fname)
+            sparklines.append(
+                dmc.Stack(
+                    [
+                        dmc.Text(axis_name),
+                        sparklines.append(make_sparkline(mag[idx][::-1]))
+                    ],
+                    gap="xs",
+                )
+            )
+
         # if is_dc_corrected:
         #     # Overplot the levels of nearby source magnitudes
         #     ref = np.mean(pdf["i:magnr"][idx])
@@ -572,4 +541,15 @@ def draw_lightcurve_preview(name) -> dict:
         #         },
         #     )
 
-    return figure
+    return figure, sparklines
+
+
+def make_sparkline(data):
+    return dmc.Sparkline(
+        w=100,
+        h=30,
+        data=data,
+        curveType="monotone",
+        trendColors={"positive": "teal.6", "negative": "red.6", "neutral": "gray.5"},
+        fillOpacity=0.2,
+    )

@@ -919,10 +919,16 @@ clientside_callback(
 
 
 @app.callback(
-    Output(
-        {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
-        "children",
-    ),
+    [
+        Output(
+            {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
+            "children",
+        ),
+        Output(
+            {"type": "sparklines", "diaObjectId": MATCH, "index": MATCH},
+            "children",
+        )
+    ],
     Input(
         {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
         "id",
@@ -931,15 +937,15 @@ clientside_callback(
 def on_load_lightcurve(lc_id):
     """Draw lightcurve on cards"""
     if lc_id:
-        fig = draw_lightcurve_preview(lc_id["diaObjectId"])
+        fig, sparklines = draw_lightcurve_preview(lc_id["diaObjectId"])
         return dcc.Graph(
             figure=fig,
             config={"displayModeBar": False},
             style={"width": "100%", "height": "15pc"},
             responsive=True,
-        )
+        ), dmc.Group(sparklines, grow=True,)
 
-    return no_update
+    return no_update, no_update
 
 
 @app.callback(

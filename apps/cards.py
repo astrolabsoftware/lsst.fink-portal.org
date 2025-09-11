@@ -129,21 +129,41 @@ def card_search_result(row, i):
     item = dbc.Card(
         [
             dbc.CardHeader(
-                html.A(
-                    dmc.Group(
-                        [
-                            dmc.Text(
-                                f"{name}", style={"fontWeight": 700, "fontSize": 26}
-                            ),
-                            dmc.Space(w="sm"),
-                            *badges,
-                        ],
-                        gap=3,
-                    ),
-                    href=f"/{name}",
-                    target="_blank",
-                    className="text-decoration-none",
+                dmc.Group(
+                    [
+                        html.A(
+                            dmc.Text(f"{name}", style={"fontWeight": 700, "fontSize": 20}),
+                            href=f"/{name}",
+                            target="_blank",
+                            className="text-decoration-none",
+                        ),
+                        # dmc.Space(w="sm"),
+                        dmc.Space(w="sm"),
+                        html.Div(
+                            id={
+                                "type": "sparklines",
+                                "diaObjectId": str(name),
+                                "index": i,
+                            },
+                        ),
+                    ],
+                    gap=3,
                 ),
+                # html.A(
+                #     dmc.Group(
+                #         [
+                #             dmc.Text(
+                #                 f"{name}", style={"fontWeight": 700, "fontSize": 26}
+                #             ),
+                #             dmc.Space(w="sm"),
+                #             *badges,
+                #         ],
+                #         gap=3,
+                #     ),
+                #     href=f"/{name}",
+                #     target="_blank",
+                #     className="text-decoration-none",
+                # ),
             ),
             dbc.CardBody(
                 [
@@ -164,10 +184,23 @@ def card_search_result(row, i):
                                 width="auto",
                             ),
                             dbc.Col(
-                                dcc.Markdown(
-                                    text,
-                                    style={"white-space": "pre-wrap"},
-                                ),
+                                [
+                                    dmc.Box(
+                                        [
+                                            # html.A(
+                                            #     dmc.Text(f"{name}", style={"fontWeight": 700, "fontSize": 20}),
+                                            #     href=f"/{name}",
+                                            #     target="_blank",
+                                            #     className="text-decoration-none",
+                                            # ),
+                                            *badges,
+                                            dcc.Markdown(
+                                                text,
+                                                style={"white-space": "pre-wrap"},
+                                            ),
+                                        ]
+                                    )
+                                ],
                                 width="auto",
                             ),
                             dbc.Col(
@@ -201,8 +234,9 @@ def card_search_result(row, i):
             ),
         ],
         color="light",
-        className="mb-2 shadow border-1",
+        className="mb-2 shadow border-1 rounded-5",
         outline=True,
+
     )
 
     # Test with Mantine
