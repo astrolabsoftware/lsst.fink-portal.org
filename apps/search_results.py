@@ -230,7 +230,7 @@ def display_skymap(data, columns, is_open):
         var a = A.aladin('#aladin-lite-div-skymap',
         {{
             target: '{} {}',
-            survey: 'https://alasky.cds.unistra.fr/Pan-STARRS/DR1/color-z-zg-g/',
+            survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
             showReticle: true,
             allowFullZoomout: true,
             showContextMenu: true,

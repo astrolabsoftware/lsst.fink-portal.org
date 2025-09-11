@@ -92,7 +92,7 @@ def extract_cutout(object_data, time0, kind):
     data: np.array
         2D array containing cutout data
     """
-    pdf_ = pd.read_json(io.StringIO(object_data))
+    pdf_ = pd.read_json(io.StringIO(object_data), dtype={"i:diaObjectId": np.int64})
 
     if time0 is None:
         position = 0
@@ -854,3 +854,86 @@ def draw_lightcurve(
         )
 
     return figure
+
+@app.callback(
+    Output("aladin-lite-runner", "run"),
+    Input("object-data", "data"),
+    prevent_initial_call=True,
+)
+def integrate_aladin_lite(object_data):
+    """Integrate aladin light in the 2nd Tab of the dashboard.
+
+    the default parameters are:
+        * PanSTARRS colors
+        * FoV = 0.02 deg
+        * SIMBAD catalig overlayed.
+
+    Callbacks
+    ----------
+    Input: takes the alert ID
+    Output: Display a sky image around the alert position from aladin.
+
+    Parameters
+    ----------
+    alert_id: str
+        ID of the alert
+    """
+    pdf = pd.read_json(io.StringIO(object_data))
+    pdf = pdf.sort_values("i:midpointMjdTai", ascending=False)
+
+    # Coordinate of the current alert
+    ra0 = pdf["i:ra"].to_numpy()[0]
+    dec0 = pdf["i:dec"].to_numpy()[0]
+
+    # Javascript. Note the use {{}} for dictionary
+    img = f"""
+    var aladin = A.aladin('#aladin-lite-div',
+              {{
+                survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
+                fov: 0.025,
+                target: '{ra0} {dec0}',
+                reticleColor: '#ff89ff',
+                reticleSize: 32,
+                showContextMenu: true,
+                showCooGridControl: true,
+    }});
+    var cat_simbad = 'https://axel.u-strasbg.fr/HiPSCatService/Simbad';
+    var hips_simbad = A.catalogHiPS(cat_simbad, {{onClick: 'showTable', name: 'Simbad', sourceSize: 15}});
+    aladin.addCatalog(hips_simbad);
+
+    var cat_gaia = 'https://axel.u-strasbg.fr/HiPSCatService/Gaia';
+    var hips_gaia = A.catalogHiPS(cat_gaia, {{onClick: 'showTable', name: 'Gaia EDR3', sourceSize: 15}});
+    aladin.addCatalog(hips_gaia);
+    """
+
+    # # Unique positions of nearest reference object
+    # pdfnr = pdf[["i:ranr", "i:decnr", "i:magnr", "i:sigmagnr", "i:fid"]][
+    #     np.isfinite(pdf["i:magnr"])
+    # ].drop_duplicates()
+
+    # if len(pdfnr.index):
+    #     img += """
+    #     var catnr_zg = A.catalog({name: 'ZTF Reference nearest, zg', sourceSize: 6, shape: 'plus', color: 'green', onClick: 'showPopup', limit: 1000});
+    #     var catnr_zr = A.catalog({name: 'ZTF Reference nearest, zr', sourceSize: 6, shape: 'plus', color: 'red', onClick: 'showPopup', limit: 1000});
+    #     """
+
+    #     for _, row in pdfnr.iterrows():
+    #         img += """
+    #         catnr_{}.addSources([A.source({}, {}, {{ZTF: 'Reference', mag: {:.2f}, err: {:.2f}, filter: '{}'}})]);
+    #         """.format(
+    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["i:fid"]),
+    #             row["i:ranr"],
+    #             row["i:decnr"],
+    #             row["i:magnr"],
+    #             row["i:sigmagnr"],
+    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["i:fid"]),
+    #         )
+
+    #     img += """aladin.addCatalog(catnr_zg);"""
+    #     img += """aladin.addCatalog(catnr_zr);"""
+
+    # img cannot be executed directly because of formatting
+    # We split line-by-line and remove comments
+    img_to_show = [i for i in img.split("\n") if "// " not in i]
+
+    return " ".join(img_to_show)
