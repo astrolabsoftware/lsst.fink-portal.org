@@ -110,3 +110,15 @@ def get_first_value(pdf, colname, default=None):
         return pdf.loc[0, colname]
     else:
         return default
+
+
+def hex_to_rgba(hex, alpha, format_out="plotly"):
+    """
+    """
+    hex = hex.strip("#")
+    triplet = tuple(int(hex[i:i+2], 16) for i in (0, 2, 4))
+
+    if format_out == "plotly":
+        return "rgba({}, {}, {}, {})".format(*triplet, alpha)
+    elif format_out == "raw":
+        return (*triplet, alpha)

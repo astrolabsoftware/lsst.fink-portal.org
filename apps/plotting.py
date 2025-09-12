@@ -16,6 +16,9 @@ from dash import Output, Input, no_update, clientside_callback, State
 from dash.exceptions import PreventUpdate
 from dash_iconify import DashIconify
 
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+
 import io
 import gzip
 from astropy.io import fits
@@ -44,6 +47,7 @@ from apps.api import request_api
 from apps.utils import convert_time
 from apps.utils import flux_to_mag
 from apps.utils import loading
+from apps.utils import hex_to_rgba
 
 # FIXME
 COLORS_LSST = ["#15284F", "#F5622E", "#15284F", "#F5622E", "#15284F", "#F5622E"]
@@ -741,15 +745,15 @@ def make_sparkline(data):
     Output("lightcurve_object_page", "figure"),
     [
         Input("switch-mag-flux", "value"),
+        Input("switch-lc-layout", "value"),
         Input("object-data", "data"),
-        Input("lightcurve_show_color", "checked"),
     ],
     prevent_initial_call=True,
 )
 def draw_lightcurve(
-    switch: int,
+    switch_units: str,
+    switch_layout: str,
     object_data,
-    show_color,
 ) -> dict:
     """Draw object lightcurve with errorbars
 
@@ -771,10 +775,9 @@ def draw_lightcurve(
     # date type conversion
     dates = convert_time(pdf["i:midpointMjdTai"], format_in="mjd", format_out="iso")
 
-    # We should never modify global variables!!!
     layout = dict(
         autosize=True,
-        automargin=True,
+        # automargin=True,
         margin=dict(l=50, r=30, b=0, t=0),
         hovermode="closest",
         hoverlabel={
@@ -801,28 +804,29 @@ def draw_lightcurve(
         },
     )
 
-    if switch == "Magnitude":
+    if switch_units == "Magnitude":
         # Using same names as others despite being magnitudes
         flux, flux_err = flux_to_mag(pdf["i:scienceFlux"], pdf["i:scienceFluxErr"])
-        layout["yaxis"]["title"] = "Magnitude"
+        yaxis_title = "Magnitude"
         layout["yaxis"]["autorange"] = "reversed"
         scale = 1.0
-    elif switch == "Difference flux":
+    elif switch_units == "Difference flux":
         # shortcuts
         flux = pdf["i:psfFlux"]
         flux_err = pdf["i:psfFluxErr"]
 
-        layout["yaxis"]["title"] = "Difference flux (milliJansky)"
+        yaxis_title = "Difference flux (milliJansky)"
         layout["yaxis"]["autorange"] = True
         scale = 1e-3
-    elif switch == "Total flux":
+    elif switch_units == "Total flux":
         # shortcuts
         flux = pdf["i:scienceFlux"]
         flux_err = pdf["i:scienceFluxErr"]
 
-        layout["yaxis"]["title"] = "Total flux (milliJansky)"
+        yaxis_title = "Total flux (milliJansky)"
         layout["yaxis"]["autorange"] = True
         scale = 1e-3
+    layout["yaxis"]["title"] = yaxis_title
 
     layout["showlegend"] = True
     layout["shapes"] = []
@@ -830,10 +834,9 @@ def draw_lightcurve(
     layout["paper_bgcolor"] = "#f0f0f0"
     layout["plot_bgcolor"] = "#f0f0f0"
 
-    figure = {
-        "data": [],
-        "layout": layout,
-    }
+    fig = go.Figure(layout=layout)
+    if switch_layout == "Split":
+        fig = make_subplots(rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False)
 
     for fid, fname, color, color_negative in (
         (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
@@ -853,44 +856,53 @@ def draw_lightcurve(
         <extra></extra>
         """
         idx = pdf["i:band"] == fname
-        figure["data"].append(
-            {
-                "x": dates[idx],
-                "y": flux[idx] * scale,
-                "error_y": {
-                    "type": "data",
-                    "array": flux_err[idx] * scale,
-                    "visible": True,
-                    "width": 0,
-                    "opacity": 0.5,
-                    "color": color,
-                },
-                "mode": "markers",
-                "name": f"{fname}",
-                "customdata": np.stack(
-                    (
-                        pdf["i:midpointMjdTai"][idx],
-                        pdf["i:snr"][idx],
-                        pdf["i:reliability"][idx],
-                    ),
-                    axis=-1,
-                ),
-                "hovertemplate": hovertemplate,
-                "legendgroup": f"{fname} band",
-                "legendrank": 100 + 10 * fid,
-                "marker": {
-                    "size": 12,
-                    "color": flux[idx].apply(
-                        lambda x,
-                        color_negative=color_negative,
-                        color=color: color_negative if x < 0 else color
-                    ),
-                    "symbol": "o",
-                },
+
+        trace = go.Scatter(
+            x=dates[idx],
+            y=flux[idx] * scale,
+            error_y={
+                "type": "data",
+                "array": flux_err[idx] * scale,
+                "visible": True,
+                "width": 0,
+                "color": hex_to_rgba(color, 0.5),
             },
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["i:midpointMjdTai"][idx],
+                    pdf["i:snr"][idx],
+                    pdf["i:reliability"][idx],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={
+                "size": 12,
+                "color": flux[idx].apply(
+                    lambda x,
+                    color_negative=color_negative,
+                    color=color: color_negative if x < 0 else color
+                ),
+                "symbol": "circle",
+            },
+            xaxis="x",
+            yaxis="y" if switch_layout == "Plain" else "y{}".format(fid)
         )
 
-    return figure
+        if switch_layout == "Plain":
+            fig.add_trace(trace)
+        elif switch_layout == "Split":
+            if len(flux[idx]) > 0:
+                fig.add_trace(trace, row=fid - 3 * (fid//4), col=(fid//4) + 1)
+                fig.update_xaxes(row=fid - 3 * (fid//4), col=(fid//4) + 1, title="Observation date")
+                fig.update_yaxes(row=fid - 3 * (fid//4), col=(fid//4) + 1, title=yaxis_title)
+                # fig.update_layout("yaxis{}".format(fid)=layout["yaxis"])
+
+    return fig
 
 @app.callback(
     Output("coordinates", "children"),
@@ -972,6 +984,8 @@ def draw_alert_astrometry(object_data, kind) -> dict:
             "scaleanchor": "x",
             "scaleratio": 1,
         },
+        paper_bgcolor="#f0f0f0",
+        plot_bgcolor="#f0f0f0",
     )
 
     figure = {
@@ -998,9 +1012,9 @@ def draw_alert_astrometry(object_data, kind) -> dict:
         config={"displayModeBar": False},
         responsive=True,
     )
-    card1 = dmc.Paper(
-        graph, radius="sm", p="xs", shadow="sm", withBorder=True, className="mb-1"
-    )
+    # card1 = dmc.Paper(
+    #     graph, radius="sm", p="xs", shadow="sm", withBorder=True, className="mb-1"
+    # )
 
     coord = SkyCoord(mean_ra, mean_dec, unit="deg")
 
@@ -1062,7 +1076,7 @@ def draw_alert_astrometry(object_data, kind) -> dict:
         style={"max-width": "17em"},
     )
 
-    return html.Div([card1, card_coords])
+    return html.Div([graph, card_coords])
 
 @app.callback(
     Output("aladin-lite-runner", "run"),

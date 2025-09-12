@@ -202,6 +202,7 @@ def tabs(pdf):
         ],
         value=default,
         id="summary_tabs",
+        color="#ff6b6b"
     )
 
     return tabs_

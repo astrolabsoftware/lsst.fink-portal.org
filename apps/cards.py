@@ -528,6 +528,159 @@ def card_lightcurve_summary(diaObjectId):
         Card with the lightcurve drawn inside
     """
     CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(diaObjectId)
+
+    accordions = dmc.Accordion(
+        multiple=True,
+        chevronPosition="left",
+        variant="contained",
+        disableChevronRotation=False,
+        radius="xl",
+        chevronSize=20,
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Units customisation",
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Group(
+                            [
+                                dmc.RadioGroup(
+                                    id="switch-mag-flux",
+                                    children=dmc.Group(
+                                        [
+                                            dmc.Radio(k, value=k, color="orange")
+                                            for k in all_radio_options.keys()
+                                        ]
+                                    ),
+                                    value="Total flux",
+                                    size="sm",
+                                ),
+                            ],
+                            justify="center",
+                            align="center",
+                        ),
+                    ),
+                ],
+                value="units",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Layout customisation",
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Group(
+                            [
+                                # dmc.Switch(
+                                #     "Color",
+                                #     id="lightcurve_show_color",
+                                #     color="gray",
+                                #     radius="xl",
+                                #     size="sm",
+                                #     persistence=True,
+                                # ),
+                                dmc.RadioGroup(
+                                    id="switch-lc-layout",
+                                    children=dmc.Group(
+                                        [
+                                            dmc.Radio(k, value=k, color="orange")
+                                            for k in ["Plain", "Split"]
+                                        ]
+                                    ),
+                                    value="Plain",
+                                    size="sm",
+                                    persistence=True,
+                                ),
+                            ],
+                            justify="center",
+                            align="center",
+                        ),
+                    ),
+                ],
+                value="layout"
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Add other datasets",
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Stack(
+                            [
+                                dmc.Group(
+                                    [
+                                        dmc.Button(
+                                            "Add Fink/ZTF alert photometry",
+                                            id={
+                                                "type": "lightcurve_request_ztf_fink",
+                                                "name": "main",
+                                            },
+                                            variant="outline",
+                                            color="gray",
+                                            radius="xl",
+                                            size="xs",
+                                        ),
+                                        dmc.Button(
+                                            "Add ZTF DR photometry",
+                                            id={
+                                                "type": "lightcurve_request_release",
+                                                "name": "main",
+                                            },
+                                            variant="outline",
+                                            color="gray",
+                                            radius="xl",
+                                            size="xs",
+                                        ),
+                                    ],
+                                    justify="center",
+                                    align="center",
+                                ),
+                            ]
+                        ),
+                    ),
+                ],
+                value="datasets"
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Help",
+                    ),
+                    dmc.AccordionPanel(
+                        dcc.Markdown(
+                            lc_help,
+                            mathjax=True,
+                        ),
+                    ),
+                ],
+                value="help"
+            ),
+        ],
+    )
+
+    # FIXME: a creuser l'idee d'un radar plot
+    # data = [
+    #     {"label": "SN like", "prob": 0.9},
+    #     {"label": "Periodic", "prob": 0.1},
+    #     {"label": "Non-periodic", "prob": 0.2},
+    #     {"label": "Long", "prob": 0.1},
+    #     {"label": "Fast", "prob": 0.3},
+    # ]
+
+
+    # radar = dmc.RadarChart(
+    #     # h=300,
+    #     data=data,
+    #     dataKey="label",
+    #     withPolarRadiusAxis=True,
+    #     series=[{"name": "prob", "color": "blue.4", "opacity": 0.2}],
+    #     style={
+    #         "width": "100%",
+    #         "height": "100%",
+    #     },
+    # )
+
     card = html.Div(
         [
             loading(
@@ -541,67 +694,13 @@ def card_lightcurve_summary(diaObjectId):
                     className="mb-2 rounded-5",
                 ),
             ),
-            dmc.Stack(
-                [
-                    dmc.Group(
-                        [
-                            dmc.RadioGroup(
-                                id="switch-mag-flux",
-                                children=dmc.Group(
-                                    [
-                                        dmc.Radio(k, value=k, color="orange")
-                                        for k in all_radio_options.keys()
-                                    ]
-                                ),
-                                value="Total flux",
-                                size="sm",
-                            ),
-                        ],
-                        justify="center",
-                        align="center",
-                    ),
-                    dmc.Group(
-                        [
-                            dmc.Switch(
-                                "Color",
-                                id="lightcurve_show_color",
-                                color="gray",
-                                radius="xl",
-                                size="sm",
-                                persistence=True,
-                            ),
-                            dmc.Button(
-                                "Get DR photometry",
-                                id={
-                                    "type": "lightcurve_request_release",
-                                    "name": "main",
-                                },
-                                variant="outline",
-                                color="gray",
-                                radius="xl",
-                                size="xs",
-                            ),
-                            help_popover(
-                                dcc.Markdown(
-                                    lc_help,
-                                    mathjax=True,
-                                ),
-                                "help_lc",
-                                trigger=dmc.ActionIcon(
-                                    DashIconify(icon="mdi:help"),
-                                    id="help_lc",
-                                    color="gray",
-                                    variant="outline",
-                                    radius="xl",
-                                    size="md",
-                                ),
-                            ),
-                        ],
-                        justify="center",
-                        align="center",
-                    ),
-                ]
-            ),
+            accordions,
+            # dmc.Grid(
+            #     children=[
+            #         dmc.GridCol(accordions, span=6),
+            #         dmc.GridCol(radar, span=6),
+            #     ]
+            # ),
         ],
     )
     return card  # dmc.Paper([comp1, comp2, comp3]) #card
@@ -1086,7 +1185,7 @@ def card_id_left(object_data):
                 """
                 Discovery date: `{}`
                 Last detection: `{}`
-                SNR: `{:.2f}`
+                Last alert SNR: `{:.2f}`
                 Duration: `{:.2f}` days
                 Number of detections: `{}`
                 RA/Dec: `{} {}`
