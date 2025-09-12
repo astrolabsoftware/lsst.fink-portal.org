@@ -45,6 +45,7 @@ from apps.utils import class_colors
 from apps.cards import card_search_result
 from apps.plotting import draw_cutouts_quickview
 from apps.plotting import draw_lightcurve_preview
+from apps.plotting import CONFIG_PLOT
 
 from app import app
 
@@ -938,9 +939,10 @@ def on_load_lightcurve(lc_id):
     """Draw lightcurve on cards"""
     if lc_id:
         fig, sparklines = draw_lightcurve_preview(lc_id["diaObjectId"])
+        CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(lc_id["diaObjectId"])
         return dcc.Graph(
             figure=fig,
-            config={"displayModeBar": False},
+            config=CONFIG_PLOT,
             style={"width": "100%", "height": "15pc"},
             responsive=True,
         ), dmc.Group(sparklines, grow=True,)

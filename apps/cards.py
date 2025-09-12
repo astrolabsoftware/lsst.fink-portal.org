@@ -15,7 +15,7 @@
 """Various cards in the portal"""
 import textwrap
 import io
-from dash import html, dcc, Output, Input, State
+from dash import html, dcc, Output, Input, State, dash_table
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -42,6 +42,7 @@ from dash_iconify import DashIconify
 # Callbacks
 from apps.plotting import draw_lightcurve  # noqa: F401
 from apps.plotting import draw_cutouts  # noqa: F401
+from apps.plotting import CONFIG_PLOT
 
 from apps.configuration import extract_configuration
 
@@ -518,7 +519,7 @@ def get_multi_labels(pdf, colname, default=None, to_avoid=None):
         return default
 
 
-def card_lightcurve_summary():
+def card_lightcurve_summary(diaObjectId):
     """Add a card containing the lightcurve
 
     Returns
@@ -526,6 +527,7 @@ def card_lightcurve_summary():
     card: dbc.Card
         Card with the lightcurve drawn inside
     """
+    CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(diaObjectId)
     card = html.Div(
         [
             loading(
@@ -535,7 +537,7 @@ def card_lightcurve_summary():
                         "width": "100%",
                         "height": "30pc",
                     },
-                    config={"displayModeBar": False},
+                    config=CONFIG_PLOT,
                     className="mb-2 rounded-5",
                 ),
             ),
@@ -806,15 +808,17 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 ),
                                             ],
                                             "help_download",
-                                            trigger=dmc.ActionIcon(
-                                                DashIconify(icon="mdi:help"),
+                                            trigger=dmc.Button(
+                                                "Code",
                                                 id="help_download",
                                                 variant="outline",
                                                 color="indigo",
+                                                size="compact-sm",
+                                                leftSection=DashIconify(icon="mdi:api"),
                                             ),
                                         ),
                                         html.Div(
-                                            diaObjectid,
+                                            str(diaObjectid),
                                             id="download_objectid",
                                             className="d-none",
                                         ),
@@ -881,35 +885,129 @@ curl -H "Content-Type: application/json" -X POST \\
             #     ],
             #     value="external_brokers",
             # ),
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
-                        "Share",
-                        icon=[
-                            DashIconify(
-                                icon="tabler:share",
-                                color=dmc.DEFAULT_THEME["colors"]["gray"][6],
-                                width=20,
-                            ),
-                        ],
-                    ),
-                    dmc.AccordionPanel(
-                        [
-                            dmc.Center(
-                                html.Div(id="qrcode"),
-                                style={"width": "100%", "height": "200"},
-                            ),
-                        ],
-                    ),
-                ],
-                value="qr",
-            ),
+            # dmc.AccordionItem(
+            #     [
+            #         dmc.AccordionControl(
+            #             "Share",
+            #             icon=[
+            #                 DashIconify(
+            #                     icon="tabler:share",
+            #                     color=dmc.DEFAULT_THEME["colors"]["gray"][6],
+            #                     width=20,
+            #                 ),
+            #             ],
+            #         ),
+            #         dmc.AccordionPanel(
+            #             [
+            #                 dmc.Center(
+            #                     html.Div(id="qrcode"),
+            #                     style={"width": "100%", "height": "200"},
+            #                 ),
+            #             ],
+            #         ),
+            #     ],
+            #     value="qr",
+            # ),
         ],
         value=["stamps"],
         styles={"content": {"padding": "5px"}},
     )
 
     return card
+
+@app.callback(
+    Output("alert_table", "children"),
+    [
+        Input("object-data", "data"),
+        Input("lightcurve_object_page", "clickData"),
+    ],
+    prevent_initial_call=True,
+)
+def alert_properties(object_data, clickData):
+    pdf_ = pd.read_json(io.StringIO(object_data))
+
+    if clickData is not None:
+        time0 = clickData["points"][0]["x"]
+        # Round to avoid numerical precision issues
+        mjds = pdf_["i:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
+        mjd0 = np.round(Time(time0, format="iso").mjd, 3)
+        if mjd0 in mjds:
+            pdf_ = pdf_[mjds == mjd0]
+        else:
+            return no_update
+
+    pdf = pdf_.head(1)
+    pdf = pd.DataFrame({"Name": pdf.columns, "Value": pdf.to_numpy()[0]})
+    columns = [
+        {
+            "id": c,
+            "name": c,
+            # 'hideable': True,
+            "presentation": "input",
+            "type": "text" if c == "Name" else "numeric",
+            "format": dash_table.Format.Format(precision=8),
+        }
+        for c in pdf.columns
+    ]
+    data = pdf.to_dict("records")
+    table = dash_table.DataTable(
+        data=data,
+        columns=columns,
+        id="result_table_alert",
+        # page_size=10,
+        page_action="none",
+        style_as_list_view=True,
+        filter_action="native",
+        markdown_options={"link_target": "_blank"},
+        # fixed_columns={'headers': True},#, 'data': 1},
+        persistence=True,
+        persistence_type="memory",
+        style_data={
+            "backgroundColor": "rgb(248, 248, 248, 1.0)",
+        },
+        style_table={"maxWidth": "100%", "maxHeight": "300px", "overflow": "auto"},
+        style_cell={
+            "padding": "5px",
+            "textAlign": "left",
+            "overflow": "hidden",
+            "overflow-wrap": "anywhere",
+            "max-width": "100%",
+            "font-family": "sans-serif",
+            "fontSize": 14,
+        },
+        style_filter={"backgroundColor": "rgb(238, 238, 238, 1.0)"},
+        style_filter_conditional=[
+            {
+                "if": {"column_id": "Value"},
+                "textAlign": "left",
+            },
+        ],
+        style_data_conditional=[
+            {
+                "if": {"row_index": "odd"},
+                "backgroundColor": "rgb(248, 248, 248, 1.0)",
+            },
+            {
+                "if": {"column_id": "Name"},
+                "backgroundColor": "rgb(240, 240, 240, 1.0)",
+                "white-space": "normal",
+                "min-width": "8pc",
+            },
+            {
+                "if": {"column_id": "Value"},
+                "white-space": "normal",
+                "min-width": "8pc",
+            },
+        ],
+        style_header={
+            "backgroundColor": "rgb(230, 230, 230, 1.0)",
+            "fontWeight": "bold",
+            "textAlign": "center",
+        },
+        # Align the text in Markdown cells
+        css=[dict(selector="p", rule="margin: 0; text-align: left")],
+    )
+    return table
 
 @app.callback(
     Output("card_id_left", "children"),
@@ -1281,7 +1379,6 @@ function(n_clicks, name, apiurl){
             method: 'POST',
             body: JSON.stringify({
                  'diaObjectId': name,
-                 'withupperlim': true,
                  'output-format': '$FORMAT'
             }),
             headers: {

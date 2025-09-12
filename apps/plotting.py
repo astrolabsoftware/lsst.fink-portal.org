@@ -24,6 +24,7 @@ from copy import deepcopy
 from app import app
 
 from astropy.visualization import AsymmetricPercentileInterval, simple_norm
+from astropy.coordinates import SkyCoord
 
 import numpy as np
 import pandas as pd
@@ -54,6 +55,30 @@ COLORS_LSST_NEGATIVE = [
     "#274667",
     "#F57A2E",
 ]
+
+CONFIG_PLOT = {
+    "displayModeBar": True,
+    "displaylogo": False,
+    'modeBarButtonsToRemove': [
+        'zoom2d',
+        'zoomIn2d',
+        'zoomOut2d',
+        'toggleSpikelines',
+        'pan2d',
+        'select2d',
+        'lasso2d',
+        'autoScale2d',
+        'hoverClosestCartesian',
+        'hoverCompareCartesian'
+    ],
+    'toImageButtonOptions': {
+        'format': 'png', # one of png, svg, jpeg, webp
+        'filename': '{}',
+        # 'height': 500,
+        # 'width': 700,
+        'scale': 1.5 # Multiply title/legend/axis/canvas sizes by this factor
+    }
+}
 
 default_radio_options = ["Total flux", "Difference flux", "Magnitude"]
 all_radio_options = {v: default_radio_options for v in default_radio_options}
@@ -567,6 +592,8 @@ def draw_lightcurve_preview(name) -> dict:
         "i:scienceFlux",
         "i:scienceFluxErr",
         "i:band",
+        "i:snr",
+        "i:reliability",
     ]
     pdf = request_api(
         "/api/v1/sources",
@@ -601,9 +628,9 @@ def draw_lightcurve_preview(name) -> dict:
             font=dict(size=10),
             orientation="h",
             xanchor="right",
-            x=1,
-            y=0.95,
-            bgcolor="rgba(218, 223, 225, 0.8)",
+            x=0,
+            y=1.2,
+            bgcolor="rgba(218, 223, 225, 0.5)",
         ),
         xaxis={
             "title": "Observation date",
@@ -622,7 +649,9 @@ def draw_lightcurve_preview(name) -> dict:
     hovertemplate = r"""
     <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
     <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-    <b>mjd</b>: %{customdata[0]}
+    <b>mjd</b>: %{customdata[0]}<br>
+    <b>SNR</b>: %{customdata[1]:.2f}<br>
+    <b>Reliability</b>: %{customdata[2]:.2f}
     <extra></extra>
     """
     figure = {
@@ -659,7 +688,11 @@ def draw_lightcurve_preview(name) -> dict:
                 "mode": "markers",
                 "name": f"{fname}",
                 "customdata": np.stack(
-                    (pdf["i:midpointMjdTai"][idx],),
+                    (
+                        pdf["i:midpointMjdTai"][idx],
+                        pdf["i:snr"][idx],
+                        pdf["i:reliability"][idx],
+                    ),
                     axis=-1,
                 ),
                 "hovertemplate": hovertemplate,
@@ -751,7 +784,7 @@ def draw_lightcurve(
             font=dict(size=10),
             orientation="h",
             xanchor="right",
-            x=1,
+            x=0,
             yanchor="bottom",
             y=1.02,
             bgcolor="rgba(218, 223, 225, 0.3)",
@@ -814,7 +847,9 @@ def draw_lightcurve(
         hovertemplate = r"""
         <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
         <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-        <b>mjd</b>: %{customdata[0]}
+        <b>mjd</b>: %{customdata[0]}<br>
+        <b>SNR</b>: %{customdata[1]:.2f}<br>
+        <b>Reliability</b>: %{customdata[2]:.2f}
         <extra></extra>
         """
         idx = pdf["i:band"] == fname
@@ -831,10 +866,12 @@ def draw_lightcurve(
                     "color": color,
                 },
                 "mode": "markers",
-                "name": f"{fname} band",
+                "name": f"{fname}",
                 "customdata": np.stack(
                     (
                         pdf["i:midpointMjdTai"][idx],
+                        pdf["i:snr"][idx],
+                        pdf["i:reliability"][idx],
                     ),
                     axis=-1,
                 ),
@@ -854,6 +891,178 @@ def draw_lightcurve(
         )
 
     return figure
+
+@app.callback(
+    Output("coordinates", "children"),
+    [
+        Input("object-data", "data"),
+        Input("coordinates_chips", "value"),
+    ],
+    prevent_initial_call=True,
+)
+def draw_alert_astrometry(object_data, kind) -> dict:
+    """Draw object astrometry
+
+    This is the difference position of each alert wrt mean position
+
+    Returns
+    -------
+    figure: dict
+    """
+    pdf = pd.read_json(io.StringIO(object_data))
+
+    mean_ra = np.mean(pdf["i:ra"])
+    mean_dec = np.mean(pdf["i:dec"])
+
+    deltaRAcosDEC = (pdf["i:ra"] - mean_ra) * np.cos(np.radians(pdf["i:dec"])) * 3600
+    deltaDEC = (pdf["i:dec"] - mean_dec) * 3600
+
+    hovertemplate = r"""
+    <b>%{yaxis.title.text}</b>: %{y:.2f}<br>
+    <b>%{xaxis.title.text}</b>: %{x:.2f}<br>
+    <b>Observation date</b>: %{customdata}
+    <extra></extra>
+    """
+
+    data = []
+
+    for fid, fname, color, color_negative in (
+        (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
+        (2, "g", COLORS_LSST[1], COLORS_LSST_NEGATIVE[1]),
+        (3, "r", COLORS_LSST[2], COLORS_LSST_NEGATIVE[2]),
+        (4, "i", COLORS_LSST[3], COLORS_LSST_NEGATIVE[3]),
+        (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
+        (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
+    ):
+        data.append(
+            {
+                "x": deltaRAcosDEC[pdf["i:band"] == fname],
+                "y": deltaDEC[pdf["i:band"] == fname],
+                "mode": "markers",
+                "name": "{} band".format(fname),
+                "customdata": Time(pdf["i:midpointMjdTai"][pdf["i:midpointMjdTai"] == 1], format="mjd").iso,
+                "hovertemplate": hovertemplate,
+                "marker": {"size": 6, "color": color, "symbol": "o"},
+            }
+        )
+
+    layout = dict(
+        automargin=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            xanchor="right",
+            x=1,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        xaxis={
+            "title": "&#916;RA cos(Dec) ('')",
+            "automargin": True,
+        },
+        yaxis={
+            "title": "&#916;Dec ('')",
+            "automargin": True,
+            "scaleanchor": "x",
+            "scaleratio": 1,
+        },
+    )
+
+    figure = {
+        "data": data,
+        "layout": layout,
+    }
+    # Force equal aspect ratio
+    figure["layout"]["yaxis"]["scaleanchor"] = "x"
+    layout["showlegend"] = True
+    # figure['layout']['yaxis']['scaleratio'] = 1
+
+    graph = dcc.Graph(
+        figure=figure,
+        style={
+            "width": "100%",
+            "height": "20pc",
+            # Prevent occupying more than 60% of the screen height
+            "max-height": "60vh",
+            # Force equal aspect
+            # 'display':'block',
+            # 'aspect-ratio': '1',
+            # 'margin': '1px'
+        },
+        config={"displayModeBar": False},
+        responsive=True,
+    )
+    card1 = dmc.Paper(
+        graph, radius="sm", p="xs", shadow="sm", withBorder=True, className="mb-1"
+    )
+
+    coord = SkyCoord(mean_ra, mean_dec, unit="deg")
+
+    # degrees
+    if kind == "GAL":
+        coords_deg = coord.galactic.to_string("decimal", precision=6)
+    else:
+        coords_deg = coord.to_string("decimal", precision=6)
+
+    # hmsdms
+    if kind == "GAL":
+        # Galactic coordinates are in DMS only
+        coords_hms = coord.galactic.to_string("dms", precision=2)
+        coords_hms2 = coord.galactic.to_string("dms", precision=2, sep=" ")
+    else:
+        coords_hms = coord.to_string("hmsdms", precision=2)
+        coords_hms2 = coord.to_string("hmsdms", precision=2, sep=" ")
+
+    card_coords = html.Div(
+        [
+            dmc.Group(
+                [
+                    html.Code(coords_deg, id="alert_coords_deg"),
+                    dcc.Clipboard(
+                        target_id="alert_coords_deg",
+                        title="Copy to clipboard",
+                        style={"color": "gray"},
+                    ),
+                ],
+                justify="space-between",
+                style={"width": "100%"},
+            ),
+            dmc.Group(
+                [
+                    html.Code(coords_hms, id="alert_coords_hms"),
+                    dcc.Clipboard(
+                        target_id="alert_coords_hms",
+                        title="Copy to clipboard",
+                        style={"color": "gray"},
+                    ),
+                ],
+                justify="space-between",
+                style={"width": "100%"},
+            ),
+            dmc.Group(
+                [
+                    html.Code(coords_hms2, id="alert_coords_hms2"),
+                    dcc.Clipboard(
+                        target_id="alert_coords_hms2",
+                        title="Copy to clipboard",
+                        style={"color": "gray"},
+                    ),
+                ],
+                justify="space-between",
+                style={"width": "100%"},
+            ),
+        ],
+        className="mx-auto",
+        style={"max-width": "17em"},
+    )
+
+    return html.Div([card1, card_coords])
 
 @app.callback(
     Output("aladin-lite-runner", "run"),

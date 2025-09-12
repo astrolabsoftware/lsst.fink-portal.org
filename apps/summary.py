@@ -230,7 +230,7 @@ def tab1_content(pdf):
             dbc.Row(
                 [
                     dbc.Col(
-                        children=[card_lightcurve_summary()],
+                        children=[card_lightcurve_summary(pdf["i:diaObjectId"].to_numpy()[0])],
                         md=8,
                     ),
                     dbc.Col(
@@ -280,6 +280,7 @@ def store_query(name):
         "i:dec",
         "d:finkclass",
         "i:snr",
+        "i:reliability",
     ]
 
     pdf = request_api(
