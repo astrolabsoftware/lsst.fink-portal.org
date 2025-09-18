@@ -94,7 +94,7 @@ fink_search_bar = [
 ] + [
     html.Div(
         # className='p-0 m-0 border shadow-sm rounded-3',
-        className="pt-0 pb-0 ps-1 pe-1 m-0 rcorners2 shadow",
+        className="pt-0 pb-0 ps-1 pe-1 m-0 rcorners2 box-shadow",
         id="search_bar",
         # className='rcorners2',
         children=[

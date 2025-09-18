@@ -60,6 +60,12 @@ def card_search_result(row, i):
     if name[0] == "[":  # Markdownified
         name = row["i:diaObjectId"].split("[")[1].split("]")[0]
 
+    # FIXME: update when first/last will be populated...
+    # payload = {"diaObjectId": str(name), "midpointMjdTai": row["lastDiaSourceMjdTai"], "columns": ...}
+    payload = {"diaObjectId": str(name), "columns": "i:midpointMjdTai,i:extendedness,i:reliability,i:snr,i:glint_trail"}
+    sources = request_api("/api/v1/sources", json=payload, output="json")
+    source = max(sources, key=lambda x: x["i:midpointMjdTai"])
+
     # Handle different variants for key names from different API entry points
     classification = None
     for key in ["d:finkclass"]:
@@ -95,6 +101,28 @@ def card_search_result(row, i):
         )
 
     badges += generate_generic_badges(row, variant="outline")
+
+    if source.get("i:extendedness", 0.0) > 0.9:
+        badges.append(
+            make_badge(
+                "Extended source",
+                variant="outline",
+                color="grey",
+                tooltip="Extendedness above 0.9",
+            )
+        )
+
+    if source.get("i:glint_trail", False):
+        badges.append(
+            make_badge(
+                "Glint trail",
+                variant="outline",
+                color="grey",
+                tooltip="The last source is part of a glint trail",
+            )
+        )
+
+
 
     # FIXME
     if "i:ndethist" in row:
@@ -249,7 +277,7 @@ def card_search_result(row, i):
             ),
         ],
         color="light",
-        className="mb-2 shadow border-1 rounded-5",
+        className="mb-2 border-1 rounded-5 box-shadow",
         outline=True,
 
     )

@@ -1,5 +1,5 @@
 :root {
-    --bgColor: #f0f0f0;
+    --bgColor: #f7f7f7;
     --bgColorTriplet: 255, 255, 255;
     --textDefault: #000;
     --primary: #0B4CFF;
@@ -128,4 +128,9 @@ a {
 
 a:hover {
   color: #297ac2;
+}
+
+.box-shadow {
+  /* https://getcssscan.com/css-box-shadow-examples */
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
 }

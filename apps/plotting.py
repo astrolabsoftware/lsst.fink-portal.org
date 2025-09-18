@@ -50,15 +50,18 @@ from apps.utils import loading
 from apps.utils import hex_to_rgba
 
 # FIXME
-COLORS_LSST = ["#15284F", "#F5622E", "#15284F", "#F5622E", "#15284F", "#F5622E"]
+COLORS_LSST = ["#15284F", "#F5622E", "#F5622E", "#15284F", "#F5622E", "#15284F", "#F5622E"]
 COLORS_LSST_NEGATIVE = [
     "#274667",
+    "#F57A2E",
     "#F57A2E",
     "#274667",
     "#F57A2E",
     "#274667",
     "#F57A2E",
 ]
+
+PAPER_BGCOLOR = "#f7f7f7"
 
 CONFIG_PLOT = {
     "displayModeBar": True,
@@ -214,8 +217,8 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
         xaxis=axis_template,
         yaxis=axis_template,
         showlegend=True,
-        paper_bgcolor="#f0f0f0",
-        plot_bgcolor="#f0f0f0",
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
     )
 
     fig.update_layout(width=shape[1], height=shape[0])
@@ -831,8 +834,8 @@ def draw_lightcurve(
     layout["showlegend"] = True
     layout["shapes"] = []
 
-    layout["paper_bgcolor"] = "#f0f0f0"
-    layout["plot_bgcolor"] = "#f0f0f0"
+    layout["paper_bgcolor"] = PAPER_BGCOLOR
+    layout["plot_bgcolor"] = PAPER_BGCOLOR
 
     fig = go.Figure(layout=layout)
     if switch_layout == "Split":
@@ -984,8 +987,8 @@ def draw_alert_astrometry(object_data, kind) -> dict:
             "scaleanchor": "x",
             "scaleratio": 1,
         },
-        paper_bgcolor="#f0f0f0",
-        plot_bgcolor="#f0f0f0",
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
     )
 
     figure = {
