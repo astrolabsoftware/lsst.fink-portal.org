@@ -231,7 +231,7 @@ def tab1_content(pdf):
             dbc.Row(
                 [
                     dbc.Col(
-                        children=[card_lightcurve_summary(pdf["i:diaObjectId"].to_numpy()[0])],
+                        children=[card_lightcurve_summary(pdf["r:diaObjectId"].to_numpy()[0])],
                         md=8,
                     ),
                     dbc.Col(
@@ -267,36 +267,15 @@ def store_query(name):
     # else:
     #     oid = name[1:]
 
-    # All necessary columns
-    cols = [
-        "i:diaObjectId",
-        "i:midpointMjdTai",
-        "i:scienceFlux",
-        "i:scienceFluxErr",
-        "i:psfFlux",
-        "i:psfFluxErr",
-        "i:band",
-        "i:diaSourceId",
-        "i:ra",
-        "i:dec",
-        "d:finkclass",
-        "i:snr",
-        "i:reliability",
-    ]
-
     pdf = request_api(
         "/api/v1/sources",
         json={
             "diaObjectId": oid,
-            "columns": ",".join(cols)
+            "columns": "*"
         },
         # output="json", # should inspect this possibility
-        dtype={"i:diaObjectId": np.int64, "i:diaSourceId": np.int64},  # Force reading this field as string
+        dtype={"r:diaObjectId": np.int64, "r:diaSourceId": np.int64},  # Force reading this field as string
     )
-
-    # Convert np.int64
-    # pdf["i:diaObjectId"] = pdf["i:diaObjectId"].apply(lambda x: str(x))
-    # pdf["i:diaSourceId"] = pdf["i:diaSourceId"].apply(lambda x: str(x))
 
     # pdf_ = pd.read_json(pdf.to_json())
     # pdfs = pdf[pdf["d:tag"] == "valid"]
@@ -362,8 +341,8 @@ def store_release_photometry(n_clicks, object_data):
 
     pdf = pd.read_json(io.StringIO(object_data))
 
-    mean_ra = np.mean(pdf["i:ra"])
-    mean_dec = np.mean(pdf["i:dec"])
+    mean_ra = np.mean(pdf["r:ra"])
+    mean_dec = np.mean(pdf["r:dec"])
     sr_arcsec = 2.0
 
     r = requests.get(

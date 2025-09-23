@@ -219,8 +219,8 @@ def display_skymap(data, columns, is_open):
         pdf = pd.DataFrame(data)
 
         # Coordinate of the first alert
-        ra0 = pdf["i:ra"].to_numpy()[0]
-        dec0 = pdf["i:dec"].to_numpy()[0]
+        ras = pdf["r:ra"].to_numpy()
+        decs = pdf["r:dec"].to_numpy()
 
         # Javascript. Note the use {{}} for dictionary
         # Force redraw of the Aladin lite window
@@ -239,10 +239,7 @@ def display_skymap(data, columns, is_open):
             fov: 360
             }}
         );
-        """.format(ra0, dec0)
-
-        ras = pdf["i:ra"].to_numpy()
-        decs = pdf["i:dec"].to_numpy()
+        """.format(ras[0], decs[0])
 
         if "v:lastdate" not in pdf.columns:
             # conesearch does not expose v:lastdate
@@ -259,15 +256,15 @@ def display_skymap(data, columns, is_open):
                 i.split("]")[0].split("[")[1],
                 i.split("]")[0].split("[")[1],
             )
-            for i in pdf["i:diaObjectId"].to_numpy()
+            for i in pdf["r:diaObjectId"].to_numpy()
         ]
 
         # FIXME: get the mean flux in g, and make marker size accordingly
         # mags = pdf["i:p"].to_numpy()
 
-        classes = pdf["d:finkclass"].to_numpy()
+        classes = pdf["f:finkclass"].to_numpy()
         n_alert_per_class = (
-            pdf.groupby("d:finkclass").count().to_dict()["i:diaObjectId"]
+            pdf.groupby("f:finkclass").count().to_dict()["r:diaObjectId"]
         )
         cats = []
         for ra, dec, time_, title, class_ in zip(ras, decs, times, titles, classes):
@@ -418,7 +415,7 @@ def populate_result_table(data, columns):
         },
         style_data_conditional=[
             {
-                "if": {"column_id": "i:objectId"},
+                "if": {"column_id": "r:objectId"},
                 "backgroundColor": "rgb(240, 240, 240, 1.0)",
             }
         ],
@@ -469,7 +466,7 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
                 "type": "numeric",
                 "format": dash_table.Format.Format(precision=8),
                 "presentation": "markdown"
-                if field_dropdown == "i:diaObjectId"
+                if field_dropdown == "r:diaObjectId"
                 else "input",
                 # 'hideable': True,
             }
@@ -478,7 +475,7 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
         return data, columns
     elif groupby1 is True:
         pdf = pd.DataFrame.from_dict(data)
-        pdf = pdf.drop_duplicates(subset="i:diaObjectId", keep="first")
+        pdf = pdf.drop_duplicates(subset="r:diaObjectId", keep="first")
         data = pdf.to_dict("records")
         return data, columns
     elif groupby2 is True:
@@ -551,7 +548,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         "i:ra": "RA (deg)",
         "i:dec": "Dec (deg)",
         "v:lastdate": "Last alert",
-        "d:finkclass": "Classification",
+        "f:finkclass": "Classification",
         "i:ndethist": "Number of measurements",
         "v:lapse": "Time variation (day)",
     }
@@ -673,10 +670,10 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         pdf = request_api("/api/v1/conesearch", json=payload)
 
         colnames_to_display = {
-            "i:diaObjectId": "diaObjectId",
+            "r:diaObjectId": "diaObjectId",
             "v:separation_degree": "Separation (degree)",
-            "d:finkclass": "Classification",
-            "d:nalerthist": "Number of measurements",
+            "f:finkclass": "Classification",
+            "r:nDiaSources": "Number of measurements",
             "v:lapse": "Time variation (day)",
         }
 
@@ -768,14 +765,14 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         )
     else:
         # Make clickable objectId
-        pdf["i:diaObjectId"] = pdf["i:diaObjectId"].apply(markdownify_objectid)
+        pdf["r:diaObjectId"] = pdf["r:diaObjectId"].apply(markdownify_objectid)
 
         # Sort the results
         if query["action"] == "conesearch":
             # pdf["v:lapse"] = pdf["i:jd"] - pdf["i:jdstarthist"]
             data = pdf.sort_values("v:separation_degree", ascending=True)
         else:
-            data = pdf.sort_values("i:midpointMjdTai", ascending=False)
+            data = pdf.sort_values("r:midpointMjdTai", ascending=False)
 
         if show_table:
             data = data.to_dict("records")
@@ -787,7 +784,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
                     "type": "numeric",
                     "format": dash_table.Format.Format(precision=8),
                     # 'hideable': True,
-                    "presentation": "markdown" if c == "i:diaObjectId" else "input",
+                    "presentation": "markdown" if c == "r:diaObjectId" else "input",
                 }
                 for c in colnames_to_display.keys()
             ]

@@ -98,7 +98,7 @@ def draw_cutouts_quickview(name, kinds=None):
     for kind in kinds:
         try:  # noqa: PERF203
             # We may manually construct the payload to avoid extra API call
-            object_data = f'{{"i:diaObjectId":{{"0": "{name}"}}}}'
+            object_data = f'{{"r:diaObjectId":{{"0": "{name}"}}}}'
             data = extract_cutout(object_data, None, kind=kind)
             figs.append(draw_cutout(data, kind, zoom=False))
         except OSError:  # noqa: PERF203
@@ -124,14 +124,14 @@ def extract_cutout(object_data, time0, kind):
     data: np.array
         2D array containing cutout data
     """
-    pdf_ = pd.read_json(io.StringIO(object_data), dtype={"i:diaObjectId": np.int64})
+    pdf_ = pd.read_json(io.StringIO(object_data), dtype={"r:diaObjectId": np.int64})
 
     if time0 is None:
         position = 0
     else:
-        pdf_ = pdf_.sort_values("i:midpointMjdTai", ascending=False)
+        pdf_ = pdf_.sort_values("r:midpointMjdTai", ascending=False)
         # Round to avoid numerical precision issues
-        mjds = pdf_["i:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
+        mjds = pdf_["r:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
         mjd0 = np.round(Time(time0, format="iso").mjd, 3)
         if mjd0 in mjds:
             position = np.where(mjds == mjd0)[0][0]
@@ -140,13 +140,13 @@ def extract_cutout(object_data, time0, kind):
 
     # Construct the query
     payload = {
-        "diaObjectId": str(pdf_["i:diaObjectId"].to_numpy()[0]),
+        "diaObjectId": str(pdf_["r:diaObjectId"].to_numpy()[0]),
         "kind": kind.capitalize(),
         "output-format": "FITS",
     }
 
-    if position > 0 and "i:diaSourceId" in pdf_.columns:
-        payload["diaSourceId"] = str(pdf_["i:diaSourceId"].to_numpy()[position])
+    if position > 0 and "r:diaSourceId" in pdf_.columns:
+        payload["diaSourceId"] = str(pdf_["r:diaSourceId"].to_numpy()[position])
 
     # Extract the cutout data
     r = request_api(
@@ -352,7 +352,7 @@ def draw_cutouts_modal(object_data, date_modal_select, is_open):
     return figs
 
 def make_modal_stamps(pdf):
-    dates = convert_time(pdf["i:midpointMjdTai"].to_numpy(), format_in="mjd", format_out="iso")
+    dates = convert_time(pdf["r:midpointMjdTai"].to_numpy(), format_in="mjd", format_out="iso")
     return [
         dbc.Modal(
             [
@@ -595,12 +595,12 @@ def draw_lightcurve_preview(name) -> dict:
     figure: dict
     """
     cols = [
-        "i:midpointMjdTai",
-        "i:scienceFlux",
-        "i:scienceFluxErr",
-        "i:band",
-        "i:snr",
-        "i:reliability",
+        "r:midpointMjdTai",
+        "r:scienceFlux",
+        "r:scienceFluxErr",
+        "r:band",
+        "r:snr",
+        "r:reliability",
     ]
     pdf = request_api(
         "/api/v1/sources",
@@ -612,14 +612,14 @@ def draw_lightcurve_preview(name) -> dict:
     )
 
     # type conversion
-    dates = convert_time(pdf["i:midpointMjdTai"], format_in="mjd", format_out="iso")
+    dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
 
     # Should we correct DC magnitudes for the nearby source?..
     # is_dc_corrected = is_source_behind(pdf["i:distnr"].to_numpy()[0])
 
     # shortcuts -- in milliJansky
-    flux = pdf["i:scienceFlux"] * 1e-3
-    flux_err = pdf["i:scienceFluxErr"] * 1e-3
+    flux = pdf["r:scienceFlux"] * 1e-3
+    flux_err = pdf["r:scienceFluxErr"] * 1e-3
 
     # We should never modify global variables!!!
     layout = dict(
@@ -675,7 +675,7 @@ def draw_lightcurve_preview(name) -> dict:
         (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
         (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
     ):
-        idx = pdf["i:band"] == fname
+        idx = pdf["r:band"] == fname
 
         if not np.sum(idx):
             continue
@@ -696,9 +696,9 @@ def draw_lightcurve_preview(name) -> dict:
                 "name": f"{fname}",
                 "customdata": np.stack(
                     (
-                        pdf["i:midpointMjdTai"][idx],
-                        pdf["i:snr"][idx],
-                        pdf["i:reliability"][idx],
+                        pdf["r:midpointMjdTai"][idx],
+                        pdf["r:snr"][idx],
+                        pdf["r:reliability"][idx],
                     ),
                     axis=-1,
                 ),
@@ -776,7 +776,7 @@ def draw_lightcurve(
     pdf = pd.read_json(io.StringIO(object_data))
 
     # date type conversion
-    dates = convert_time(pdf["i:midpointMjdTai"], format_in="mjd", format_out="iso")
+    dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
 
     layout = dict(
         autosize=True,
@@ -809,22 +809,22 @@ def draw_lightcurve(
 
     if switch_units == "Magnitude":
         # Using same names as others despite being magnitudes
-        flux, flux_err = flux_to_mag(pdf["i:scienceFlux"], pdf["i:scienceFluxErr"])
+        flux, flux_err = flux_to_mag(pdf["r:scienceFlux"], pdf["r:scienceFluxErr"])
         yaxis_title = "Magnitude"
         layout["yaxis"]["autorange"] = "reversed"
         scale = 1.0
     elif switch_units == "Difference flux":
         # shortcuts
-        flux = pdf["i:psfFlux"]
-        flux_err = pdf["i:psfFluxErr"]
+        flux = pdf["r:psfFlux"]
+        flux_err = pdf["r:psfFluxErr"]
 
         yaxis_title = "Difference flux (milliJansky)"
         layout["yaxis"]["autorange"] = True
         scale = 1e-3
     elif switch_units == "Total flux":
         # shortcuts
-        flux = pdf["i:scienceFlux"]
-        flux_err = pdf["i:scienceFluxErr"]
+        flux = pdf["r:scienceFlux"]
+        flux_err = pdf["r:scienceFluxErr"]
 
         yaxis_title = "Total flux (milliJansky)"
         layout["yaxis"]["autorange"] = True
@@ -858,7 +858,7 @@ def draw_lightcurve(
         <b>Reliability</b>: %{customdata[2]:.2f}
         <extra></extra>
         """
-        idx = pdf["i:band"] == fname
+        idx = pdf["r:band"] == fname
 
         trace = go.Scatter(
             x=dates[idx],
@@ -874,9 +874,9 @@ def draw_lightcurve(
             name=f"{fname}",
             customdata=np.stack(
                 (
-                    pdf["i:midpointMjdTai"][idx],
-                    pdf["i:snr"][idx],
-                    pdf["i:reliability"][idx],
+                    pdf["r:midpointMjdTai"][idx],
+                    pdf["r:snr"][idx],
+                    pdf["r:reliability"][idx],
                 ),
                 axis=-1,
             ),
@@ -926,11 +926,11 @@ def draw_alert_astrometry(object_data, kind) -> dict:
     """
     pdf = pd.read_json(io.StringIO(object_data))
 
-    mean_ra = np.mean(pdf["i:ra"])
-    mean_dec = np.mean(pdf["i:dec"])
+    mean_ra = np.mean(pdf["r:ra"])
+    mean_dec = np.mean(pdf["r:dec"])
 
-    deltaRAcosDEC = (pdf["i:ra"] - mean_ra) * np.cos(np.radians(pdf["i:dec"])) * 3600
-    deltaDEC = (pdf["i:dec"] - mean_dec) * 3600
+    deltaRAcosDEC = (pdf["r:ra"] - mean_ra) * np.cos(np.radians(pdf["r:dec"])) * 3600
+    deltaDEC = (pdf["r:dec"] - mean_dec) * 3600
 
     hovertemplate = r"""
     <b>%{yaxis.title.text}</b>: %{y:.2f}<br>
@@ -951,11 +951,11 @@ def draw_alert_astrometry(object_data, kind) -> dict:
     ):
         data.append(
             {
-                "x": deltaRAcosDEC[pdf["i:band"] == fname],
-                "y": deltaDEC[pdf["i:band"] == fname],
+                "x": deltaRAcosDEC[pdf["r:band"] == fname],
+                "y": deltaDEC[pdf["r:band"] == fname],
                 "mode": "markers",
                 "name": "{} band".format(fname),
-                "customdata": Time(pdf["i:midpointMjdTai"][pdf["i:midpointMjdTai"] == 1], format="mjd").iso,
+                "customdata": Time(pdf["r:midpointMjdTai"][pdf["r:midpointMjdTai"] == 1], format="mjd").iso,
                 "hovertemplate": hovertemplate,
                 "marker": {"size": 6, "color": color, "symbol": "o"},
             }
@@ -1105,11 +1105,11 @@ def integrate_aladin_lite(object_data):
         ID of the alert
     """
     pdf = pd.read_json(io.StringIO(object_data))
-    pdf = pdf.sort_values("i:midpointMjdTai", ascending=False)
+    pdf = pdf.sort_values("r:midpointMjdTai", ascending=False)
 
     # Coordinate of the current alert
-    ra0 = pdf["i:ra"].to_numpy()[0]
-    dec0 = pdf["i:dec"].to_numpy()[0]
+    ra0 = pdf["r:ra"].to_numpy()[0]
+    dec0 = pdf["r:dec"].to_numpy()[0]
 
     # Javascript. Note the use {{}} for dictionary
     img = f"""

@@ -56,19 +56,19 @@ def card_search_result(row, i):
     """Display single item for search results"""
     badges = []
 
-    name = row["i:diaObjectId"]
+    name = row["r:diaObjectId"]
     if name[0] == "[":  # Markdownified
-        name = row["i:diaObjectId"].split("[")[1].split("]")[0]
+        name = row["r:diaObjectId"].split("[")[1].split("]")[0]
 
     # FIXME: update when first/last will be populated...
     # payload = {"diaObjectId": str(name), "midpointMjdTai": row["lastDiaSourceMjdTai"], "columns": ...}
-    payload = {"diaObjectId": str(name), "columns": "i:midpointMjdTai,i:extendedness,i:reliability,i:snr,i:glint_trail"}
+    payload = {"diaObjectId": str(name), "columns": "r:midpointMjdTai,r:extendedness,r:reliability,r:snr,r:glint_trail,r:pixelFlags_cr"}
     sources = request_api("/api/v1/sources", json=payload, output="json")
-    source = max(sources, key=lambda x: x["i:midpointMjdTai"])
+    source = max(sources, key=lambda x: x["r:midpointMjdTai"])
 
     # Handle different variants for key names from different API entry points
     classification = None
-    for key in ["d:finkclass"]:
+    for key in ["f:finkclass"]:
         if key in row:
             # Classification
             classification = row.get(key)
@@ -89,7 +89,7 @@ def card_search_result(row, i):
                 ),
             )
 
-    cdsxmatch = row.get("d:cdsxmatch")
+    cdsxmatch = row.get("f:cdsxmatch")
     if cdsxmatch and cdsxmatch != "Unknown" and cdsxmatch != classification:
         badges.append(
             make_badge(
@@ -102,42 +102,16 @@ def card_search_result(row, i):
 
     badges += generate_generic_badges(row, variant="outline")
 
-    if source.get("i:extendedness", 0.0) > 0.9:
-        badges.append(
-            make_badge(
-                "Extended source",
-                variant="outline",
-                color="grey",
-                tooltip="Extendedness above 0.9",
-            )
-        )
 
-    if source.get("i:glint_trail", False):
-        badges.append(
-            make_badge(
-                "Glint trail",
-                variant="outline",
-                color="grey",
-                tooltip="The last source is part of a glint trail",
-            )
-        )
-
-
-
-    # FIXME
-    if "i:ndethist" in row:
-        ndethist = row.get("i:ndethist")
-    elif "d:nalerthist" in row:
-        ndethist = row.get("d:nalerthist")
-    else:
-        ndethist = "?"
+    # FIXME: not correct for SSO
+    ndethist = row.get("r:nDiaSources", 1)
 
     # FIXME: use first/last
-    jdend = 2460928.8554911325 + 3  # row.get("i:jdendhist", row.get("i:jd"))
-    jdstart = 2460928.8554911325  # row.get("i:jdstarthist")
-    lastdate = row.get("i:lastdate", Time(jdend, format="jd").iso)
+    mjdend = row.get("r:firstDiaSourceMjdTai", 60924.369825)
+    mjdstart = row.get("r:lastDiaSourceMjdTai", 60924.369825 + 3)
+    lastdate = Time(mjdend, format="mjd").iso
 
-    coords = SkyCoord(row["i:ra"], row["i:dec"], unit="deg")
+    coords = SkyCoord(row["r:ra"], row["r:dec"], unit="deg")
 
     text = """
     `{}` detection(s) in `{:.1f}` days
@@ -147,8 +121,8 @@ def card_search_result(row, i):
     Gal: `{}`
     """.format(
         ndethist,
-        jdend - jdstart,
-        Time(jdstart, format="jd").iso[:19],
+        mjdend - mjdstart,
+        Time(mjdstart, format="mjd").iso[:19],
         lastdate[:19],
         coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
         coords.dec.to_string(
@@ -159,10 +133,10 @@ def card_search_result(row, i):
 
     text = textwrap.dedent(text)
     # FIXME: reliability is not in rubin.objects
-    if "i:reliability" in row:
-        text += "RealBogus: `{:.2f}`\n".format(row["i:reliability"])
-    if "d:anomaly_score" in row:
-        text += "Anomaly score: `{:.2f}`\n".format(row["d:anomaly_score"])
+    if "r:reliability" in row:
+        text += "Reliability: `{:.2f}`\n".format(row["r:reliability"])
+    if "f:anomaly_score" in row:
+        text += "Anomaly score: `{:.2f}`\n".format(row["f:anomaly_score"])
 
     if "v:separation_degree" in row:
         corner_str = "{:.1f}''".format(row["v:separation_degree"] * 3600)
@@ -192,21 +166,6 @@ def card_search_result(row, i):
                     ],
                     gap=3,
                 ),
-                # html.A(
-                #     dmc.Group(
-                #         [
-                #             dmc.Text(
-                #                 f"{name}", style={"fontWeight": 700, "fontSize": 26}
-                #             ),
-                #             dmc.Space(w="sm"),
-                #             *badges,
-                #         ],
-                #         gap=3,
-                #     ),
-                #     href=f"/{name}",
-                #     target="_blank",
-                #     className="text-decoration-none",
-                # ),
             ),
             dbc.CardBody(
                 [
@@ -230,12 +189,6 @@ def card_search_result(row, i):
                                 [
                                     dmc.Box(
                                         [
-                                            # html.A(
-                                            #     dmc.Text(f"{name}", style={"fontWeight": 700, "fontSize": 20}),
-                                            #     href=f"/{name}",
-                                            #     target="_blank",
-                                            #     className="text-decoration-none",
-                                            # ),
                                             *badges,
                                             dcc.Markdown(
                                                 text,
@@ -399,17 +352,49 @@ def generate_generic_badges(row, variant="dot"):
     # FIXME: many ZTF leftover
     if isinstance(row, pd.DataFrame):
         # for VSX, aggregate values
-        vsx_label = get_multi_labels(row, "d:vsx", default="Unknown", to_avoid=["nan"])
-        if vsx_label != row.loc[0].get("d:vsx"):
-            row["d:vsx"] = vsx_label
+        vsx_label = get_multi_labels(row, "f:vsx", default="Unknown", to_avoid=["nan"])
+        if vsx_label != row.loc[0].get("f:vsx"):
+            row["f:vsx"] = vsx_label
 
         # Get first row from DataFrame
         row = row.loc[0]
 
     badges = []
 
+    extendedness = row.get("r:extendedness", 0.0)
+    if extendedness is not None and extendedness > 0.9:
+        badges.append(
+            make_badge(
+                "Extended source",
+                variant="outline",
+                color="grey",
+                tooltip="Extendedness above 0.9",
+            )
+        )
+
+    pixelFlags_cr = row.get("r:pixelFlags_cr", False)
+    if pixelFlags_cr:
+        badges.append(
+            make_badge(
+                "Cosmic ray",
+                variant="outline",
+                color="red",
+                tooltip="Flagged as cosmic ray by Rubin",
+            )
+        )
+
+    if row.get("r:glint_trail", False):
+        badges.append(
+            make_badge(
+                "Glint trail",
+                variant="outline",
+                color="grey",
+                tooltip="The last source is part of a glint trail",
+            )
+        )
+
     # SSO
-    ssnamenr = row.get("i:ssnamenr")
+    ssnamenr = row.get("r:ssObjectId")
     if ssnamenr and ssnamenr != "null":
         badges.append(
             make_badge(
@@ -420,7 +405,7 @@ def generate_generic_badges(row, variant="dot"):
             ),
         )
 
-    tracklet = row.get("d:tracklet")
+    tracklet = row.get("f:tracklet")
     if tracklet and tracklet != "null":
         badges.append(
             make_badge(
@@ -431,7 +416,7 @@ def generate_generic_badges(row, variant="dot"):
             ),
         )
 
-    gcvs = row.get("d:gcvs")
+    gcvs = row.get("f:gcvs")
     if gcvs and gcvs != "Unknown":
         badges.append(
             make_badge(
@@ -442,7 +427,7 @@ def generate_generic_badges(row, variant="dot"):
             ),
         )
 
-    vsx = row.get("d:vsx")
+    vsx = row.get("f:vsx")
     if (
         vsx
         and vsx != "Unknown"
@@ -459,45 +444,46 @@ def generate_generic_badges(row, variant="dot"):
             ),
         )
 
-    # Nearby objects
-    distnr = row.get("i:distnr")
-    if distnr:
-        is_source = is_source_behind(distnr)
-        badges.append(
-            make_badge(
-                f'ZTF: {distnr:.1f}"',
-                variant=variant,
-                color="cyan",
-                outline="red" if is_source else None,
-                tooltip="""There is a source behind in ZTF reference image.
-                You might want to check the DC magnitude plot, and get DR photometry to see its long-term behaviour
-                """
-                if is_source
-                else "Distance to closest object in ZTF reference image",
-            ),
-        )
+    # # Nearby objects
+    # distnr = row.get("f:distnr")
+    # if distnr:
+    #     is_source = is_source_behind(distnr)
+    #     badges.append(
+    #         make_badge(
+    #             f'ZTF: {distnr:.1f}"',
+    #             variant=variant,
+    #             color="cyan",
+    #             outline="red" if is_source else None,
+    #             tooltip="""There is a source behind in ZTF reference image.
+    #             You might want to check the DC magnitude plot, and get DR photometry to see its long-term behaviour
+    #             """
+    #             if is_source
+    #             else "Distance to closest object in ZTF reference image",
+    #         ),
+    #     )
 
-    distpsnr = row.get("i:distpsnr1")
-    if distpsnr:
-        badges.append(
-            make_badge(
-                f'PS1: {distpsnr:.1f}"',
-                variant=variant,
-                color="teal",
-                tooltip="Distance to closest object in Pan-STARRS DR1 catalogue",
-            ),
-        )
+    # distpsnr = row.get("i:distpsnr1")
+    # if distpsnr:
+    #     badges.append(
+    #         make_badge(
+    #             f'PS1: {distpsnr:.1f}"',
+    #             variant=variant,
+    #             color="teal",
+    #             tooltip="Distance to closest object in Pan-STARRS DR1 catalogue",
+    #         ),
+    #     )
 
-    distgaia = row.get("i:neargaia")
-    if distgaia:
-        badges.append(
-            make_badge(
-                f'Gaia: {distgaia:.1f}"',
-                variant=variant,
-                color="teal",
-                tooltip="Distance to closest object in Gaia DR3 catalogue",
-            ),
-        )
+    # FIXME: Get this from our own Gaia DR3 xmatch?
+    # distgaia = row.get("i:neargaia")
+    # if distgaia:
+    #     badges.append(
+    #         make_badge(
+    #             f'Gaia: {distgaia:.1f}"',
+    #             variant=variant,
+    #             color="teal",
+    #             tooltip="Distance to closest object in Gaia DR3 catalogue",
+    #         ),
+    #     )
 
     return badges
 
@@ -735,9 +721,9 @@ def card_lightcurve_summary(diaObjectId):
 
 def card_id(pdf):
     """Add a card containing basic alert data"""
-    diaObjectid = pdf["i:diaObjectId"].to_numpy()[0]
-    ra0 = pdf["i:ra"].to_numpy()[0]
-    dec0 = pdf["i:dec"].to_numpy()[0]
+    diaObjectid = pdf["r:diaObjectId"].to_numpy()[0]
+    ra0 = pdf["r:ra"].to_numpy()[0]
+    dec0 = pdf["r:dec"].to_numpy()[0]
 
     python_download = f"""import requests
 import pandas as pd
@@ -1056,7 +1042,7 @@ def alert_properties(object_data, clickData):
     if clickData is not None:
         time0 = clickData["points"][0]["x"]
         # Round to avoid numerical precision issues
-        mjds = pdf_["i:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
+        mjds = pdf_["r:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
         mjd0 = np.round(Time(time0, format="iso").mjd, 3)
         if mjd0 in mjds:
             pdf_ = pdf_[mjds == mjd0]
@@ -1145,18 +1131,18 @@ def alert_properties(object_data, clickData):
 )
 def card_id_left(object_data):
     """Add a card containing basic alert data"""
-    pdf = pd.read_json(io.StringIO(object_data), dtype={"i:diaObjectId": np.int64, "i:diaSourceId": np.int64})
+    pdf = pd.read_json(io.StringIO(object_data), dtype={"r:diaObjectId": np.int64, "r:diaSourceId": np.int64})
 
-    diaObjectid = pdf["i:diaObjectId"].to_numpy()[0]
+    diaObjectid = pdf["r:diaObjectId"].to_numpy()[0]
 
     # FIXME
-    date_end = convert_time(pdf["i:midpointMjdTai"].to_numpy()[0], format_in="mjd", format_out="iso")
-    discovery_date = convert_time(pdf["i:midpointMjdTai"].to_numpy()[-1], format_in="mjd", format_out="iso")
-    mjds = pdf["i:midpointMjdTai"].to_numpy()
+    date_end = convert_time(pdf["r:midpointMjdTai"].to_numpy()[0], format_in="mjd", format_out="iso")
+    discovery_date = convert_time(pdf["r:midpointMjdTai"].to_numpy()[-1], format_in="mjd", format_out="iso")
+    mjds = pdf["r:midpointMjdTai"].to_numpy()
     ndet = len(pdf)
 
     badges = []
-    for c in np.unique(pdf["d:finkclass"]):
+    for c in np.unique(pdf["f:finkclass"]):
         if c in simbad_types:
             color = class_colors["Simbad"]
         elif c in class_colors.keys():
@@ -1173,13 +1159,13 @@ def card_id_left(object_data):
             ),
         )
 
-    tns_badge = generate_tns_badge(get_first_value(pdf, "i:diaObjectId"))
+    tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
     if tns_badge is not None:
         badges.append(tns_badge)
 
     badges += generate_generic_badges(pdf, variant="dot")
 
-    meta_name = generate_metadata_name(get_first_value(pdf, "i:diaObjectId"))
+    meta_name = generate_metadata_name(get_first_value(pdf, "r:diaObjectId"))
     if meta_name is not None:
         extra_div = dbc.Row(
             [
@@ -1194,7 +1180,7 @@ def card_id_left(object_data):
         extra_div = html.Div()
 
     coords = SkyCoord(
-        get_first_value(pdf, "i:ra"), get_first_value(pdf, "i:dec"), unit="deg"
+        get_first_value(pdf, "r:ra"), get_first_value(pdf, "r:dec"), unit="deg"
     )
 
     c1 = dmc.Avatar(src="/assets/Fink_SecondaryLogo_WEB.png", size="lg")
@@ -1220,7 +1206,7 @@ def card_id_left(object_data):
                 """.format(
                     discovery_date[:19],
                     date_end[:19],
-                    pdf["i:snr"].to_numpy()[0],
+                    pdf["r:snr"].to_numpy()[0],
                     mjds[0] - mjds[-1],
                     # get_first_value(pdf, "i:last") # FIXME with first/last
                     # - get_first_value(pdf, "i:first"),
@@ -1265,13 +1251,13 @@ def generate_tns_badge(oid):
     if r != []:
         entries = [i["d:fullname"] for i in r]
         if len(entries) > 1:
-            # AT & SN?
+            types = [i.get("type", "") for i in r]
+            # Check if object is classified
             try:
-                # Keep SN
-                index = [i.startswith("SN") for i in entries].index(True)
+                index = [~i.startswith("AT") for i in types].index(True)
             except ValueError:
-                # no SN in list -- take the first one (most recent)
-                index = 0
+                # no classification in list -- take the last one (most recent)
+                index = -1
         else:
             index = 0
 
