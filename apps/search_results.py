@@ -50,7 +50,7 @@ from apps.plotting import CONFIG_PLOT
 from app import app
 
 
-def display_table_results(table):
+def display_table_results(table, endpoint):
     """Display explorer results in the form of a table with a dropdown menu on top to insert more data columns.
 
     The dropdown menu options are taken from the client schema (Rubin & Fink). It also
@@ -60,6 +60,8 @@ def display_table_results(table):
     ----------
     table: dash_table.DataTable
         Dash DataTable containing the results. Can be empty.
+    endpoint: str
+        Endpoint name
 
     Returns
     -------
@@ -69,32 +71,24 @@ def display_table_results(table):
           2. Table of results
         The dropdown is shown only if the table is non-empty.
     """
-    data = request_api("/api/v1/schema", method="GET", output="json")
+    data = request_api("/api/v1/schema", method="POST", json={"endpoint": endpoint}, output="json")
 
-    fink_fields = ["d:" + i for i in data["Fink science module outputs (d:)"].keys()]
-    ztf_fields = ["i:" + i for i in data["ZTF original fields (i:)"].keys()]
-    fink_additional_fields = [
-        "v:constellation",
-        "v:g-r",
-        "v:rate(g-r)",
-        "v:lastdate",
-        "v:firstdate",
-        "v:lapse",
-    ]
+    fink_fields = ["f:" + i for i in data["Fink science module outputs (f:)"].keys()]
+    rubin_fields = ["r:" + i for i in data["Rubin original fields (r:)"].keys()]
 
     dropdown = dcc.Dropdown(
         id="field-dropdown2",
         options=[
             {"label": "Fink science module outputs", "disabled": True, "value": "None"},
             *[{"label": field, "value": field} for field in fink_fields],
-            {"label": "Fink additional values", "disabled": True, "value": "None"},
-            *[{"label": field, "value": field} for field in fink_additional_fields],
+            # {"label": "Fink additional values", "disabled": True, "value": "None"},
+            # *[{"label": field, "value": field} for field in fink_additional_fields],
             {
-                "label": "Original ZTF fields (subset)",
+                "label": "Original Rubin fields ({})".format(endpoint),
                 "disabled": True,
                 "value": "None",
             },
-            *[{"label": field, "value": field} for field in ztf_fields],
+            *[{"label": field, "value": field} for field in rubin_fields],
         ],
         searchable=True,
         clearable=True,
@@ -544,13 +538,13 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         return None, no_update, no_update, no_update
 
     colnames_to_display = {
-        "i:diaObjectId": "diaObjectId",
-        "i:ra": "RA (deg)",
-        "i:dec": "Dec (deg)",
-        "v:lastdate": "Last alert",
+        "r:diaObjectId": "diaObjectId",
+        "r:ra": "RA (deg)",
+        "r:dec": "Dec (deg)",
+        # "v:lastdate": "Last alert",
         "f:finkclass": "Classification",
-        "i:ndethist": "Number of measurements",
-        "v:lapse": "Time variation (day)",
+        "r:nDiaSources": "Number of measurements",
+        # "v:lapse": "Time variation (day)",
     }
 
     if searchurl and triggered_id == "url":
@@ -616,7 +610,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         msg = "Solar System object search with ssnamenr {}".format(
             query["params"]["sso"]
         )
-        pdf = request_api("/api/v1/sso", json={"n_or_d": query["params"]["sso"]})
+        endpoint = "/api/v1/sso"
+        pdf = request_api(endpoint, json={"n_or_d": query["params"]["sso"]})
 
     elif query["action"] == "tracklet":
         # Tracklet by (partial) name
@@ -625,7 +620,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         )
         payload = {"id": query["object"]}
 
-        pdf = request_api("/api/v1/tracklet", json=payload)
+        endpoint = "/api/v1/tracklet"
+        pdf = request_api(endpoint, json=payload)
 
     elif query["action"] == "conesearch":
         # Conesearch
@@ -667,14 +663,15 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
             payload["window"] = window
 
-        pdf = request_api("/api/v1/conesearch", json=payload)
+        endpoint = "/api/v1/conesearch"
+        pdf = request_api(endpoint, json=payload)
 
         colnames_to_display = {
             "r:diaObjectId": "diaObjectId",
             "v:separation_degree": "Separation (degree)",
             "f:finkclass": "Classification",
             "r:nDiaSources": "Number of measurements",
-            "v:lapse": "Time variation (day)",
+            # "v:lapse": "Time variation (day)",
         }
 
     elif query["action"] == "class":
@@ -705,7 +702,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
             msg += " and {} trend".format(query["params"]["trend"])
             payload["trend"] = query["params"]["trend"]
 
-        pdf = request_api("/api/v1/latests", json=payload)
+        endpoint = "/api/v1/latests"
+        pdf = request_api(endpoint, json=payload)
 
     elif query["action"] == "anomaly":
         # Anomaly search
@@ -729,6 +727,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
             payload["stop_date"] = stopdate
 
+        endpoint = "/api/v1/anomaly"
         pdf = request_api("/api/v1/anomaly", json=payload)
 
     else:
@@ -769,7 +768,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
         # Sort the results
         if query["action"] == "conesearch":
-            # pdf["v:lapse"] = pdf["i:jd"] - pdf["i:jdstarthist"]
+            # FIXME: replace by first/last
+            # pdf["v:lapse"] = pdf["r:midpointMjdTai"] - pdf["r:validityStartMjdTai"]
             data = pdf.sort_values("v:separation_degree", ascending=True)
         else:
             data = pdf.sort_values("r:midpointMjdTai", ascending=False)
@@ -790,7 +790,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
             ]
 
             table = populate_result_table(data, columns)
-            results_ = display_table_results(table)
+            results_ = display_table_results(table, endpoint)
         else:
             results_ = display_cards_results(pdf)
 
