@@ -98,7 +98,7 @@ def draw_cutouts_quickview(name, kinds=None):
     for kind in kinds:
         try:  # noqa: PERF203
             # We may manually construct the payload to avoid extra API call
-            object_data = f'{{"r:diaObjectId":{{"0": "{name}"}}}}'
+            object_data = f'{{"r:diaSourceId":{{"0": "{name}"}}}}'
             data = extract_cutout(object_data, None, kind=kind)
             figs.append(draw_cutout(data, kind, zoom=False))
         except OSError:  # noqa: PERF203
@@ -124,7 +124,7 @@ def extract_cutout(object_data, time0, kind):
     data: np.array
         2D array containing cutout data
     """
-    pdf_ = pd.read_json(io.StringIO(object_data), dtype={"r:diaObjectId": np.int64})
+    pdf_ = pd.read_json(io.StringIO(object_data), dtype={"r:diaSourceId": np.int64})
 
     if time0 is None:
         position = 0
@@ -140,13 +140,10 @@ def extract_cutout(object_data, time0, kind):
 
     # Construct the query
     payload = {
-        "diaObjectId": str(pdf_["r:diaObjectId"].to_numpy()[0]),
         "kind": kind.capitalize(),
+        "diaSourceId": str(pdf_["r:diaSourceId"].to_numpy()[position]),
         "output-format": "FITS",
     }
-
-    if position > 0 and "r:diaSourceId" in pdf_.columns:
-        payload["diaSourceId"] = str(pdf_["r:diaSourceId"].to_numpy()[position])
 
     # Extract the cutout data
     r = request_api(
@@ -230,34 +227,6 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
 
     pixel_size = 0.2 # arcsec/pixel
 
-    # graph = html.Div(
-    #     [
-    #         dcc.Graph(
-    #             id={"type": id_type, "id": title} if zoom else "undefined",
-    #             figure=fig,
-    #             style=style,
-    #             config={"displayModeBar": False},
-    #             className=classname,
-    #             responsive=True,
-    #         ),
-    #         dmc.Center(
-    #             # dbc.Badge(
-    #             #     "{} pixels / {}''".format(shape[0], shape[0] * pixel_size),
-    #             #     color="light",
-    #             #     pill=True,
-    #             #     text_color="dark",
-    #             # ),
-    #             dmc.Badge(
-    #                 "{} pixels / {}''".format(shape[0], shape[0] * pixel_size),
-    #                 color="gray",
-    #                 variant="outline",
-    #                 size="md",
-    #                 # pill=True,
-    #                 # text_color="dark",
-    #             ),
-    #         )
-    #     ]
-    # )
     graph = dmc.Indicator(
         dcc.Graph(
             id={"type": id_type, "id": title} if zoom else "undefined",

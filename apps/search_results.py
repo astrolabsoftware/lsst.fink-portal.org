@@ -949,18 +949,18 @@ def on_load_lightcurve(lc_id):
 
 @app.callback(
     Output(
-        {"type": "search_results_cutouts", "diaObjectId": MATCH, "index": MATCH},
+        {"type": "search_results_cutouts", "diaSourceId": MATCH, "index": MATCH},
         "children",
     ),
     Input(
-        {"type": "search_results_cutouts", "diaObjectId": MATCH, "index": MATCH}, "id"
+        {"type": "search_results_cutouts", "diaSourceId": MATCH, "index": MATCH}, "id"
     ),
 )
 def on_load_cutouts(lc_id):
     """Display Science cutouts on cards"""
     if lc_id:
         return html.Div(
-            draw_cutouts_quickview(lc_id["diaObjectId"]),
+            draw_cutouts_quickview(lc_id["diaSourceId"]),
             style={"width": "12pc", "height": "12pc"},
         )
 

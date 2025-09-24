@@ -57,6 +57,7 @@ def card_search_result(row, i):
     badges = []
 
     name = row["r:diaObjectId"]
+    diasourceid = row["r:diaSourceId"]
     if name[0] == "[":  # Markdownified
         name = row["r:diaObjectId"].split("[")[1].split("]")[0]
 
@@ -180,7 +181,7 @@ def card_search_result(row, i):
                                 ),
                                 id={
                                     "type": "search_results_cutouts",
-                                    "diaObjectId": str(name),
+                                    "diaSourceId": str(diasourceid),
                                     "index": i,
                                 },
                                 width="auto",
