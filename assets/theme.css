@@ -135,3 +135,31 @@ a:hover {
   /* box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px; */
   box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px, rgba(0, 0, 0, 0.3) 0px 18px 36px -18px;
 }
+
+.banner {
+    width: 60; /* Set the width of the banner */
+    height: 100vh; /* Full height of the viewport */
+    background: #15284F; /* Solid background color */
+    position: relative; /* Positioning context for the pseudo-element */
+    overflow: hidden; /* Ensure the gradient doesn't overflow */
+}
+
+.banner::after {
+    content: '';
+    position: absolute;
+    top: 0; /* Position at the top */
+    left: 0;
+    right: 0;
+    height: 10%; /* Last 10% of the banner */
+    background: linear-gradient(to top,rgba(21, 40, 79, 0) 0%, white);
+    /* background: radial-gradient(ellipse at bottom in hsl longer hue,rgba(21, 40, 79, 0) 0%, white); */
+}
+
+.small-logo{
+  position: absolute;
+  overflow: hidden;
+  width: 60;
+  height: 60;
+  /* top: 0; */
+  left: 0;
+}

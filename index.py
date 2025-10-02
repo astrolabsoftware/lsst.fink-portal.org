@@ -48,69 +48,31 @@ from apps import summary
 # from apps.plotting import draw_cutouts_quickview, draw_lightcurve_preview
 # from apps.cards import card_search_result
 
-
-clientside_callback(
-    """
-    function drawer_switch(n_clicks, pathname) {
-        const triggered = dash_clientside.callback_context.triggered.map(t => t.prop_id);
-
-        /* Change the page title based on its path */
-        if (triggered == 'url.pathname') {
-            let title = 'Fink/Rubin Science Portal';
-
-            if (pathname.startsWith('/ZTF'))
-                title = pathname.substring(1, 13) + ' : ' + title;
-            else if (pathname.startsWith('/gw'))
-                title = 'Gravitational Waves : ' + title;
-            else if (pathname.startsWith('/download'))
-                title = 'Data Transfer : ' + title;
-            else if (pathname.startsWith('/stats'))
-                title = 'Statistics : ' + title;
-            else if (pathname.startsWith('/api'))
-                title = 'API : ' + title;
-
-            document.title = title;
-        }
-
-        if (triggered == 'drawer-button.n_clicks')
-            return true;
-        else
-            return false;
-    }
-    """,
-    Output("drawer", "opened"),
-    Input("drawer-button", "n_clicks"),
-    Input("url", "pathname"),
-    prevent_initial_call=True,
-)
-
-navbar = dmc.AppShellHeader(
-    id="navbar",
-    zIndex=1000,
-    p=0,
-    m=0,
-    className="shadow-sm",
+navbar = html.Div(
     children=[
-        dmc.Space(h=10),
-        dmc.Container(
-            fluid=True,
-            children=dmc.Group(
+        # dmc.Space(h=10),
+        html.Div(
+            # fluid=True,
+            children=dmc.Stack(
                 # align="stretch",
                 justify="space-between",
                 children=[
                     # Right menu
-                    dmc.Group(
+                    dmc.Stack(
                         align="start",
                         justify="flex-start",
                         children=[
-                            # Burger
-                            dmc.ActionIcon(
-                                DashIconify(icon="dashicons:menu", width=30),
-                                id="drawer-button",
-                                n_clicks=0,
-                                variant="transparent",
-                                style={"color": "gray"},
+                            dmc.Space(h=20),
+                            html.Img(
+                                src="/assets/Fink_SecondaryLogo_WEB.png",
+                                style={
+                                    "width": 60,
+                                    # "pm": 50,
+                                    "zIndex": 100000,
+                                },
+                                className="small-logo",
                             ),
+                            dmc.Space(h=30),
                             dmc.Anchor(
                                 dmc.Group(
                                     [
@@ -122,13 +84,17 @@ navbar = dmc.AppShellHeader(
                                             radius=30,
                                             size=32,
                                             variant="outline",
-                                            color="gray",
+                                            color="#F5622E",
+                                            id={
+                                                "type": "themeicon",
+                                                "name": "search",
+                                            },
                                         ),
-                                        dmc.Text(
-                                            "Search",
-                                            visibleFrom="md",
-                                            style={"color": "gray"},
-                                        ),
+                                        # dmc.Text(
+                                        #     "Search",
+                                        #     visibleFrom="md",
+                                        #     style={"color": "gray"},
+                                        # ),
                                     ],
                                     gap="xs",
                                 ),
@@ -151,12 +117,16 @@ navbar = dmc.AppShellHeader(
                                             size=32,
                                             variant="outline",
                                             color="gray",
+                                            id={
+                                                "type": "themeicon",
+                                                "name": "download",
+                                            },
                                         ),
-                                        dmc.Text(
-                                            "Data Transfer",
-                                            visibleFrom="md",
-                                            style={"color": "gray"},
-                                        ),
+                                        # dmc.Text(
+                                        #     "Data Transfer",
+                                        #     visibleFrom="md",
+                                        #     style={"color": "gray"},
+                                        # ),
                                     ],
                                     gap="xs",
                                 ),
@@ -179,12 +149,16 @@ navbar = dmc.AppShellHeader(
                                             size=32,
                                             variant="outline",
                                             color="gray",
+                                            id={
+                                                "type": "themeicon",
+                                                "name": "xmatch",
+                                            },
                                         ),
-                                        dmc.Text(
-                                            "Xmatch",
-                                            visibleFrom="md",
-                                            style={"color": "gray"},
-                                        ),
+                                        # dmc.Text(
+                                        #     "Xmatch",
+                                        #     visibleFrom="md",
+                                        #     style={"color": "gray"},
+                                        # ),
                                     ],
                                     gap="xs",
                                 ),
@@ -207,12 +181,16 @@ navbar = dmc.AppShellHeader(
                                             size=32,
                                             variant="outline",
                                             color="gray",
+                                            id={
+                                                "type": "themeicon",
+                                                "name": "gw",
+                                            },
                                         ),
-                                        dmc.Text(
-                                            "Gravitational Waves",
-                                            visibleFrom="md",
-                                            style={"color": "gray"},
-                                        ),
+                                        # dmc.Text(
+                                        #     "Gravitational Waves",
+                                        #     visibleFrom="md",
+                                        #     style={"color": "gray"},
+                                        # ),
                                     ],
                                     gap="xs",
                                 ),
@@ -223,13 +201,6 @@ navbar = dmc.AppShellHeader(
                                     "textDecoration": "none",
                                 },
                             ),
-                        ],
-                    ),
-                    # Left menu
-                    dmc.Group(
-                        align="end",
-                        justify="flex-end",
-                        children=[
                             dmc.Anchor(
                                 dmc.Group(
                                     [
@@ -242,12 +213,16 @@ navbar = dmc.AppShellHeader(
                                             size=32,
                                             variant="outline",
                                             color="gray",
+                                            id={
+                                                "type": "themeicon",
+                                                "name": "stats",
+                                            },
                                         ),
-                                        dmc.Text(
-                                            "Statistics",
-                                            visibleFrom="md",
-                                            style={"color": "gray"},
-                                        ),
+                                        # dmc.Text(
+                                        #     "Statistics",
+                                        #     visibleFrom="md",
+                                        #     style={"color": "gray"},
+                                        # ),
                                     ],
                                     gap="xs",
                                 ),
@@ -260,160 +235,179 @@ navbar = dmc.AppShellHeader(
                             ),
                         ],
                     ),
+                    # Left menu
+                    # dmc.Group(
+                    #     align="end",
+                    #     justify="flex-end",
+                    #     children=[
+
+                    #     ],
+                    # ),
                     # Sidebar
-                    dmc.Drawer(
-                        children=[
-                            dmc.Divider(
-                                labelPosition="left",
-                                label=[
-                                    DashIconify(
-                                        icon="tabler:search",
-                                        width=15,
-                                        style={"marginRight": 10},
-                                    ),
-                                    "Explore",
-                                ],
-                                style={"marginTop": 20, "marginBottom": 20},
-                            ),
-                            dmc.Stack(
-                                [
-                                    dmc.Anchor(
-                                        "Search",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="/",
-                                        size="sm",
-                                    ),
-                                    dmc.Anchor(
-                                        "Data Transfer",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="/download",
-                                        size="sm",
-                                    ),
-                                    dmc.Anchor(
-                                        "Gravitational Waves",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="/gw",
-                                        size="sm",
-                                    ),
-                                    dmc.Anchor(
-                                        "Statistics",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="/stats",
-                                        size="sm",
-                                    ),
-                                ],
-                                align="left",
-                                gap="sm",
-                                style={"paddingLeft": 30, "paddingRight": 20},
-                            ),
-                            dmc.Divider(
-                                labelPosition="left",
-                                label=[
-                                    DashIconify(
-                                        icon="carbon:api",
-                                        width=15,
-                                        style={"marginRight": 10},
-                                    ),
-                                    "Learn",
-                                ],
-                                style={"marginTop": 20, "marginBottom": 20},
-                            ),
-                            dmc.Stack(
-                                [
-                                    dmc.Anchor(
-                                        "{ API }",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="https://fink-broker.readthedocs.io/en/latest/services/search/getting_started/#quick-start-api",
-                                        size="sm",
-                                    ),
-                                    dmc.Anchor(
-                                        "Tutorials",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="https://github.com/astrolabsoftware/fink-tutorials",
-                                        size="sm",
-                                    ),
-                                ],
-                                align="left",
-                                gap="sm",
-                                style={"paddingLeft": 30, "paddingRight": 20},
-                            ),
-                            dmc.Divider(
-                                labelPosition="left",
-                                label=[
-                                    DashIconify(
-                                        icon="tabler:external-link",
-                                        width=15,
-                                        style={"marginRight": 10},
-                                    ),
-                                    "External links",
-                                ],
-                                style={"marginTop": 20, "marginBottom": 20},
-                            ),
-                            dmc.Stack(
-                                [
-                                    dmc.Anchor(
-                                        "Fink broker",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="https://fink-broker.org",
-                                        size="sm",
-                                        # color="gray",
-                                    ),
-                                    dmc.Anchor(
-                                        "Portal bug tracker",
-                                        style={
-                                            "textTransform": "capitalize",
-                                            "textDecoration": "none",
-                                            "color": "gray",
-                                        },
-                                        href="https://github.com/astrolabsoftware/fink-science-portal",
-                                        size="sm",
-                                    ),
-                                ],
-                                align="left",
-                                gap="sm",
-                                style={"paddingLeft": 30, "paddingRight": 20},
-                            ),
-                        ],
-                        title="Fink Science Portal",
-                        id="drawer",
-                        padding="md",
-                        zIndex=1e7,
-                        transitionProps={"transition": "pop-top-left"},
-                        style={"fontColor": "gray"},
-                    ),
+                    # dmc.Drawer(
+                    #     children=[
+                    #         dmc.Divider(
+                    #             labelPosition="left",
+                    #             label=[
+                    #                 DashIconify(
+                    #                     icon="tabler:search",
+                    #                     width=15,
+                    #                     style={"marginRight": 10},
+                    #                 ),
+                    #                 "Explore",
+                    #             ],
+                    #             style={"marginTop": 20, "marginBottom": 20},
+                    #         ),
+                    #         dmc.Stack(
+                    #             [
+                    #                 dmc.Anchor(
+                    #                     "Search",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="/",
+                    #                     size="sm",
+                    #                 ),
+                    #                 dmc.Anchor(
+                    #                     "Data Transfer",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="/download",
+                    #                     size="sm",
+                    #                 ),
+                    #                 dmc.Anchor(
+                    #                     "Gravitational Waves",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="/gw",
+                    #                     size="sm",
+                    #                 ),
+                    #                 dmc.Anchor(
+                    #                     "Statistics",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="/stats",
+                    #                     size="sm",
+                    #                 ),
+                    #             ],
+                    #             align="left",
+                    #             gap="sm",
+                    #             style={"paddingLeft": 30, "paddingRight": 20},
+                    #         ),
+                    #         dmc.Divider(
+                    #             labelPosition="left",
+                    #             label=[
+                    #                 DashIconify(
+                    #                     icon="carbon:api",
+                    #                     width=15,
+                    #                     style={"marginRight": 10},
+                    #                 ),
+                    #                 "Learn",
+                    #             ],
+                    #             style={"marginTop": 20, "marginBottom": 20},
+                    #         ),
+                    #         dmc.Stack(
+                    #             [
+                    #                 dmc.Anchor(
+                    #                     "{ API }",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="https://fink-broker.readthedocs.io/en/latest/services/search/getting_started/#quick-start-api",
+                    #                     size="sm",
+                    #                 ),
+                    #                 dmc.Anchor(
+                    #                     "Tutorials",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="https://github.com/astrolabsoftware/fink-tutorials",
+                    #                     size="sm",
+                    #                 ),
+                    #             ],
+                    #             align="left",
+                    #             gap="sm",
+                    #             style={"paddingLeft": 30, "paddingRight": 20},
+                    #         ),
+                    #         dmc.Divider(
+                    #             labelPosition="left",
+                    #             label=[
+                    #                 DashIconify(
+                    #                     icon="tabler:external-link",
+                    #                     width=15,
+                    #                     style={"marginRight": 10},
+                    #                 ),
+                    #                 "External links",
+                    #             ],
+                    #             style={"marginTop": 20, "marginBottom": 20},
+                    #         ),
+                    #         dmc.Stack(
+                    #             [
+                    #                 dmc.Anchor(
+                    #                     "Fink broker",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="https://fink-broker.org",
+                    #                     size="sm",
+                    #                     # color="gray",
+                    #                 ),
+                    #                 dmc.Anchor(
+                    #                     "Portal bug tracker",
+                    #                     style={
+                    #                         "textTransform": "capitalize",
+                    #                         "textDecoration": "none",
+                    #                         "color": "gray",
+                    #                     },
+                    #                     href="https://github.com/astrolabsoftware/fink-science-portal",
+                    #                     size="sm",
+                    #                 ),
+                    #             ],
+                    #             align="left",
+                    #             gap="sm",
+                    #             style={"paddingLeft": 30, "paddingRight": 20},
+                    #         ),
+                    #     ],
+                    #     title="Fink Science Portal",
+                    #     id="drawer",
+                    #     padding="md",
+                    #     zIndex=1e7,
+                    #     transitionProps={"transition": "pop-top-left"},
+                    #     style={"fontColor": "gray"},
+                    # ),
                 ],
             ),
         ),
     ],
 )
+
+# @callback(
+#     Output({'type': 'themeicon', 'index': MATCH}, 'color'),
+#     Input('url', 'pathname'),
+#     State({'type': 'themeicon', 'index': MATCH}, 'id'),
+# )
+# def display_output(url, id):
+#     if pathname[:1] == "":
+#         return
+#     return html.Div(f"Dropdown {id['index']} = {value}")
+
 
 # embedding the navigation bar
 app.layout = dmc.MantineProvider(
@@ -421,14 +415,32 @@ app.layout = dmc.MantineProvider(
         dcc.Location(id="url", refresh=False),
         dmc.AppShell(
             children=[
-                navbar,
+                # dmc.AppShellHeader(
+                #     id="header",
+                #     children=[],
+                #     p="md",
+                #     style={"background-color": "#15284F", "padding-bottom": "0px"}
+                # ),
+                # navbar,
+                dmc.AppShellNavbar(
+                    id="navbar",
+                    children=navbar,
+                    p="md",
+                    style={"background-color": "#15284F"},
+                    className="banner",
+                    # style={"background-color": "linear-gradient(to bottom, #15284F 90%, rgba(255, 255, 255, 0) 100%);"}
+                ),
                 dmc.AppShellMain(
                     children=[],
                     id="page-content",
-                    style={"padding-top": "55px"},  # header
+                    style={"padding-top": "20px"},  # header
                 ),
             ],
-            header={"height": 55},
+            # header={"height": 20},
+            padding="md",
+            navbar={
+                "width": {"base": 60, "sm": 60, "lg": 60},
+            }
         ),
     ],
     # theme={
@@ -455,7 +467,7 @@ app.layout = dmc.MantineProvider(
     ],
 )
 def display_page(pathname, searchurl):
-    layout = dmc.MantineProvider(
+    layout = html.Div(
         [
             dbc.Container(
                 [
