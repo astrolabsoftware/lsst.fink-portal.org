@@ -231,7 +231,7 @@ def card_search_result(row, i):
             ),
         ],
         color="light",
-        className="mb-2 border-1 rounded-5 box-shadow",
+        className="mb-2 border-1 rounded-1 box-shadow",
         outline=True,
 
     )

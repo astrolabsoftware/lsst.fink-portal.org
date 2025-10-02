@@ -91,10 +91,11 @@ fink_search_bar = [
         ],
         className="ps-4 pe-4 mb-0 mt-1",
     ),
-] + [
+] + [dmc.Space(h=2)] + [
     html.Div(
         # className='p-0 m-0 border shadow-sm rounded-3',
-        className="pt-0 pb-0 ps-1 pe-1 m-0 rcorners2 box-shadow",
+        # className="pt-0 pb-0 ps-1 pe-1 m-0 rcorners2 box-shadow",
+        className="pt-0 pb-0 ps-1 pe-1 m-0 search_bar box-shadow rcorners2",
         id="search_bar",
         # className='rcorners2',
         children=[
