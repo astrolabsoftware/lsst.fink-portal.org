@@ -18,7 +18,6 @@ from dash import (
     dcc,
     Input,
     Output,
-    clientside_callback,
 )
 
 import dash_bootstrap_components as dbc
@@ -67,7 +66,6 @@ navbar = html.Div(
                                 src="/assets/Fink_SecondaryLogo_WEB.png",
                                 style={
                                     "width": 60,
-                                    # "pm": 50,
                                     "zIndex": 100000,
                                 },
                                 className="small-logo",
@@ -82,7 +80,7 @@ navbar = html.Div(
                                                 width=22,
                                             ),
                                             radius=30,
-                                            size=32,
+                                            size=30,
                                             variant="outline",
                                             color="#F5622E",
                                             id={
@@ -114,7 +112,7 @@ navbar = html.Div(
                                                 width=22,
                                             ),
                                             radius=30,
-                                            size=32,
+                                            size=30,
                                             variant="outline",
                                             color="gray",
                                             id={
@@ -146,7 +144,7 @@ navbar = html.Div(
                                                 width=22,
                                             ),
                                             radius=30,
-                                            size=32,
+                                            size=30,
                                             variant="outline",
                                             color="gray",
                                             id={
@@ -178,7 +176,7 @@ navbar = html.Div(
                                                 width=22,
                                             ),
                                             radius=30,
-                                            size=32,
+                                            size=30,
                                             variant="outline",
                                             color="gray",
                                             id={
@@ -210,7 +208,7 @@ navbar = html.Div(
                                                 width=22,
                                             ),
                                             radius=30,
-                                            size=32,
+                                            size=30,
                                             variant="outline",
                                             color="gray",
                                             id={
@@ -240,7 +238,6 @@ navbar = html.Div(
                     #     align="end",
                     #     justify="flex-end",
                     #     children=[
-
                     #     ],
                     # ),
                     # Sidebar
@@ -440,7 +437,7 @@ app.layout = dmc.MantineProvider(
             padding="md",
             navbar={
                 "width": {"base": 60, "sm": 60, "lg": 60},
-            }
+            },
         ),
     ],
     # theme={

@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utilities for managing the Fink search bar"""
+
 import dash
 from dash import (
     html,
@@ -49,185 +50,189 @@ quick_fields = [
     ["window", "Time window length\nDays"],
 ]
 
-fink_search_bar = [
-    html.Div(
-        [
-            html.Span("Quick fields:", className="text-secondary"),
-        ]
-        + [
-            html.Span(
-                [
-                    html.A(
-                        __[0],
-                        title=__[1],
-                        id={
-                            "type": "search_bar_quick_field",
-                            "index": _,
-                            "text": __[0],
-                        },
-                        n_clicks=0,
-                        className="ms-2 link text-decoration-none",
-                    ),
-                    " ",
-                ]
-            )
-            for _, __ in enumerate(quick_fields)
-        ]
-        + [
-            html.Span(
-                dmc.Switch(
-                    radius="xl",
-                    size="sm",
-                    offLabel=DashIconify(icon="radix-icons:id-card", width=15),
-                    onLabel=DashIconify(icon="radix-icons:table", width=15),
-                    color="orange",
-                    checked=False,
-                    persistence=True,
-                    id="results_table_switch",
-                ),
-                className="float-end",
-                title="Show results as cards or table",
-            ),
-        ],
-        className="ps-4 pe-4 mb-0 mt-1",
-    ),
-] + [dmc.Space(h=2)] + [
-    html.Div(
-        # className='p-0 m-0 border shadow-sm rounded-3',
-        # className="pt-0 pb-0 ps-1 pe-1 m-0 rcorners2 box-shadow",
-        className="pt-0 pb-0 ps-1 pe-1 m-0 search_bar box-shadow rcorners2",
-        id="search_bar",
-        # className='rcorners2',
-        children=[
-            dbc.InputGroup(
-                [
-                    # History
-                    dmc.Menu(
-                        [
-                            dmc.MenuTarget(
-                                dmc.ActionIcon(
-                                    DashIconify(icon="bi:clock-history"),
-                                    color="gray",
-                                    variant="transparent",
-                                    radius="xl",
-                                    size="lg",
-                                    # title="Search history",
-                                )
-                            ),
-                            dmc.MenuDropdown(
-                                [
-                                    dmc.MenuLabel("Search history is empty"),
-                                ],
-                                className="shadow rounded",
-                                id="search_history_menu",
-                            ),
-                        ],
-                        zIndex=1000000,
-                    ),
-                    # Main input
-                    AutocompleteInput(
-                        id="search_bar_input",
-                        placeholder="Search, and you will find",
-                        component="input",
-                        trigger=[
-                            "class:",
-                            "class=",
-                            "last:",
-                            "last=",
-                            "radius:",
-                            "radius=",
-                            "r:",
-                            "r=",
-                            "trend=",
-                            "trend:",
-                        ],
-                        options={
-                            "class:": fink_classes,
-                            "class=": fink_classes,
-                            "last:": ["1", "10", "100", "1000"],
-                            "last=": ["1", "10", "100", "1000"],
-                            "radius:": ["10", "60", "10m", "30m"],
-                            "radius=": ["10", "60", "10m", "30m"],
-                            "r:": ["10", "60", "10m", "30m"],
-                            "r=": ["10", "60", "10m", "30m"],
-                            "trend=": [
-                                "rising",
-                                "fading",
-                                "low_state",
-                                "new_low_state",
-                            ],
-                        },
-                        maxOptions=0,
-                        className="inputbar form-control border-0",
-                        quoteWhitespaces=True,
-                        autoFocus=True,
-                        ignoreCase=True,
-                        triggerInsideWord=False,
-                        matchAny=True,
-                    ),
-                    # Clear
-                    dmc.ActionIcon(
-                        DashIconify(icon="mdi:clear-bold"),
-                        n_clicks=0,
-                        id="search_bar_clear",
-                        color="gray",
-                        variant="subtle",
-                        radius="xl",
-                        size="lg",
-                        # title="Clear the input",
-                    ),
-                    # Submit
-                    dbc.Spinner(
-                        dmc.ActionIcon(
-                            DashIconify(icon="tabler:search", width=20),
+fink_search_bar = (
+    [
+        html.Div(
+            [
+                html.Span("Quick fields:", className="text-secondary"),
+            ]
+            + [
+                html.Span(
+                    [
+                        html.A(
+                            __[0],
+                            title=__[1],
+                            id={
+                                "type": "search_bar_quick_field",
+                                "index": _,
+                                "text": __[0],
+                            },
                             n_clicks=0,
-                            id="search_bar_submit",
-                            color="gray",
-                            variant="transparent",
-                            radius="xl",
-                            size="lg",
-                            # loaderProps={"variant": "dots", "color": "orange"},
-                            # title="Search",
+                            className="ms-2 link text-decoration-none",
                         ),
+                        " ",
+                    ]
+                )
+                for _, __ in enumerate(quick_fields)
+            ]
+            + [
+                html.Span(
+                    dmc.Switch(
+                        radius="xl",
                         size="sm",
-                        color="warning",
+                        offLabel=DashIconify(icon="radix-icons:id-card", width=15),
+                        onLabel=DashIconify(icon="radix-icons:table", width=15),
+                        color="orange",
+                        checked=False,
+                        persistence=True,
+                        id="results_table_switch",
                     ),
-                    # Help popup
-                    help_popover(
-                        [dcc.Markdown(message_help)],
-                        "help_search",
-                        trigger=dmc.ActionIcon(
-                            DashIconify(icon="mdi:help"),
-                            id="help_search",
+                    className="float-end",
+                    title="Show results as cards or table",
+                ),
+            ],
+            className="ps-4 pe-4 mb-0 mt-1",
+        ),
+    ]
+    + [dmc.Space(h=2)]
+    + [
+        html.Div(
+            # className='p-0 m-0 border shadow-sm rounded-3',
+            # className="pt-0 pb-0 ps-1 pe-1 m-0 rcorners2 box-shadow",
+            className="pt-0 pb-0 ps-1 pe-1 m-0 search_bar box-shadow rcorners2",
+            id="search_bar",
+            # className='rcorners2',
+            children=[
+                dbc.InputGroup(
+                    [
+                        # History
+                        dmc.Menu(
+                            [
+                                dmc.MenuTarget(
+                                    dmc.ActionIcon(
+                                        DashIconify(icon="bi:clock-history"),
+                                        color="gray",
+                                        variant="transparent",
+                                        radius="xl",
+                                        size="lg",
+                                        # title="Search history",
+                                    )
+                                ),
+                                dmc.MenuDropdown(
+                                    [
+                                        dmc.MenuLabel("Search history is empty"),
+                                    ],
+                                    className="shadow rounded",
+                                    id="search_history_menu",
+                                ),
+                            ],
+                            zIndex=1000000,
+                        ),
+                        # Main input
+                        AutocompleteInput(
+                            id="search_bar_input",
+                            placeholder="Search, and you will find",
+                            component="input",
+                            trigger=[
+                                "class:",
+                                "class=",
+                                "last:",
+                                "last=",
+                                "radius:",
+                                "radius=",
+                                "r:",
+                                "r=",
+                                "trend=",
+                                "trend:",
+                            ],
+                            options={
+                                "class:": fink_classes,
+                                "class=": fink_classes,
+                                "last:": ["1", "10", "100", "1000"],
+                                "last=": ["1", "10", "100", "1000"],
+                                "radius:": ["10", "60", "10m", "30m"],
+                                "radius=": ["10", "60", "10m", "30m"],
+                                "r:": ["10", "60", "10m", "30m"],
+                                "r=": ["10", "60", "10m", "30m"],
+                                "trend=": [
+                                    "rising",
+                                    "fading",
+                                    "low_state",
+                                    "new_low_state",
+                                ],
+                            },
+                            maxOptions=0,
+                            className="inputbar form-control border-0",
+                            quoteWhitespaces=True,
+                            autoFocus=True,
+                            ignoreCase=True,
+                            triggerInsideWord=False,
+                            matchAny=True,
+                        ),
+                        # Clear
+                        dmc.ActionIcon(
+                            DashIconify(icon="mdi:clear-bold"),
+                            n_clicks=0,
+                            id="search_bar_clear",
                             color="gray",
-                            variant="transparent",
+                            variant="subtle",
                             radius="xl",
                             size="lg",
-                            # className="d-none d-sm-flex"
-                            # title="Show some help",
+                            # title="Clear the input",
                         ),
-                    ),
-                ]
-            ),
-            # Search suggestions
-            dbc.Collapse(
-                dbc.ListGroup(
-                    id="search_bar_suggestions",
+                        # Submit
+                        dbc.Spinner(
+                            dmc.ActionIcon(
+                                DashIconify(icon="tabler:search", width=20),
+                                n_clicks=0,
+                                id="search_bar_submit",
+                                color="gray",
+                                variant="transparent",
+                                radius="xl",
+                                size="lg",
+                                # loaderProps={"variant": "dots", "color": "orange"},
+                                # title="Search",
+                            ),
+                            size="sm",
+                            color="warning",
+                        ),
+                        # Help popup
+                        help_popover(
+                            [dcc.Markdown(message_help)],
+                            "help_search",
+                            trigger=dmc.ActionIcon(
+                                DashIconify(icon="mdi:help"),
+                                id="help_search",
+                                color="gray",
+                                variant="transparent",
+                                radius="xl",
+                                size="lg",
+                                # className="d-none d-sm-flex"
+                                # title="Show some help",
+                            ),
+                        ),
+                    ]
                 ),
-                id="search_bar_suggestions_collapser",
-                is_open=False,
-            ),
-            # Debounce timer
-            dcc.Interval(
-                id="search_bar_timer", interval=2000, max_intervals=1, disabled=True
-            ),
-            dcc.Store(
-                id="search_history_store",
-                storage_type="local",
-            ),
-        ],
-    )
-]
+                # Search suggestions
+                dbc.Collapse(
+                    dbc.ListGroup(
+                        id="search_bar_suggestions",
+                    ),
+                    id="search_bar_suggestions_collapser",
+                    is_open=False,
+                ),
+                # Debounce timer
+                dcc.Interval(
+                    id="search_bar_timer", interval=2000, max_intervals=1, disabled=True
+                ),
+                dcc.Store(
+                    id="search_history_store",
+                    storage_type="local",
+                ),
+            ],
+        )
+    ]
+)
 
 # Time-based debounce from https://joetatusko.com/2023/07/11/time-based-debouncing-with-plotly-dash/
 clientside_callback(

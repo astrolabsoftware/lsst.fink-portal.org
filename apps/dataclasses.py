@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Definition of labels from TNS, SIMBAD and Fink"""
+
 from fink_utils.xmatch.simbad import get_simbad_labels
 
 import pandas as pd

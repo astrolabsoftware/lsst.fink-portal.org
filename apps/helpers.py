@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Collections of functions and messages to help users"""
+
 from dash import html
 import dash_bootstrap_components as dbc
 from apps.configuration import extract_configuration

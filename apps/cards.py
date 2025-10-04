@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Various cards in the portal"""
+
 import textwrap
 import io
-from dash import html, dcc, Output, Input, State, dash_table
+from dash import html, dcc, Output, Input, dash_table
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -26,7 +27,6 @@ import pandas as pd
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
-from fink_utils.photometry.utils import is_source_behind
 
 from apps.api import request_api
 from apps.dataclasses import simbad_types
@@ -60,12 +60,6 @@ def card_search_result(row, i):
     diasourceid = row["r:diaSourceId"]
     if name[0] == "[":  # Markdownified
         name = row["r:diaObjectId"].split("[")[1].split("]")[0]
-
-    # FIXME: update when first/last will be populated...
-    # payload = {"diaObjectId": str(name), "midpointMjdTai": row["lastDiaSourceMjdTai"], "columns": ...}
-    payload = {"diaObjectId": str(name), "columns": "r:midpointMjdTai,r:extendedness,r:reliability,r:snr,r:glint_trail,r:pixelFlags_cr"}
-    sources = request_api("/api/v1/sources", json=payload, output="json")
-    source = max(sources, key=lambda x: x["r:midpointMjdTai"])
 
     # Handle different variants for key names from different API entry points
     classification = None
@@ -102,7 +96,6 @@ def card_search_result(row, i):
         )
 
     badges += generate_generic_badges(row, variant="outline")
-
 
     # FIXME: not correct for SSO
     ndethist = row.get("r:nDiaSources", 1)
@@ -150,7 +143,9 @@ def card_search_result(row, i):
                 dmc.Group(
                     [
                         html.A(
-                            dmc.Text(f"{name}", style={"fontWeight": 700, "fontSize": 20}),
+                            dmc.Text(
+                                f"{name}", style={"fontWeight": 700, "fontSize": 20}
+                            ),
                             href=f"/{name}",
                             target="_blank",
                             className="text-decoration-none",
@@ -172,34 +167,232 @@ def card_search_result(row, i):
                 [
                     dbc.Row(
                         [
-                            dbc.Col(
-                                dmc.Skeleton(
-                                    style={
-                                        "width": "12pc",
-                                        "height": "12pc",
-                                    },
-                                ),
-                                id={
-                                    "type": "search_results_cutouts",
-                                    "diaSourceId": str(diasourceid),
-                                    "index": i,
-                                },
-                                width="auto",
-                            ),
-                            dbc.Col(
-                                [
-                                    dmc.Box(
-                                        [
-                                            *badges,
-                                            dcc.Markdown(
-                                                text,
-                                                style={"white-space": "pre-wrap"},
+                            html.Div(
+                                className="card-flip",
+                                id="card-flip",
+                                children=[
+                                    html.Div(
+                                        className="first-content",
+                                        children=[
+                                            html.Div(
+                                                className="container noselect",
+                                                children=[
+                                                    html.Div(
+                                                        className="canvas",
+                                                        children=[
+                                                            html.Div(
+                                                                id="card",
+                                                                children=[
+                                                                    html.Div(
+                                                                        className="card-content",
+                                                                        children=[
+                                                                            dbc.Col(
+                                                                                dmc.Skeleton(
+                                                                                    style={
+                                                                                        "width": "12pc",
+                                                                                        "height": "12pc",
+                                                                                    },
+                                                                                ),
+                                                                                id={
+                                                                                    "type": "search_results_cutouts",
+                                                                                    "diaSourceId": str(
+                                                                                        diasourceid
+                                                                                    ),
+                                                                                    "index": i,
+                                                                                },
+                                                                                width="auto",
+                                                                            ),
+                                                                            html.Div(
+                                                                                className="subtitle",
+                                                                                children=[
+                                                                                    html.Span(
+                                                                                        id={
+                                                                                            "type": "cutout-size",
+                                                                                            "diaSourceId": str(
+                                                                                                diasourceid
+                                                                                            ),
+                                                                                            "index": i,
+                                                                                        },
+                                                                                    ),
+                                                                                    # html.Span(className="highlight", children="3D EFFECT"),
+                                                                                ],
+                                                                            ),
+                                                                            html.Div(
+                                                                                className="corner-elements",
+                                                                                children=[
+                                                                                    html.Span(),
+                                                                                    html.Span(),
+                                                                                ],
+                                                                            ),
+                                                                        ],
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ],
                                             ),
-                                        ]
-                                    )
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="second-content",
+                                        children=[
+                                            html.Div(
+                                                className="container",
+                                                children=[
+                                                    html.Div(
+                                                        className="canvas",
+                                                        children=[
+                                                            html.Div(
+                                                                id="card2",
+                                                                children=[
+                                                                    html.Div(
+                                                                        className="card-content",
+                                                                        children=[
+                                                                            html.Div(
+                                                                                children=[
+                                                                                    dmc.Space(
+                                                                                        h=10
+                                                                                    ),
+                                                                                    dmc.Text(
+                                                                                        "Equatorial",
+                                                                                        className="subtitle3",
+                                                                                    ),
+                                                                                    dmc.Text(
+                                                                                        "{} {}".format(
+                                                                                            coords.ra.to_string(
+                                                                                                pad=True,
+                                                                                                unit="hour",
+                                                                                                precision=2,
+                                                                                                sep=" ",
+                                                                                            ),
+                                                                                            coords.dec.to_string(
+                                                                                                pad=True,
+                                                                                                unit="deg",
+                                                                                                alwayssign=True,
+                                                                                                precision=1,
+                                                                                                sep=" ",
+                                                                                            ),
+                                                                                        ),
+                                                                                        className="subtitle2",
+                                                                                    ),
+                                                                                    dmc.Space(
+                                                                                        h=2
+                                                                                    ),
+                                                                                    dmc.Text(
+                                                                                        "Galactic",
+                                                                                        className="subtitle3",
+                                                                                    ),
+                                                                                    dmc.Text(
+                                                                                        coords.galactic.to_string(
+                                                                                            style="decimal"
+                                                                                        ),
+                                                                                        className="subtitle2",
+                                                                                    ),
+                                                                                    dmc.Space(
+                                                                                        h=2
+                                                                                    ),
+                                                                                ],
+                                                                                style={
+                                                                                    "zIndex": 10000000
+                                                                                },
+                                                                            ),
+                                                                            dmc.Space(
+                                                                                h=10
+                                                                            ),
+                                                                            dmc.Box(
+                                                                                badges,
+                                                                                className="card-coord",
+                                                                            ),
+                                                                        ],
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
+                                    ),
                                 ],
-                                width="auto",
                             ),
+                            # dbc.Col(
+                            #     [
+                            #         html.Div(className="container noselect", children=[
+                            #             html.Div(className="canvas", children=[
+                            #                 html.Div(id="card", children=[
+                            #                     html.Div(className="card-content", children=[
+                            #                         dbc.Col(
+                            #                             dmc.Skeleton(
+                            #                                 style={
+                            #                                     "width": "12pc",
+                            #                                     "height": "12pc",
+                            #                                 },
+                            #                             ),
+                            #                             id={
+                            #                                 "type": "search_results_cutouts",
+                            #                                 "diaSourceId": str(diasourceid),
+                            #                                 "index": i,
+                            #                             },
+                            #                             width="auto",
+                            #                         ),
+                            #                         html.Div(className="subtitle", children=[
+                            #                             html.Span("INTERACTIVE"),
+                            #                             # html.Span(className="highlight", children="3D EFFECT"),
+                            #                         ]),
+                            #                         html.Div(className="corner-elements", children=[
+                            #                             html.Span(), html.Span(),
+                            #                         ]),
+                            #                     ]),
+                            #                 ]),
+                            #             ]),
+                            #         ]),
+                            #     ],
+                            #     width="auto",
+                            # ),
+                            # dbc.Col(
+                            #     [
+                            #         html.Div(className="container", children=[
+                            #             html.Div(className="canvas", children=[
+                            #                 html.Div(id="card2", children=[
+                            #                     html.Div(className="card-content", children=[
+                            #                         html.Div(children=[
+                            #                             dmc.Space(h=10),
+                            #                             dmc.Text("Equatorial", className="subtitle3"),
+                            #                             html.Div("{} {}".format(
+                            #                                 coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
+                            #                                 coords.dec.to_string(
+                            #                                     pad=True, unit="deg", alwayssign=True, precision=1, sep=" "
+                            #                                 )
+                            #                             ), className="subtitle2 copy-text"),
+                            #                             dmc.Space(h=2),
+                            #                             dmc.Text("Galactic", className="subtitle3"),
+                            #                             dmc.Text(coords.galactic.to_string(style="decimal"), className="subtitle2"),
+                            #                             dmc.Space(h=2),
+                            #                         ], style={"zIndex": 10000000}),
+                            #                         dmc.Space(h=10),
+                            #                         dmc.Box(badges, className="card-coord"),
+                            #                     ]),
+                            #                 ]),
+                            #             ]),
+                            #         ]),
+                            #     ],
+                            #     width="auto",
+                            # ),
+                            # dbc.Col(
+                            #     [
+                            #         dmc.Box(
+                            #             [
+                            #                 *badges,
+                            #                 dcc.Markdown(
+                            #                     text,
+                            #                     style={"white-space": "pre-wrap"},
+                            #                 ),
+                            #             ]
+                            #         )
+                            #     ],
+                            #     width="auto",
+                            # ),
                             dbc.Col(
                                 dmc.Skeleton(
                                     style={
@@ -229,11 +422,11 @@ def card_search_result(row, i):
                     ),
                 ],
             ),
+            # dbc.CardFooter("This is the footer"),
         ],
         color="light",
         className="mb-2 border-1 rounded-1 box-shadow",
         outline=True,
-
     )
 
     # Test with Mantine
@@ -613,7 +806,7 @@ def card_lightcurve_summary(diaObjectId):
                         ),
                     ),
                 ],
-                value="layout"
+                value="layout",
             ),
             dmc.AccordionItem(
                 [
@@ -655,7 +848,7 @@ def card_lightcurve_summary(diaObjectId):
                         ),
                     ),
                 ],
-                value="datasets"
+                value="datasets",
             ),
             dmc.AccordionItem(
                 [
@@ -669,7 +862,7 @@ def card_lightcurve_summary(diaObjectId):
                         ),
                     ),
                 ],
-                value="help"
+                value="help",
             ),
         ],
     )
@@ -682,7 +875,6 @@ def card_lightcurve_summary(diaObjectId):
     #     {"label": "Long", "prob": 0.1},
     #     {"label": "Fast", "prob": 0.3},
     # ]
-
 
     # radar = dmc.RadarChart(
     #     # h=300,
@@ -719,6 +911,7 @@ def card_lightcurve_summary(diaObjectId):
         ],
     )
     return card  # dmc.Paper([comp1, comp2, comp3]) #card
+
 
 def card_id(pdf):
     """Add a card containing basic alert data"""
@@ -1029,6 +1222,7 @@ curl -H "Content-Type: application/json" -X POST \\
 
     return card
 
+
 @app.callback(
     Output("alert_table", "children"),
     [
@@ -1123,6 +1317,7 @@ def alert_properties(object_data, clickData):
     )
     return table
 
+
 @app.callback(
     Output("card_id_left", "children"),
     [
@@ -1132,13 +1327,20 @@ def alert_properties(object_data, clickData):
 )
 def card_id_left(object_data):
     """Add a card containing basic alert data"""
-    pdf = pd.read_json(io.StringIO(object_data), dtype={"r:diaObjectId": np.int64, "r:diaSourceId": np.int64})
+    pdf = pd.read_json(
+        io.StringIO(object_data),
+        dtype={"r:diaObjectId": np.int64, "r:diaSourceId": np.int64},
+    )
 
     diaObjectid = pdf["r:diaObjectId"].to_numpy()[0]
 
     # FIXME
-    date_end = convert_time(pdf["r:midpointMjdTai"].to_numpy()[0], format_in="mjd", format_out="iso")
-    discovery_date = convert_time(pdf["r:midpointMjdTai"].to_numpy()[-1], format_in="mjd", format_out="iso")
+    date_end = convert_time(
+        pdf["r:midpointMjdTai"].to_numpy()[0], format_in="mjd", format_out="iso"
+    )
+    discovery_date = convert_time(
+        pdf["r:midpointMjdTai"].to_numpy()[-1], format_in="mjd", format_out="iso"
+    )
     mjds = pdf["r:midpointMjdTai"].to_numpy()
     ndet = len(pdf)
 
@@ -1226,6 +1428,7 @@ def card_id_left(object_data):
         withBorder=True,
     )
     return card
+
 
 def generate_tns_badge(oid):
     """Generate TNS badge
@@ -1534,6 +1737,3 @@ app.clientside_callback(
         Input("download_apiurl", "children"),
     ],
 )
-
-
-

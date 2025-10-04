@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """All functionalities for displaying results on the search page"""
+
 import io
 import dash
 from dash import (
@@ -71,7 +72,9 @@ def display_table_results(table, endpoint):
           2. Table of results
         The dropdown is shown only if the table is non-empty.
     """
-    data = request_api("/api/v1/schema", method="POST", json={"endpoint": endpoint}, output="json")
+    data = request_api(
+        "/api/v1/schema", method="POST", json={"endpoint": endpoint}, output="json"
+    )
 
     fink_fields = ["f:" + i for i in data["Fink science module outputs (f:)"].keys()]
     rubin_fields = ["r:" + i for i in data["Rubin original fields (r:)"].keys()]
@@ -925,7 +928,7 @@ clientside_callback(
         Output(
             {"type": "sparklines", "diaObjectId": MATCH, "index": MATCH},
             "children",
-        )
+        ),
     ],
     Input(
         {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
@@ -942,26 +945,39 @@ def on_load_lightcurve(lc_id):
             config=CONFIG_PLOT,
             style={"width": "100%", "height": "15pc"},
             responsive=True,
-        ), dmc.Group(sparklines, grow=True,)
+        ), dmc.Group(
+            sparklines,
+            grow=True,
+        )
 
     return no_update, no_update
 
 
 @app.callback(
-    Output(
-        {"type": "search_results_cutouts", "diaSourceId": MATCH, "index": MATCH},
-        "children",
-    ),
-    Input(
-        {"type": "search_results_cutouts", "diaSourceId": MATCH, "index": MATCH}, "id"
-    ),
+    [
+        Output(
+            {"type": "search_results_cutouts", "diaSourceId": MATCH, "index": MATCH},
+            "children",
+        ),
+        Output(
+            {"type": "cutout-size", "diaSourceId": MATCH, "index": MATCH},
+            "children",
+        ),
+    ],
+    [
+        Input(
+            {"type": "search_results_cutouts", "diaSourceId": MATCH, "index": MATCH},
+            "id",
+        ),
+    ],
 )
 def on_load_cutouts(lc_id):
     """Display Science cutouts on cards"""
     if lc_id:
+        fig, size = draw_cutouts_quickview(lc_id["diaSourceId"])
         return html.Div(
-            draw_cutouts_quickview(lc_id["diaSourceId"]),
+            fig,
             style={"width": "12pc", "height": "12pc"},
-        )
+        ), size
 
-    return no_update
+    return no_update, no_update

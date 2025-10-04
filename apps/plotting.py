@@ -22,7 +22,6 @@ import plotly.graph_objects as go
 import io
 import gzip
 from astropy.io import fits
-from copy import deepcopy
 
 from app import app
 
@@ -31,11 +30,8 @@ from astropy.coordinates import SkyCoord
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 from astropy.time import Time
-from dash import (
-    dcc, html
-)
+from dash import dcc, html
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 
@@ -50,7 +46,15 @@ from apps.utils import loading
 from apps.utils import hex_to_rgba
 
 # FIXME
-COLORS_LSST = ["#15284F", "#F5622E", "#F5622E", "#15284F", "#F5622E", "#15284F", "#F5622E"]
+COLORS_LSST = [
+    "#15284F",
+    "#F5622E",
+    "#F5622E",
+    "#15284F",
+    "#F5622E",
+    "#15284F",
+    "#F5622E",
+]
 COLORS_LSST_NEGATIVE = [
     "#274667",
     "#F57A2E",
@@ -61,50 +65,57 @@ COLORS_LSST_NEGATIVE = [
     "#F57A2E",
 ]
 
+PIXEL_SIZE = 0.2  # arcsec/pixel
+
 PAPER_BGCOLOR = "#f7f7f7"
 
 CONFIG_PLOT = {
     "displayModeBar": True,
     "displaylogo": False,
-    'modeBarButtonsToRemove': [
-        'zoom2d',
-        'zoomIn2d',
-        'zoomOut2d',
-        'toggleSpikelines',
-        'pan2d',
-        'select2d',
-        'lasso2d',
-        'autoScale2d',
-        'hoverClosestCartesian',
-        'hoverCompareCartesian'
+    "modeBarButtonsToRemove": [
+        "zoom2d",
+        "zoomIn2d",
+        "zoomOut2d",
+        "toggleSpikelines",
+        "pan2d",
+        "select2d",
+        "lasso2d",
+        "autoScale2d",
+        "hoverClosestCartesian",
+        "hoverCompareCartesian",
     ],
-    'toImageButtonOptions': {
-        'format': 'png', # one of png, svg, jpeg, webp
-        'filename': '{}',
+    "toImageButtonOptions": {
+        "format": "png",  # one of png, svg, jpeg, webp
+        "filename": "{}",
         # 'height': 500,
         # 'width': 700,
-        'scale': 1.5 # Multiply title/legend/axis/canvas sizes by this factor
-    }
+        "scale": 1.5,  # Multiply title/legend/axis/canvas sizes by this factor
+    },
 }
 
 default_radio_options = ["Total flux", "Difference flux", "Magnitude"]
 all_radio_options = {v: default_radio_options for v in default_radio_options}
+
 
 def draw_cutouts_quickview(name, kinds=None):
     """Draw Science cutout data for the preview service"""
     if kinds is None:
         kinds = ["science"]
     figs = []
+    sizes = []
     for kind in kinds:
         try:  # noqa: PERF203
             # We may manually construct the payload to avoid extra API call
             object_data = f'{{"r:diaSourceId":{{"0": "{name}"}}}}'
             data = extract_cutout(object_data, None, kind=kind)
+            shape = data.shape
             figs.append(draw_cutout(data, kind, zoom=False))
+            sizes.append("{}px / {:.1f}''".format(shape[0], shape[0] * PIXEL_SIZE))
         except OSError:  # noqa: PERF203
             data = dcc.Markdown("Load fail, refresh the page")
             figs.append(data)
-    return figs
+            sizes.append("")
+    return figs, sizes
 
 
 def extract_cutout(object_data, time0, kind):
@@ -196,7 +207,54 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
             zsmooth=zsmooth,
         ),
     )
-    # Greys_r
+
+    # Define the size and position for the reticle
+    reticle_size = len(data) / 10  # Total size of the cross reticle
+    inner_gap = len(data) / 12  # Size of the hole in the middle
+    center = len(data) // 2 - 1  # Center index for a square image
+
+    # Create the 'hole' in the middle by adding small squares around the center
+    # Add horizontal lines for the top and bottom parts of the reticle
+    fig.add_trace(
+        go.Scatter(
+            # x=[center - inner_gap // 2, center + inner_gap // 2],
+            # y=[vertical_top, vertical_top],
+            x=[center - reticle_size, center - inner_gap // 2],
+            y=[center, center],
+            mode="lines",
+            line=dict(color="orange", width=2),  # Color matches the background
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[center + inner_gap // 2, center + reticle_size],
+            y=[center, center],
+            mode="lines",
+            line=dict(color="orange", width=2),  # Color matches the background
+            showlegend=False,
+        )
+    )
+
+    # Add vertical lines for the left and right parts of the reticle
+    fig.add_trace(
+        go.Scatter(
+            x=[center, center],
+            y=[center - reticle_size, center - inner_gap // 2],
+            mode="lines",
+            line=dict(color="orange", width=2),  # Color matches the background
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[center, center],
+            y=[center + inner_gap // 2, center + reticle_size],
+            mode="lines",
+            line=dict(color="orange", width=2),  # Color matches the background
+            showlegend=False,
+        )
+    )
 
     axis_template = dict(
         autorange=True,
@@ -225,22 +283,21 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
     classname = "zoom"
     classname = ""
 
-    pixel_size = 0.2 # arcsec/pixel
+    # graph = dmc.Indicator(
 
-    graph = dmc.Indicator(
-        dcc.Graph(
-            id={"type": id_type, "id": title} if zoom else "undefined",
-            figure=fig,
-            style=style,
-            config={"displayModeBar": False},
-            className=classname,
-            responsive=True,
-        ),
-        color="blue",
-        variant="outline",
-	    position="bottom-center",
-        size=16,
-        label="{}px / {:.1f}''".format(shape[0], shape[0] * pixel_size),
+    #     color="blue",
+    #     variant="outline",
+    #     position="bottom-center",
+    #     size=16,
+    #     label="{}px / {:.1f}''".format(shape[0], shape[0] * pixel_size),
+    # )
+    graph = dcc.Graph(
+        id={"type": id_type, "id": title} if zoom else "undefined",
+        figure=fig,
+        style=style,
+        config={"displayModeBar": False},
+        className=classname,
+        responsive=True,
     )
 
     return graph
@@ -320,8 +377,11 @@ def draw_cutouts_modal(object_data, date_modal_select, is_open):
 
     return figs
 
+
 def make_modal_stamps(pdf):
-    dates = convert_time(pdf["r:midpointMjdTai"].to_numpy(), format_in="mjd", format_out="iso")
+    dates = convert_time(
+        pdf["r:midpointMjdTai"].to_numpy(), format_in="mjd", format_out="iso"
+    )
     return [
         dbc.Modal(
             [
@@ -344,10 +404,7 @@ def make_modal_stamps(pdf):
                             nothingFoundMessage="No options found",
                             id="date_modal_select",
                             value=dates[0],
-                            data=[
-                                {"value": i, "label": i}
-                                for i in dates
-                            ],
+                            data=[{"value": i, "label": i} for i in dates],
                             style={"z-index": 10000000},
                         ),
                         dmc.ActionIcon(
@@ -443,6 +500,7 @@ clientside_callback(
     State("date_modal_select", "data"),
     prevent_initial_call=True,
 )
+
 
 def readstamp(stamp: str, return_type="array", gzipped=True) -> np.array:
     """Read the stamp data inside an alert.
@@ -603,7 +661,7 @@ def draw_lightcurve_preview(name) -> dict:
         legend=dict(
             font=dict(size=10),
             orientation="h",
-            xanchor="right",
+            # xanchor="right",
             x=0,
             y=1.2,
             bgcolor="rgba(218, 223, 225, 0.5)",
@@ -693,7 +751,7 @@ def draw_lightcurve_preview(name) -> dict:
                 dmc.Stack(
                     [
                         dmc.Text(axis_name),
-                        sparklines.append(make_sparkline(flux[idx][::-1]))
+                        sparklines.append(make_sparkline(flux[idx][::-1])),
                     ],
                     gap="xs",
                 )
@@ -758,7 +816,7 @@ def draw_lightcurve(
         legend=dict(
             font=dict(size=10),
             orientation="h",
-            xanchor="right",
+            # xanchor="right",
             x=0,
             yanchor="bottom",
             y=1.02,
@@ -808,7 +866,9 @@ def draw_lightcurve(
 
     fig = go.Figure(layout=layout)
     if switch_layout == "Split":
-        fig = make_subplots(rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False)
+        fig = make_subplots(
+            rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
+        )
 
     for fid, fname, color, color_negative in (
         (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
@@ -855,26 +915,33 @@ def draw_lightcurve(
             marker={
                 "size": 12,
                 "color": flux[idx].apply(
-                    lambda x,
-                    color_negative=color_negative,
-                    color=color: color_negative if x < 0 else color
+                    lambda x, color_negative=color_negative, color=color: color_negative
+                    if x < 0
+                    else color
                 ),
                 "symbol": "circle",
             },
             xaxis="x",
-            yaxis="y" if switch_layout == "Plain" else "y{}".format(fid)
+            yaxis="y" if switch_layout == "Plain" else "y{}".format(fid),
         )
 
         if switch_layout == "Plain":
             fig.add_trace(trace)
         elif switch_layout == "Split":
             if len(flux[idx]) > 0:
-                fig.add_trace(trace, row=fid - 3 * (fid//4), col=(fid//4) + 1)
-                fig.update_xaxes(row=fid - 3 * (fid//4), col=(fid//4) + 1, title="Observation date")
-                fig.update_yaxes(row=fid - 3 * (fid//4), col=(fid//4) + 1, title=yaxis_title)
+                fig.add_trace(trace, row=fid - 3 * (fid // 4), col=(fid // 4) + 1)
+                fig.update_xaxes(
+                    row=fid - 3 * (fid // 4),
+                    col=(fid // 4) + 1,
+                    title="Observation date",
+                )
+                fig.update_yaxes(
+                    row=fid - 3 * (fid // 4), col=(fid // 4) + 1, title=yaxis_title
+                )
                 # fig.update_layout("yaxis{}".format(fid)=layout["yaxis"])
 
     return fig
+
 
 @app.callback(
     Output("coordinates", "children"),
@@ -924,7 +991,9 @@ def draw_alert_astrometry(object_data, kind) -> dict:
                 "y": deltaDEC[pdf["r:band"] == fname],
                 "mode": "markers",
                 "name": "{} band".format(fname),
-                "customdata": Time(pdf["r:midpointMjdTai"][pdf["r:midpointMjdTai"] == 1], format="mjd").iso,
+                "customdata": Time(
+                    pdf["r:midpointMjdTai"][pdf["r:midpointMjdTai"] == 1], format="mjd"
+                ).iso,
                 "hovertemplate": hovertemplate,
                 "marker": {"size": 6, "color": color, "symbol": "o"},
             }
@@ -1049,6 +1118,7 @@ def draw_alert_astrometry(object_data, kind) -> dict:
     )
 
     return html.Div([graph, card_coords])
+
 
 @app.callback(
     Output("aladin-lite-runner", "run"),

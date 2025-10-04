@@ -18,13 +18,10 @@ import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from astropy.coordinates import EarthLocation
 
 import visdcc
 from dash import Input, Output, State, dcc, html, no_update, ALL
 from dash.exceptions import PreventUpdate
-from dash_iconify import DashIconify
 
 from app import app
 
@@ -52,6 +49,7 @@ from apps.cards import card_lightcurve_summary, card_id
 # from apps.observability.utils import additional_observatories
 
 dcc.Location(id="url", refresh=False)
+
 
 def layout(name):
     # even if there is one object ID, this returns several alerts
@@ -143,6 +141,7 @@ def layout(name):
             dmc.Container(struct, fluid="xxl", style={"padding-top": "20px"})
         )
 
+
 def tabs(pdf):
     tabs_list = [
         dmc.TabsTab("Summary", value="Summary"),
@@ -202,10 +201,11 @@ def tabs(pdf):
         ],
         value=default,
         id="summary_tabs",
-        color="#ff6b6b"
+        color="#ff6b6b",
     )
 
     return tabs_
+
 
 def tab1_content(pdf):
     """Summary tab"""
@@ -231,7 +231,9 @@ def tab1_content(pdf):
             dbc.Row(
                 [
                     dbc.Col(
-                        children=[card_lightcurve_summary(pdf["r:diaObjectId"].to_numpy()[0])],
+                        children=[
+                            card_lightcurve_summary(pdf["r:diaObjectId"].to_numpy()[0])
+                        ],
                         md=8,
                     ),
                     dbc.Col(
@@ -269,12 +271,12 @@ def store_query(name):
 
     pdf = request_api(
         "/api/v1/sources",
-        json={
-            "diaObjectId": oid,
-            "columns": "*"
-        },
+        json={"diaObjectId": oid, "columns": "*"},
         # output="json", # should inspect this possibility
-        dtype={"r:diaObjectId": np.int64, "r:diaSourceId": np.int64},  # Force reading this field as string
+        dtype={
+            "r:diaObjectId": np.int64,
+            "r:diaSourceId": np.int64,
+        },  # Force reading this field as string
     )
 
     # pdf_ = pd.read_json(pdf.to_json())
@@ -1108,6 +1110,3 @@ def store_release_photometry(n_clicks, object_data):
 #     qrimg = generate_qr(qrdata)
 
 #     return html.Img(src="data:image/png;base64, " + pil_to_b64(qrimg))
-
-
-

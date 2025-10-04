@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Collection of utilities for the portal"""
+
 from dash import html
 import dash_mantine_components as dmc
 
@@ -72,6 +73,7 @@ def convert_time(time_in, format_in="mjd", format_out="iso", scale_in="tai"):
     """
     return Time(time_in, format=format_in, scale=scale_in).to_value(format_out)
 
+
 def loading(item):
     return html.Div(
         [
@@ -104,6 +106,7 @@ def flux_to_mag(flux, flux_err):
 
     return mag, mag_err
 
+
 def get_first_value(pdf, colname, default=None):
     """Get first value from given column of a DataFrame, or default value if not exists."""
     if colname in pdf.columns:
@@ -113,10 +116,9 @@ def get_first_value(pdf, colname, default=None):
 
 
 def hex_to_rgba(hex, alpha, format_out="plotly"):
-    """
-    """
+    """ """
     hex = hex.strip("#")
-    triplet = tuple(int(hex[i:i+2], 16) for i in (0, 2, 4))
+    triplet = tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4))
 
     if format_out == "plotly":
         return "rgba({}, {}, {}, {})".format(*triplet, alpha)
