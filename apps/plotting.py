@@ -46,15 +46,7 @@ from apps.utils import loading
 from apps.utils import hex_to_rgba
 
 # FIXME
-COLORS_LSST = [
-    "#15284F",
-    "#F5622E",
-    "#F5622E",
-    "#15284F",
-    "#F5622E",
-    "#15284F",
-    "#F5622E",
-]
+COLORS_LSST = ['#15284f', '#626d84', '#afb2b9', '#dbbeb2', '#e89070', '#f5622e']
 COLORS_LSST_NEGATIVE = [
     "#274667",
     "#F57A2E",
@@ -648,6 +640,9 @@ def draw_lightcurve_preview(name) -> dict:
     flux = pdf["r:scienceFlux"] * 1e-3
     flux_err = pdf["r:scienceFluxErr"] * 1e-3
 
+    # integer nights
+    pdf["id"] = pdf["r:midpointMjdTai"].apply(lambda x: int(x))
+
     # We should never modify global variables!!!
     layout = dict(
         automargin=True,
@@ -693,7 +688,7 @@ def draw_lightcurve_preview(name) -> dict:
         "layout": layout,
     }
 
-    sparklines = []
+    indicators = []
     for fid, fname, color, color_negative in (
         (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
         (2, "g", COLORS_LSST[1], COLORS_LSST_NEGATIVE[1]),
@@ -703,6 +698,43 @@ def draw_lightcurve_preview(name) -> dict:
         (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
     ):
         idx = pdf["r:band"] == fname
+
+        # initialise icon
+        icon = DashIconify(
+            icon="material-symbols:close-rounded",
+            color=dmc.DEFAULT_THEME["colors"]["dark"][6],
+            width=20,
+        )
+        if len(pdf[idx]) > 1:
+            # Last 2 measurements in 2 different nights
+            mean_values = pdf[idx].groupby('id')['r:scienceFlux'].mean().reset_index()
+            if len(mean_values) > 1:
+                arr = mean_values.sort_values("id", ascending=False).head(2)["r:scienceFlux"].to_numpy()
+                diff = arr[0] - arr[1]
+                if diff > 0:
+                    # going up
+                    icon = DashIconify(
+                        icon="tabler:arrow-up-right",
+                        color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        width=20,
+                    )
+                elif diff <= 0:
+                    icon = DashIconify(
+                        icon="tabler:arrow-down-right",
+                        color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                        width=20,
+                    )
+
+        indicators.append(
+            dmc.Flex(
+                children=[
+                    "{}".format(fname),
+                    icon,
+                ],
+                align="center",
+                # gap="sm"
+            ),
+        )
 
         if not np.sum(idx):
             continue
@@ -740,24 +772,8 @@ def draw_lightcurve_preview(name) -> dict:
             },
         )
 
-        # Daily average
-        # In [8]: pdf.groupby(pdf["i:midpointMjdTai"].apply(lambda x: Time(x, format="mjd", scale="ta
-        # ...: i").datetime).dt.strftime('%b %Y %m'))["i:scienceFlux"].mean().reset_index(name='Daily
-        # ...: Average')
 
-        if len(flux[idx]) > 1:
-            axis_name = "{} band".format(fname)
-            sparklines.append(
-                dmc.Stack(
-                    [
-                        dmc.Text(axis_name),
-                        sparklines.append(make_sparkline(flux[idx][::-1])),
-                    ],
-                    gap="xs",
-                )
-            )
-
-    return figure, sparklines
+    return figure, indicators
 
 
 def make_sparkline(data):

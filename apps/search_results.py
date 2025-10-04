@@ -926,7 +926,7 @@ clientside_callback(
             "children",
         ),
         Output(
-            {"type": "sparklines", "diaObjectId": MATCH, "index": MATCH},
+            {"type": "indicator", "diaObjectId": MATCH, "index": MATCH},
             "children",
         ),
     ],
@@ -938,7 +938,7 @@ clientside_callback(
 def on_load_lightcurve(lc_id):
     """Draw lightcurve on cards"""
     if lc_id:
-        fig, sparklines = draw_lightcurve_preview(lc_id["diaObjectId"])
+        fig, indicator = draw_lightcurve_preview(lc_id["diaObjectId"])
         CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(lc_id["diaObjectId"])
         return dcc.Graph(
             figure=fig,
@@ -946,8 +946,8 @@ def on_load_lightcurve(lc_id):
             style={"width": "100%", "height": "15pc"},
             responsive=True,
         ), dmc.Group(
-            sparklines,
-            grow=True,
+            indicator,
+            gap="sm",
         )
 
     return no_update, no_update

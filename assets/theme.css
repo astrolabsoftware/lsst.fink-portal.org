@@ -218,3 +218,16 @@ a:hover {
   transform: translateY(0px);
 }
 
+.indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  padding-right: 10px;
+  padding-left: 10px;
+  box-shadow:
+    0 0 2px rgba(0, 0, 0, 0.3),
+    inset 0 0 2px rgba(0, 0, 0, 0.2);
+}

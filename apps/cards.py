@@ -63,7 +63,7 @@ def card_search_result(row, i):
 
     # Handle different variants for key names from different API entry points
     classification = None
-    for key in ["f:finkclass"]:
+    for key in ["f:crossmatches_simbad_otype"]:
         if key in row:
             # Classification
             classification = row.get(key)
@@ -84,7 +84,7 @@ def card_search_result(row, i):
                 ),
             )
 
-    cdsxmatch = row.get("f:cdsxmatch")
+    cdsxmatch = row.get("f:crossmatches_simbad_otype")
     if cdsxmatch and cdsxmatch != "Unknown" and cdsxmatch != classification:
         badges.append(
             make_badge(
@@ -152,13 +152,64 @@ def card_search_result(row, i):
                         ),
                         # dmc.Space(w="sm"),
                         dmc.Space(w="sm"),
+                        dbc.Popover(
+                            "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                            target={
+                                "type": "indicator",
+                                "diaObjectId": str(name),
+                                "index": i,
+                            },
+                            body=True,
+                            trigger="hover",
+                            placement="top",
+                        ),
                         html.Div(
+                            className="indicator",
                             id={
-                                "type": "sparklines",
+                                "type": "indicator",
                                 "diaObjectId": str(name),
                                 "index": i,
                             },
                         ),
+                        # dmc.Stack(
+                        #     [
+                        #         dmc.Group([html.Div("u"), html.Div("g"), html.Div("r"), html.Div("i"), html.Div("z"), html.Div("y")], gap="md"),
+                        #         dmc.Group(
+                        #             [
+                        #                 DashIconify(
+                        #                     icon="tabler:arrow-up-right",
+                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        #                     width=10,
+                        #                 ),
+                        #                 DashIconify(
+                        #                     icon="tabler:arrow-down-right",
+                        #                     color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                        #                     width=10,
+                        #                 ),
+                        #                 DashIconify(
+                        #                     icon="tabler:letter-x",
+                        #                     color=dmc.DEFAULT_THEME["colors"]["dark"][6],
+                        #                     width=10,
+                        #                 ),
+                        #                 DashIconify(
+                        #                     icon="tabler:arrow-up-right",
+                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        #                     width=10,
+                        #                 ),
+                        #                 DashIconify(
+                        #                     icon="tabler:arrow-up-right",
+                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        #                     width=10,
+                        #                 ),
+                        #                 DashIconify(
+                        #                     icon="tabler:arrow-up-right",
+                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        #                     width=10,
+                        #                 ),
+                        #             ], gap="md"
+                        #         )
+                        #     ], gap=0
+                        # ),
                     ],
                     gap=3,
                 ),
@@ -253,6 +304,17 @@ def card_search_result(row, i):
                                                                                 children=[
                                                                                     dmc.Space(
                                                                                         h=10
+                                                                                    ),
+                                                                                    dmc.Text(
+                                                                                        "Last diaSourceId",
+                                                                                        className="subtitle3",
+                                                                                    ),
+                                                                                    dmc.Text(
+                                                                                        str(diasourceid),
+                                                                                        className="subtitle2",
+                                                                                    ),
+                                                                                    dmc.Space(
+                                                                                        h=2
                                                                                     ),
                                                                                     dmc.Text(
                                                                                         "Equatorial",
@@ -1345,7 +1407,7 @@ def card_id_left(object_data):
     ndet = len(pdf)
 
     badges = []
-    for c in np.unique(pdf["f:finkclass"]):
+    for c in np.unique(pdf["f:crossmatches_simbad_otype"]):
         if c in simbad_types:
             color = class_colors["Simbad"]
         elif c in class_colors.keys():
