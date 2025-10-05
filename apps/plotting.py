@@ -46,7 +46,7 @@ from apps.utils import loading
 from apps.utils import hex_to_rgba
 
 # FIXME
-COLORS_LSST = ['#15284f', '#626d84', '#afb2b9', '#dbbeb2', '#e89070', '#f5622e']
+COLORS_LSST = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#f5622e"]
 COLORS_LSST_NEGATIVE = [
     "#274667",
     "#F57A2E",
@@ -620,6 +620,10 @@ def draw_lightcurve_preview(name) -> dict:
         "r:band",
         "r:snr",
         "r:reliability",
+        "r:pixelFlags_bad",
+        "r:pixelFlags_cr",
+        "r:pixelFlags_saturatedCenter",
+        "r:pixelFlags_streakCenter",
     ]
     pdf = request_api(
         "/api/v1/sources",
@@ -700,26 +704,30 @@ def draw_lightcurve_preview(name) -> dict:
         idx = pdf["r:band"] == fname
 
         # initialise icon
-        icon = DashIconify(
+        icon_indicator = DashIconify(
             icon="material-symbols:close-rounded",
             color=dmc.DEFAULT_THEME["colors"]["dark"][6],
             width=20,
         )
         if len(pdf[idx]) > 1:
             # Last 2 measurements in 2 different nights
-            mean_values = pdf[idx].groupby('id')['r:scienceFlux'].mean().reset_index()
+            mean_values = pdf[idx].groupby("id")["r:scienceFlux"].mean().reset_index()
             if len(mean_values) > 1:
-                arr = mean_values.sort_values("id", ascending=False).head(2)["r:scienceFlux"].to_numpy()
+                arr = (
+                    mean_values.sort_values("id", ascending=False)
+                    .head(2)["r:scienceFlux"]
+                    .to_numpy()
+                )
                 diff = arr[0] - arr[1]
                 if diff > 0:
                     # going up
-                    icon = DashIconify(
+                    icon_indicator = DashIconify(
                         icon="tabler:arrow-up-right",
                         color=dmc.DEFAULT_THEME["colors"]["green"][6],
                         width=20,
                     )
                 elif diff <= 0:
-                    icon = DashIconify(
+                    icon_indicator = DashIconify(
                         icon="tabler:arrow-down-right",
                         color=dmc.DEFAULT_THEME["colors"]["red"][6],
                         width=20,
@@ -729,7 +737,7 @@ def draw_lightcurve_preview(name) -> dict:
             dmc.Flex(
                 children=[
                     "{}".format(fname),
-                    icon,
+                    icon_indicator,
                 ],
                 align="center",
                 # gap="sm"
@@ -772,8 +780,62 @@ def draw_lightcurve_preview(name) -> dict:
             },
         )
 
+    flags = []
+    cols = [
+        "r:pixelFlags_bad",
+        "r:pixelFlags_saturatedCenter",
+        "r:pixelFlags_cr",
+        "r:pixelFlags_streakCenter",
+    ]
+    docs = [
+        "bad pixel in the DiaSource footprint.",
+        "saturated pixel in the 3x3 region around the centroid.",
+        "cosmic ray in the DiaSource footprint.",
+        "streak in the 3x3 region around the centroid.",
+    ]
+    for col, doc in zip(cols, docs):
+        if any(pdf[col]):
+            flags.append(
+                html.Div(
+                    [
+                        dbc.Popover(
+                            "{}".format(doc.capitalize()),
+                            target="{}_{}".format(name, col),
+                            body=True,
+                            trigger="hover",
+                            placement="top",
+                        ),
+                        DashIconify(
+                            icon="tabler:square-rounded-filled",
+                            color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                            width=20,
+                            id="{}_{}".format(name, col),
+                        ),
+                    ]
+                )
+            )
+        else:
+            flags.append(
+                html.Div(
+                    [
+                        dbc.Popover(
+                            "No {}".format(doc),
+                            target="{}_{}".format(name, col),
+                            body=True,
+                            trigger="hover",
+                            placement="top",
+                        ),
+                        DashIconify(
+                            icon="tabler:square-rounded-filled",
+                            color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                            width=20,
+                            id="{}_{}".format(name, col),
+                        ),
+                    ]
+                )
+            )
 
-    return figure, indicators
+    return figure, indicators, flags
 
 
 def make_sparkline(data):

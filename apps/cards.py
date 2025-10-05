@@ -171,6 +171,15 @@ def card_search_result(row, i):
                                 "index": i,
                             },
                         ),
+                        dmc.Space(w="sm"),
+                        html.Div(
+                            className="indicator",
+                            id={
+                                "type": "flags",
+                                "diaObjectId": str(name),
+                                "index": i,
+                            },
+                        ),
                         # dmc.Stack(
                         #     [
                         #         dmc.Group([html.Div("u"), html.Div("g"), html.Div("r"), html.Div("i"), html.Div("z"), html.Div("y")], gap="md"),
@@ -310,7 +319,9 @@ def card_search_result(row, i):
                                                                                         className="subtitle3",
                                                                                     ),
                                                                                     dmc.Text(
-                                                                                        str(diasourceid),
+                                                                                        str(
+                                                                                            diasourceid
+                                                                                        ),
                                                                                         className="subtitle2",
                                                                                     ),
                                                                                     dmc.Space(

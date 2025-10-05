@@ -259,9 +259,11 @@ def display_skymap(data, columns, is_open):
         # FIXME: get the mean flux in g, and make marker size accordingly
         # mags = pdf["i:p"].to_numpy()
 
-        classes = pdf["f:finkclass"].to_numpy()
+        classes = pdf["f:crossmatches_simbad_otype"].to_numpy()
         n_alert_per_class = (
-            pdf.groupby("f:finkclass").count().to_dict()["r:diaObjectId"]
+            pdf.groupby("f:crossmatches_simbad_otype")
+            .count()
+            .to_dict()["r:diaObjectId"]
         )
         cats = []
         for ra, dec, time_, title, class_ in zip(ras, decs, times, titles, classes):
@@ -929,6 +931,10 @@ clientside_callback(
             {"type": "indicator", "diaObjectId": MATCH, "index": MATCH},
             "children",
         ),
+        Output(
+            {"type": "flags", "diaObjectId": MATCH, "index": MATCH},
+            "children",
+        ),
     ],
     Input(
         {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
@@ -938,16 +944,23 @@ clientside_callback(
 def on_load_lightcurve(lc_id):
     """Draw lightcurve on cards"""
     if lc_id:
-        fig, indicator = draw_lightcurve_preview(lc_id["diaObjectId"])
+        fig, indicator, flags = draw_lightcurve_preview(lc_id["diaObjectId"])
         CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(lc_id["diaObjectId"])
-        return dcc.Graph(
-            figure=fig,
-            config=CONFIG_PLOT,
-            style={"width": "100%", "height": "15pc"},
-            responsive=True,
-        ), dmc.Group(
-            indicator,
-            gap="sm",
+        return (
+            dcc.Graph(
+                figure=fig,
+                config=CONFIG_PLOT,
+                style={"width": "100%", "height": "15pc"},
+                responsive=True,
+            ),
+            dmc.Group(
+                indicator,
+                gap="sm",
+            ),
+            dmc.Group(
+                flags,
+                gap="sm",
+            ),
         )
 
     return no_update, no_update
