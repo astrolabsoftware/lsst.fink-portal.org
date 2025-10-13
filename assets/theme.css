@@ -1,0 +1,233 @@
+:root {
+    --bgColor: #f7f7f7;
+    --bgColorTriplet: 255, 255, 255;
+    --textDefault: #000;
+    --primary: #0B4CFF;
+    --secondary: #FF0B70;
+    --terciary: #00BA5B;
+}
+
+:root[data-theme='dark'] {
+    --bgColor: #272727;
+    --bgColorTriplet: 0, 0, 0;
+    --textDefault: #000;
+    --primary: #ACC2FF;
+    --secondary: #FFAFD0;
+    --terciary: #86E1B3;
+}
+
+body {
+  background: var(--bgColor);
+  color: var(--textDefault);
+}
+
+h2 {
+	color: var(--primary);
+}
+
+/* Styling of various elements, moved from inline */
+
+.home {
+  background: var(--bgColor);
+  color: var(--textDefault);
+}
+
+.home_light {
+  background: var(--bgColor);
+  color: var(--textDefault);
+}
+
+/* Quasi-generic backgrounds, meant to be used in wrapper divs to override parent colors of the whole page */
+.bg-opaque-100 {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(var(--bgColorTriplet), 1.0)
+}
+
+.bg-opaque-90 {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(var(--bgColorTriplet), 0.9)
+}
+
+/* Quasi-generic backgrounds, meant to be used in wrapper divs to override parent colors of the whole page */
+.bg-opaque-60 {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(var(--bgColorTriplet), 0.6)
+}
+
+/* Quasi-generic backgrounds, meant to be used in wrapper divs to override parent colors of the whole page */
+.bg-opaque-30 {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(var(--bgColorTriplet), 0.3)
+}
+
+#navbar {
+  /* background-image: linear-gradient(rgba(255,255,255,0.3), rgba(255,255,255,0.3)), url(/assets/background.png); */
+  /* background-size: cover; */
+  /* border: 0.5px rgb(255, 255, 255) solid; */
+  background: var(--bgColor);
+}
+
+/* Main search bar */
+#search_bar {
+  border: 1px rgb(216, 216, 216) solid;
+  background: #fafafa;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+#search_bar_input {
+  background: #fafafa;
+  /* margin-left: 25px; */
+  padding: 0;
+}
+
+#search_bar_suggestions .list-group-item {
+  background: rgba(248, 248, 248, 1);
+  margin: 0;
+  border: 0;
+}
+
+#search_bar_suggestions .list-group-item:last-child {
+  background: rgba(248, 248, 248, 1);
+  margin: 0;
+  border-radius: 0 0 25px 25px;
+  border-bottom: 2px solid black;
+}
+
+/* Cards */
+/* .card {
+  background-color: rgb(248, 248, 248, 1.0);
+} */
+
+/* Results table and other tabs there */
+#results .tab-content {
+  background: rgba(255, 255, 255, 1.0);
+}
+
+.api .nav-link {
+  border-radius: 0.25rem;
+  margin-bottom: 0;
+}
+
+.api .nav-link.active {
+  border-color: #dee2e6;
+}
+
+a {
+  color: #15284F;
+}
+
+
+a:hover {
+  color: #297ac2;
+}
+
+.box-shadow {
+  /* https://getcssscan.com/css-box-shadow-examples */
+  /* box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px; */
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px, rgba(0, 0, 0, 0.3) 0px 18px 36px -18px;
+}
+
+.banner {
+    width: 60; /* Set the width of the banner */
+    height: 100vh; /* Full height of the viewport */
+    background: #15284F; /* Solid background color */
+    position: relative; /* Positioning context for the pseudo-element */
+    overflow: hidden; /* Ensure the gradient doesn't overflow */
+}
+
+.banner::after {
+    content: '';
+    position: absolute;
+    top: 0; /* Position at the top */
+    left: 0;
+    right: 0;
+    height: 10%; /* Last 10% of the banner */
+    background: linear-gradient(to top,rgba(21, 40, 79, 0) 0%, white);
+    /* background: radial-gradient(ellipse at bottom in hsl longer hue,rgba(21, 40, 79, 0) 0%, white); */
+}
+
+.small-logo{
+  position: absolute;
+  overflow: hidden;
+  width: 60;
+  height: 60;
+  /* top: 0; */
+  left: 0;
+}
+
+.card-flip {
+  width: 190px;
+  height: 254px;
+  /* background: rgb(103, 225, 255); */
+  transition: all 0.4s;
+  border-radius: 10px;
+  /* box-shadow: 0px 0px 10px 5px rgba(0, 0, 0, 0.705); */
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.card-flip:hover {
+  border-radius: 15px;
+  cursor: pointer;
+  transform: scale(1.0);
+  /* box-shadow: 0px 0px 10px 5px rgba(0, 0, 0, 0.705); */
+  /* background: rgb(103, 151, 255); */
+}
+
+.first-content {
+  height: 100%;
+  width: 100%;
+  transition: all 0.4s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  /* border-radius: 15px; */
+}
+
+.card-flip:hover .first-content {
+  height: 0px;
+  opacity: 0;
+}
+
+.second-content {
+  height: 0%;
+  width: 100%;
+  opacity: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.4s;
+  font-size: 0px;
+  transform: translateY(100px);
+}
+
+.card-flip:hover .second-content {
+  opacity: 1;
+  height: 100%;
+  font-size: 1.8rem;
+  transform: translateY(0px);
+}
+
+.indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  padding-right: 10px;
+  padding-left: 10px;
+  box-shadow:
+    0 0 2px rgba(0, 0, 0, 0.3),
+    inset 0 0 2px rgba(0, 0, 0, 0.2);
+}
