@@ -32,6 +32,7 @@ from dash.exceptions import PreventUpdate
 import dash_mantine_components as dmc
 import dash_bootstrap_components as dbc
 
+import urllib
 import numpy as np
 import pandas as pd
 from dash_iconify import DashIconify
@@ -43,6 +44,7 @@ from apps.dataclasses import simbad_types
 from apps.api import request_api
 from apps.utils import markdownify_objectid
 from apps.utils import class_colors
+from apps.utils import isoify_time
 from apps.cards import card_search_result
 from apps.plotting import draw_cutouts_quickview
 from apps.plotting import draw_lightcurve_preview
@@ -256,9 +258,8 @@ def display_skymap(data, columns, is_open):
             for i in pdf["r:diaObjectId"].to_numpy()
         ]
 
-        # FIXME: get the mean flux in g, and make marker size accordingly
-        # mags = pdf["i:p"].to_numpy()
-
+        # for val in ["Fail", "nan"]:
+        #     pdf["f:crossmatches_simbad_otype"] = pdf["f:crossmatches_simbad_otype"].replace(to_replace=val, value="Unknown")
         classes = pdf["f:crossmatches_simbad_otype"].to_numpy()
         n_alert_per_class = (
             pdf.groupby("f:crossmatches_simbad_otype")
@@ -324,47 +325,45 @@ def modal_skymap():
         radius="xl",
     )
 
-    modal = html.Div(
-        [
-            button,
-            dbc.Modal(
-                [
-                    # loading(
-                    dbc.ModalBody(
-                        html.Div(
-                            [
-                                visdcc.Run_js(
-                                    id="aladin-lite-div-skymap",
-                                    style={"border": "0"},
-                                ),
-                            ],
-                            style={
-                                "width": "100%",
-                                "height": "100%",
-                            },
-                        ),
-                        className="p-1",
-                        style={"height": "30pc"},
+    modal = html.Div([
+        button,
+        dbc.Modal(
+            [
+                # loading(
+                dbc.ModalBody(
+                    html.Div(
+                        [
+                            visdcc.Run_js(
+                                id="aladin-lite-div-skymap",
+                                style={"border": "0"},
+                            ),
+                        ],
+                        style={
+                            "width": "100%",
+                            "height": "100%",
+                        },
                     ),
-                    # ),
-                    dbc.ModalFooter(
-                        dmc.Button(
-                            "Close",
-                            id="close_modal_skymap",
-                            className="ml-auto",
-                            color="gray",
-                            # fullWidth=True,
-                            variant="default",
-                            radius="xl",
-                        ),
+                    className="p-1",
+                    style={"height": "30pc"},
+                ),
+                # ),
+                dbc.ModalFooter(
+                    dmc.Button(
+                        "Close",
+                        id="close_modal_skymap",
+                        className="ml-auto",
+                        color="gray",
+                        # fullWidth=True,
+                        variant="default",
+                        radius="xl",
                     ),
-                ],
-                id="modal_skymap",
-                is_open=False,
-                size="lg",
-            ),
-        ]
-    )
+                ),
+            ],
+            id="modal_skymap",
+            is_open=False,
+            size="lg",
+        ),
+    ])
 
     return modal
 
@@ -458,18 +457,16 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
         if incolumns is True:
             raise PreventUpdate
 
-        columns.append(
-            {
-                "name": field_dropdown,
-                "id": field_dropdown,
-                "type": "numeric",
-                "format": dash_table.Format.Format(precision=8),
-                "presentation": "markdown"
-                if field_dropdown == "r:diaObjectId"
-                else "input",
-                # 'hideable': True,
-            }
-        )
+        columns.append({
+            "name": field_dropdown,
+            "id": field_dropdown,
+            "type": "numeric",
+            "format": dash_table.Format.Format(precision=8),
+            "presentation": "markdown"
+            if field_dropdown == "r:diaObjectId"
+            else "input",
+            # 'hideable': True,
+        })
 
         return data, columns
     elif groupby1 is True:

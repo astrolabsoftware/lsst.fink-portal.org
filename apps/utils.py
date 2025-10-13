@@ -31,8 +31,10 @@ class_colors = {
     "Solar System MPC": "yellow",
     "Solar System candidate": "indigo",
     "Ambiguous": "grape",
-    "Unknown": "gray",
     "Simbad": "blue",
+    "Unknown": "gray",
+    "nan": "gray",
+    "Fail": "gray",
 }
 
 
@@ -75,16 +77,14 @@ def convert_time(time_in, format_in="mjd", format_out="iso", scale_in="tai"):
 
 
 def loading(item):
-    return html.Div(
-        [
-            item,
-            dmc.LoadingOverlay(
-                loaderProps={"variant": "dots", "color": "orange", "size": "xl"},
-                overlayProps={"radius": "sm", "blur": 2},
-                zIndex=100000,
-            ),
-        ]
-    )
+    return html.Div([
+        item,
+        dmc.LoadingOverlay(
+            loaderProps={"variant": "dots", "color": "orange", "size": "xl"},
+            overlayProps={"radius": "sm", "blur": 2},
+            zIndex=100000,
+        ),
+    ])
 
 
 def flux_to_mag(flux, flux_err):
@@ -124,3 +124,15 @@ def hex_to_rgba(hex, alpha, format_out="plotly"):
         return "rgba({}, {}, {}, {})".format(*triplet, alpha)
     elif format_out == "raw":
         return (*triplet, alpha)
+
+
+def isoify_time(t):
+    try:
+        tt = Time(t)
+    except ValueError:
+        ft = float(t)
+        if ft // 2400000:
+            tt = Time(ft, format="jd")
+        else:
+            tt = Time(ft, format="mjd")
+    return tt.iso

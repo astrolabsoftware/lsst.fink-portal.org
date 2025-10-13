@@ -209,42 +209,40 @@ def tabs(pdf):
 
 def tab1_content(pdf):
     """Summary tab"""
-    tab1_content_ = html.Div(
-        [
-            dmc.Space(h=10),
-            # dbc.Row(
-            #     [
-            #         dbc.Col(
-            #             dcc.Graph(
-            #                 style={
-            #                     "width": "100%",
-            #                     "height": "4pc",
-            #                 },
-            #                 config={"displayModeBar": False},
-            #                 id="classbar",
-            #             ),
-            #             width=12,
-            #         ),
-            #     ],
-            #     justify="around",
-            # ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        children=[
-                            card_lightcurve_summary(pdf["r:diaObjectId"].to_numpy()[0])
-                        ],
-                        md=8,
-                    ),
-                    dbc.Col(
-                        children=[card_id(pdf)],
-                        md=4,
-                    ),
-                ],
-                className="g-1",
-            ),
-        ]
-    )
+    tab1_content_ = html.Div([
+        dmc.Space(h=10),
+        # dbc.Row(
+        #     [
+        #         dbc.Col(
+        #             dcc.Graph(
+        #                 style={
+        #                     "width": "100%",
+        #                     "height": "4pc",
+        #                 },
+        #                 config={"displayModeBar": False},
+        #                 id="classbar",
+        #             ),
+        #             width=12,
+        #         ),
+        #     ],
+        #     justify="around",
+        # ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    children=[
+                        card_lightcurve_summary(pdf["r:diaObjectId"].to_numpy()[0])
+                    ],
+                    md=8,
+                ),
+                dbc.Col(
+                    children=[card_id(pdf)],
+                    md=4,
+                ),
+            ],
+            className="g-1",
+        ),
+    ])
 
     return tab1_content_
 

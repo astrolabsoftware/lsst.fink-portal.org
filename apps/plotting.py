@@ -796,43 +796,39 @@ def draw_lightcurve_preview(name) -> dict:
     for col, doc in zip(cols, docs):
         if any(pdf[col]):
             flags.append(
-                html.Div(
-                    [
-                        dbc.Popover(
-                            "{}".format(doc.capitalize()),
-                            target="{}_{}".format(name, col),
-                            body=True,
-                            trigger="hover",
-                            placement="top",
-                        ),
-                        DashIconify(
-                            icon="tabler:square-rounded-filled",
-                            color=dmc.DEFAULT_THEME["colors"]["red"][6],
-                            width=20,
-                            id="{}_{}".format(name, col),
-                        ),
-                    ]
-                )
+                html.Div([
+                    dbc.Popover(
+                        "{}".format(doc.capitalize()),
+                        target="{}_{}".format(name, col),
+                        body=True,
+                        trigger="hover",
+                        placement="top",
+                    ),
+                    DashIconify(
+                        icon="tabler:square-rounded-filled",
+                        color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                        width=20,
+                        id="{}_{}".format(name, col),
+                    ),
+                ])
             )
         else:
             flags.append(
-                html.Div(
-                    [
-                        dbc.Popover(
-                            "No {}".format(doc),
-                            target="{}_{}".format(name, col),
-                            body=True,
-                            trigger="hover",
-                            placement="top",
-                        ),
-                        DashIconify(
-                            icon="tabler:square-rounded-filled",
-                            color=dmc.DEFAULT_THEME["colors"]["green"][6],
-                            width=20,
-                            id="{}_{}".format(name, col),
-                        ),
-                    ]
-                )
+                html.Div([
+                    dbc.Popover(
+                        "No {}".format(doc),
+                        target="{}_{}".format(name, col),
+                        body=True,
+                        trigger="hover",
+                        placement="top",
+                    ),
+                    DashIconify(
+                        icon="tabler:square-rounded-filled",
+                        color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        width=20,
+                        id="{}_{}".format(name, col),
+                    ),
+                ])
             )
 
     return figure, indicators, flags
@@ -1063,19 +1059,17 @@ def draw_alert_astrometry(object_data, kind) -> dict:
         (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
         (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
     ):
-        data.append(
-            {
-                "x": deltaRAcosDEC[pdf["r:band"] == fname],
-                "y": deltaDEC[pdf["r:band"] == fname],
-                "mode": "markers",
-                "name": "{} band".format(fname),
-                "customdata": Time(
-                    pdf["r:midpointMjdTai"][pdf["r:midpointMjdTai"] == 1], format="mjd"
-                ).iso,
-                "hovertemplate": hovertemplate,
-                "marker": {"size": 6, "color": color, "symbol": "o"},
-            }
-        )
+        data.append({
+            "x": deltaRAcosDEC[pdf["r:band"] == fname],
+            "y": deltaDEC[pdf["r:band"] == fname],
+            "mode": "markers",
+            "name": "{} band".format(fname),
+            "customdata": Time(
+                pdf["r:midpointMjdTai"][pdf["r:midpointMjdTai"] == 1], format="mjd"
+            ).iso,
+            "hovertemplate": hovertemplate,
+            "marker": {"size": 6, "color": color, "symbol": "o"},
+        })
 
     layout = dict(
         automargin=True,

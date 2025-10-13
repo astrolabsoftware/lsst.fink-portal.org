@@ -16,7 +16,7 @@
 
 import textwrap
 import io
-from dash import html, dcc, Output, Input, dash_table
+from dash import html, dcc, Output, Input, dash_table, no_update
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -29,7 +29,6 @@ from astropy.time import Time
 
 
 from apps.api import request_api
-from apps.dataclasses import simbad_types
 from apps.utils import class_colors
 from apps.utils import convert_time
 from apps.utils import loading
@@ -51,6 +50,8 @@ from app import app
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
 
+BAD_VALUES = [np.nan, None, "Fail", "nan", ""]
+
 
 def card_search_result(row, i):
     """Display single item for search results"""
@@ -62,30 +63,32 @@ def card_search_result(row, i):
         name = row["r:diaObjectId"].split("[")[1].split("]")[0]
 
     # Handle different variants for key names from different API entry points
-    classification = None
-    for key in ["f:crossmatches_simbad_otype"]:
-        if key in row:
-            # Classification
-            classification = row.get(key)
-            if classification in simbad_types:
-                color = class_colors["Simbad"]
-            elif classification in class_colors.keys():
-                color = class_colors[classification]
-            else:
-                # Sometimes SIMBAD mess up names :-)
-                color = class_colors["Simbad"]
+    # classification = None
+    # for key in ["f:crossmatches_simbad_otype"]:
+    #     if key in row:
+    #         # Classification
+    #         classification = row.get(key)
+    #         if classification in BAD_VALUES:
+    #             continue
+    #         if classification in simbad_types:
+    #             color = class_colors["Simbad"]
+    #         elif classification in class_colors.keys():
+    #             color = class_colors[classification]
+    #         else:
+    #             # Sometimes SIMBAD mess up names :-)
+    #             color = class_colors["Simbad"]
 
-            badges.append(
-                make_badge(
-                    classification,
-                    variant="outline",
-                    color=color,
-                    tooltip="Fink classification",
-                ),
-            )
+    #         badges.append(
+    #             make_badge(
+    #                 classification,
+    #                 variant="outline",
+    #                 color=color,
+    #                 tooltip="SIMBAD classification",
+    #             ),
+    #         )
 
     cdsxmatch = row.get("f:crossmatches_simbad_otype")
-    if cdsxmatch and cdsxmatch != "Unknown" and cdsxmatch != classification:
+    if cdsxmatch not in BAD_VALUES:
         badges.append(
             make_badge(
                 f"SIMBAD: {cdsxmatch}",
@@ -180,6 +183,8 @@ def card_search_result(row, i):
                                 "index": i,
                             },
                         ),
+                        dmc.Space(w="sm"),
+                        *badges,
                         # dmc.Stack(
                         #     [
                         #         dmc.Group([html.Div("u"), html.Div("g"), html.Div("r"), html.Div("i"), html.Div("z"), html.Div("y")], gap="md"),
@@ -372,10 +377,6 @@ def card_search_result(row, i):
                                                                             ),
                                                                             dmc.Space(
                                                                                 h=10
-                                                                            ),
-                                                                            dmc.Box(
-                                                                                badges,
-                                                                                className="card-coord",
                                                                             ),
                                                                         ],
                                                                     ),
@@ -599,6 +600,7 @@ def make_badge(text="", color=None, outline=None, tooltip=None, **kwargs):
         color=color,
         variant=kwargs.pop("variant", "dot"),
         style=style,
+        size="sm",
         **kwargs,
     )
 
@@ -616,12 +618,16 @@ def make_badge(text="", color=None, outline=None, tooltip=None, **kwargs):
 
 def generate_generic_badges(row, variant="dot"):
     """Operates on first row of a DataFrame, or directly on Series from pdf.iterrow()"""
-    # FIXME: many ZTF leftover
     if isinstance(row, pd.DataFrame):
         # for VSX, aggregate values
-        vsx_label = get_multi_labels(row, "f:vsx", default="Unknown", to_avoid=["nan"])
-        if vsx_label != row.loc[0].get("f:vsx"):
-            row["f:vsx"] = vsx_label
+        vsx_label = get_multi_labels(
+            row,
+            "f:crossmatches_vizier:B/vsx/vsx_Type",
+            default=None,
+            to_avoid=BAD_VALUES,
+        )
+        if vsx_label != row.loc[0].get("f:crossmatches_vizier:B/vsx/vsx_Type"):
+            row["f:crossmatches_vizier:B/vsx/vsx_Type"] = vsx_label
 
         # Get first row from DataFrame
         row = row.loc[0]
@@ -632,21 +638,10 @@ def generate_generic_badges(row, variant="dot"):
     if extendedness is not None and extendedness > 0.9:
         badges.append(
             make_badge(
-                "Extended source",
+                "EXT",
                 variant="outline",
                 color="grey",
-                tooltip="Extendedness above 0.9",
-            )
-        )
-
-    pixelFlags_cr = row.get("r:pixelFlags_cr", False)
-    if pixelFlags_cr:
-        badges.append(
-            make_badge(
-                "Cosmic ray",
-                variant="outline",
-                color="red",
-                tooltip="Flagged as cosmic ray by Rubin",
+                tooltip="Extendedness of the source above 0.9",
             )
         )
 
@@ -683,74 +678,64 @@ def generate_generic_badges(row, variant="dot"):
             ),
         )
 
-    gcvs = row.get("f:gcvs")
-    if gcvs and gcvs != "Unknown":
+    gcvs = row.get("f:crossmatches_gcvs_type")
+    if gcvs not in BAD_VALUES:
+        if ~np.isnan(gcvs):
+            badges.append(
+                make_badge(
+                    f"GCVS: {gcvs}",
+                    variant=variant,
+                    color=class_colors["Simbad"],
+                    tooltip="General Catalogue of Variable Stars classification",
+                ),
+            )
+
+    vsx = row.get("f:crossmatches_vizier:B/vsx/vsx_Type")
+    if vsx not in BAD_VALUES:
+        if ~np.isnan(vsx):
+            badges.append(
+                make_badge(
+                    f"VSX: {vsx}",
+                    variant=variant,
+                    color=class_colors["Simbad"],
+                    tooltip="AAVSO VSX classification",
+                ),
+            )
+
+    hsp = row.get("f:crossmatches_x3hsp_type")
+    if hsp not in BAD_VALUES:
+        if ~np.isnan(hsp):
+            badges.append(
+                make_badge(
+                    f"3HSP: {hsp}",
+                    variant=variant,
+                    color=class_colors["Simbad"],
+                    tooltip="High synchrotron peaked blazars",
+                ),
+            )
+
+    lac = row.get("f:crossmatches_x4lac_type")
+    if lac not in BAD_VALUES:
+        if ~np.isnan(lac):
+            badges.append(
+                make_badge(
+                    f"4LAC: {lac}",
+                    variant=variant,
+                    color=class_colors["Simbad"],
+                    tooltip="",
+                ),
+            )
+
+    gaianame = row.get("f:crossmatches_vizier:I/355/gaiadr3_DR3Name")
+    if gaianame not in BAD_VALUES:
         badges.append(
             make_badge(
-                f"GCVS: {gcvs}",
+                gaianame,
                 variant=variant,
-                color=class_colors["Simbad"],
-                tooltip="General Catalogue of Variable Stars classification",
+                color="teal",
+                tooltip="Gaia DR3 catalogue",
             ),
         )
-
-    vsx = row.get("f:vsx")
-    if (
-        vsx
-        and vsx != "Unknown"
-        and vsx != "nan"
-        and vsx == vsx
-        and (isinstance(vsx, str) and not vsx.startswith("Fail"))
-    ):
-        badges.append(
-            make_badge(
-                f"VSX: {vsx}",
-                variant=variant,
-                color=class_colors["Simbad"],
-                tooltip="AAVSO VSX classification",
-            ),
-        )
-
-    # # Nearby objects
-    # distnr = row.get("f:distnr")
-    # if distnr:
-    #     is_source = is_source_behind(distnr)
-    #     badges.append(
-    #         make_badge(
-    #             f'ZTF: {distnr:.1f}"',
-    #             variant=variant,
-    #             color="cyan",
-    #             outline="red" if is_source else None,
-    #             tooltip="""There is a source behind in ZTF reference image.
-    #             You might want to check the DC magnitude plot, and get DR photometry to see its long-term behaviour
-    #             """
-    #             if is_source
-    #             else "Distance to closest object in ZTF reference image",
-    #         ),
-    #     )
-
-    # distpsnr = row.get("i:distpsnr1")
-    # if distpsnr:
-    #     badges.append(
-    #         make_badge(
-    #             f'PS1: {distpsnr:.1f}"',
-    #             variant=variant,
-    #             color="teal",
-    #             tooltip="Distance to closest object in Pan-STARRS DR1 catalogue",
-    #         ),
-    #     )
-
-    # FIXME: Get this from our own Gaia DR3 xmatch?
-    # distgaia = row.get("i:neargaia")
-    # if distgaia:
-    #     badges.append(
-    #         make_badge(
-    #             f'Gaia: {distgaia:.1f}"',
-    #             variant=variant,
-    #             color="teal",
-    #             tooltip="Distance to closest object in Gaia DR3 catalogue",
-    #         ),
-    #     )
 
     return badges
 
@@ -788,13 +773,11 @@ def get_multi_labels(pdf, colname, default=None, to_avoid=None):
             return pdf.loc[0, colname]
 
         # Case for multilabels
-        out = "/".join(
-            [
-                i
-                for i in np.unique(pdf[colname].values)
-                if not i.startswith("Fail") and i not in to_avoid
-            ]
-        )
+        out = "/".join([
+            i
+            for i in np.unique(pdf[colname].values)
+            if not i.startswith("Fail") and i not in to_avoid
+        ])
         return out
     else:
         return default
@@ -828,12 +811,10 @@ def card_lightcurve_summary(diaObjectId):
                             [
                                 dmc.RadioGroup(
                                     id="switch-mag-flux",
-                                    children=dmc.Group(
-                                        [
-                                            dmc.Radio(k, value=k, color="orange")
-                                            for k in all_radio_options.keys()
-                                        ]
-                                    ),
+                                    children=dmc.Group([
+                                        dmc.Radio(k, value=k, color="orange")
+                                        for k in all_radio_options.keys()
+                                    ]),
                                     value="Total flux",
                                     size="sm",
                                 ),
@@ -863,12 +844,10 @@ def card_lightcurve_summary(diaObjectId):
                                 # ),
                                 dmc.RadioGroup(
                                     id="switch-lc-layout",
-                                    children=dmc.Group(
-                                        [
-                                            dmc.Radio(k, value=k, color="orange")
-                                            for k in ["Plain", "Split"]
-                                        ]
-                                    ),
+                                    children=dmc.Group([
+                                        dmc.Radio(k, value=k, color="orange")
+                                        for k in ["Plain", "Split"]
+                                    ]),
                                     value="Plain",
                                     size="sm",
                                     persistence=True,
@@ -887,38 +866,36 @@ def card_lightcurve_summary(diaObjectId):
                         "Add other datasets",
                     ),
                     dmc.AccordionPanel(
-                        dmc.Stack(
-                            [
-                                dmc.Group(
-                                    [
-                                        dmc.Button(
-                                            "Add Fink/ZTF alert photometry",
-                                            id={
-                                                "type": "lightcurve_request_ztf_fink",
-                                                "name": "main",
-                                            },
-                                            variant="outline",
-                                            color="gray",
-                                            radius="xl",
-                                            size="xs",
-                                        ),
-                                        dmc.Button(
-                                            "Add ZTF DR photometry",
-                                            id={
-                                                "type": "lightcurve_request_release",
-                                                "name": "main",
-                                            },
-                                            variant="outline",
-                                            color="gray",
-                                            radius="xl",
-                                            size="xs",
-                                        ),
-                                    ],
-                                    justify="center",
-                                    align="center",
-                                ),
-                            ]
-                        ),
+                        dmc.Stack([
+                            dmc.Group(
+                                [
+                                    dmc.Button(
+                                        "Add Fink/ZTF alert photometry",
+                                        id={
+                                            "type": "lightcurve_request_ztf_fink",
+                                            "name": "main",
+                                        },
+                                        variant="outline",
+                                        color="gray",
+                                        radius="xl",
+                                        size="xs",
+                                    ),
+                                    dmc.Button(
+                                        "Add ZTF DR photometry",
+                                        id={
+                                            "type": "lightcurve_request_release",
+                                            "name": "main",
+                                        },
+                                        variant="outline",
+                                        color="gray",
+                                        radius="xl",
+                                        size="xs",
+                                    ),
+                                ],
+                                justify="center",
+                                align="center",
+                            ),
+                        ]),
                     ),
                 ],
                 value="datasets",
@@ -989,8 +966,8 @@ def card_lightcurve_summary(diaObjectId):
 def card_id(pdf):
     """Add a card containing basic alert data"""
     diaObjectid = pdf["r:diaObjectId"].to_numpy()[0]
-    ra0 = pdf["r:ra"].to_numpy()[0]
-    dec0 = pdf["r:dec"].to_numpy()[0]
+    # ra0 = pdf["r:ra"].to_numpy()[0]
+    # dec0 = pdf["r:dec"].to_numpy()[0]
 
     python_download = f"""import requests
 import pandas as pd
@@ -1119,12 +1096,10 @@ curl -H "Content-Type: application/json" -X POST \\
                                     id="coordinates_chips",
                                     value="EQU",
                                     size="sm",
-                                    children=dmc.Group(
-                                        [
-                                            dmc.Radio(k, value=k, color="orange")
-                                            for k in ["EQU", "GAL"]
-                                        ]
-                                    ),
+                                    children=dmc.Group([
+                                        dmc.Radio(k, value=k, color="orange")
+                                        for k in ["EQU", "GAL"]
+                                    ]),
                                 ),
                             ),
                         ],
@@ -1418,22 +1393,35 @@ def card_id_left(object_data):
     ndet = len(pdf)
 
     badges = []
-    for c in np.unique(pdf["f:crossmatches_simbad_otype"]):
-        if c in simbad_types:
-            color = class_colors["Simbad"]
-        elif c in class_colors.keys():
-            color = class_colors[c]
-        else:
-            # Sometimes SIMBAD mess up names :-)
-            color = class_colors["Simbad"]
+    # for c in np.unique(pdf["f:crossmatches_simbad_otype"]):
+    #     if c in BAD_VALUES:
+    #         continue
+    #     if c in simbad_types:
+    #         color = class_colors["Simbad"]
+    #     elif c in class_colors.keys():
+    #         color = class_colors[c]
+    #     else:
+    #         # Sometimes SIMBAD mess up names :-)
+    #         color = class_colors["Simbad"]
 
-        badges.append(
-            make_badge(
-                c,
-                color=color,
-                tooltip="Fink classification",
-            ),
-        )
+    #     badges.append(
+    #         make_badge(
+    #             c,
+    #             color=color,
+    #             tooltip="SIMBAD classification",
+    #         ),
+    #     )
+    cdsxmatches = np.unique(pdf["f:crossmatches_simbad_otype"])
+    for cdsxmatch in cdsxmatches:
+        if cdsxmatch not in BAD_VALUES:
+            badges.append(
+                make_badge(
+                    f"SIMBAD: {cdsxmatch}",
+                    variant="dot",
+                    color=class_colors["Simbad"],
+                    tooltip="SIMBAD classification",
+                ),
+            )
 
     tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
     if tns_badge is not None:
