@@ -28,3 +28,6 @@ jobs:
       run: |
         ruff check --statistics --preview apps
         ruff format --check --preview apps
+        ruff check --statistics --preview *.py
+        ruff format --check --preview *.py
+
