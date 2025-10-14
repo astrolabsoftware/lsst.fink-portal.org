@@ -413,7 +413,7 @@ def populate_result_table(data, columns):
         },
         style_data_conditional=[
             {
-                "if": {"column_id": "r:objectId"},
+                "if": {"column_id": "r:diaObjectId"},
                 "backgroundColor": "rgb(240, 240, 240, 1.0)",
             }
         ],
@@ -595,17 +595,18 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
             no_update,
         )
 
-    elif query["action"] == "objectid":
-        # Search objects by objectId
+    elif query["action"] == "diaObjectid":
+        # Search objects by diaObjectId
         msg = "ObjectId search with {} name {}".format(
             "partial" if query.get("partial") else "exact", query["object"]
         )
         pdf = request_api(
-            "/api/v1/objects",
+            "/api/v1/sources",
             json={
-                "objectId": query["object"],
+                "diaObjectId": str(query["object"]),
             },
         )
+        pdf = pdf.loc[pdf.groupby("r:diaObjectId")["r:midpointMjdTai"].idxmax()]
 
     elif query["action"] == "sso":
         # Solar System Objects

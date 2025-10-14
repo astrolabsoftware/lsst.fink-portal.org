@@ -46,12 +46,12 @@ def call_resolver(data, kind, reverse=False, **kwargs):
         data = str(data)
 
     try:
-        if kind == "ztf":
+        if kind == "lsst":
             payload = request_api(
                 "/api/v1/objects",
                 json={
-                    "objectId": data,
-                    "columns": "i:ra,i:dec",
+                    "diaObjectId": str(data),
+                    "columns": "r:ra,r:dec",
                 },
                 output="json",
             )
@@ -76,10 +76,10 @@ def call_resolver(data, kind, reverse=False, **kwargs):
 
 name_patterns = [
     {
-        "type": "ztf",
-        "pattern": r"^ZTF[12]\d\w{7}$",
-        "hint": "ZTF objectId (format ZTFyyccccccc)",
-        "min": 3,
+        "type": "lsst",
+        "pattern": r"^\d{18}$",
+        "hint": "LSST diaObjectId (18 digits format)",
+        "min": 8,
     },
     {
         "type": "tracklet",
@@ -261,17 +261,17 @@ def parse_query(string, timeout=None):
     # Should we resolve object name?..
     if (
         query["object"]
-        and query["type"] == "ztf"
+        and query["type"] == "lsst"
         and not query["partial"]
         and "r" in query["params"]
     ):
-        res = call_resolver(query["object"], "ztf")
+        res = call_resolver(query["object"], "lsst")
         if res:
-            query["params"]["ra"] = res[0]["i:ra"]
-            query["params"]["dec"] = res[0]["i:dec"]
+            query["params"]["ra"] = res[0]["r:ra"]
+            query["params"]["dec"] = res[0]["r:dec"]
 
     if query["object"] and query["type"] not in [
-        "ztf",
+        "lsst",
         "tracklet",
         "coordinates",
         None,
@@ -345,9 +345,8 @@ def parse_query(string, timeout=None):
     if "ra" in query["params"] and "dec" in query["params"]:
         query["action"] = "conesearch"
 
-    elif query["type"] == "ztf":
-        query["action"] = "objectid"
-        query["object"] = query["object"][:3].upper() + query["object"][3:]
+    elif query["type"] == "lsst":
+        query["action"] = "diaObjectid"
 
     elif query["type"] == "tracklet":
         query["action"] = "tracklet"
