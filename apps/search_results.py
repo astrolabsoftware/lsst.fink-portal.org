@@ -606,7 +606,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
                 "diaObjectId": str(query["object"]),
             },
         )
-        pdf = pdf.loc[pdf.groupby("r:diaObjectId")["r:midpointMjdTai"].idxmax()]
+        if not pdf.empty:
+            pdf = pdf.loc[pdf.groupby("r:diaObjectId")["r:midpointMjdTai"].idxmax()]
         main_id = "r:diaObjectId"
 
     elif query["action"] == "sso":
@@ -614,7 +615,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         msg = "Solar System object search with name {}".format(query["params"]["sso"])
         endpoint = "/api/v1/sso"
         pdf = request_api(endpoint, json={"n_or_d": query["params"]["sso"]})
-        pdf = pdf.loc[pdf.groupby("r:ssObjectId")["r:midpointMjdTai"].idxmax()]
+        if not pdf.empty:
+            pdf = pdf.loc[pdf.groupby("r:ssObjectId")["r:midpointMjdTai"].idxmax()]
         main_id = "r:ssObjectId"
 
     elif query["action"] == "tracklet":
