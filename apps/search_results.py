@@ -607,14 +607,15 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
             },
         )
         pdf = pdf.loc[pdf.groupby("r:diaObjectId")["r:midpointMjdTai"].idxmax()]
+        main_id = "r:diaObjectId"
 
     elif query["action"] == "sso":
         # Solar System Objects
-        msg = "Solar System object search with ssnamenr {}".format(
-            query["params"]["sso"]
-        )
+        msg = "Solar System object search with name {}".format(query["params"]["sso"])
         endpoint = "/api/v1/sso"
         pdf = request_api(endpoint, json={"n_or_d": query["params"]["sso"]})
+        pdf = pdf.loc[pdf.groupby("r:ssObjectId")["r:midpointMjdTai"].idxmax()]
+        main_id = "r:ssObjectId"
 
     elif query["action"] == "tracklet":
         # Tracklet by (partial) name
@@ -625,6 +626,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
         endpoint = "/api/v1/tracklet"
         pdf = request_api(endpoint, json=payload)
+        main_id = "r:diaObjectId"
 
     elif query["action"] == "conesearch":
         # Conesearch
@@ -668,6 +670,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
         endpoint = "/api/v1/conesearch"
         pdf = request_api(endpoint, json=payload)
+        main_id = "r:diaObjectId"
 
         colnames_to_display = {
             "r:diaObjectId": "diaObjectId",
@@ -707,6 +710,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
         endpoint = "/api/v1/latests"
         pdf = request_api(endpoint, json=payload)
+        main_id = "r:diaObjectId"
 
     elif query["action"] == "anomaly":
         # Anomaly search
@@ -732,6 +736,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
         endpoint = "/api/v1/anomaly"
         pdf = request_api("/api/v1/anomaly", json=payload)
+        main_id = "r:diaObjectId"
 
     else:
         return (
@@ -767,7 +772,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         )
     else:
         # Make clickable objectId
-        pdf["r:diaObjectId"] = pdf["r:diaObjectId"].apply(markdownify_objectid)
+        pdf[main_id] = pdf[main_id].apply(markdownify_objectid)
 
         # Sort the results
         if query["action"] == "conesearch":
@@ -922,28 +927,41 @@ clientside_callback(
 @app.callback(
     [
         Output(
-            {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
+            {
+                "type": "search_results_lightcurve",
+                "main_id": MATCH,
+                "is_sso": MATCH,
+                "index": MATCH,
+            },
             "children",
         ),
         Output(
-            {"type": "indicator", "diaObjectId": MATCH, "index": MATCH},
+            {"type": "indicator", "main_id": MATCH, "is_sso": MATCH, "index": MATCH},
             "children",
         ),
         Output(
-            {"type": "flags", "diaObjectId": MATCH, "index": MATCH},
+            {"type": "flags", "main_id": MATCH, "is_sso": MATCH, "index": MATCH},
             "children",
         ),
     ],
     Input(
-        {"type": "search_results_lightcurve", "diaObjectId": MATCH, "index": MATCH},
+        {
+            "type": "search_results_lightcurve",
+            "main_id": MATCH,
+            "is_sso": MATCH,
+            "index": MATCH,
+        },
         "id",
     ),
 )
 def on_load_lightcurve(lc_id):
     """Draw lightcurve on cards"""
     if lc_id:
-        fig, indicator, flags = draw_lightcurve_preview(lc_id["diaObjectId"])
-        CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(lc_id["diaObjectId"])
+        print(lc_id)
+        fig, indicator, flags = draw_lightcurve_preview(
+            lc_id["main_id"], is_sso=lc_id["is_sso"]
+        )
+        CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(lc_id["main_id"])
         return (
             dcc.Graph(
                 figure=fig,

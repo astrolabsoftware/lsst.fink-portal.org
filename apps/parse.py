@@ -318,20 +318,23 @@ def parse_query(string, timeout=None):
             # SSO - final test
             res = call_resolver(query["object"], "ssodnet", timeout=timeout)
             if res:
-                query["object"] = res[0]["i:name"]
-                query["params"]["sso"] = res[0]["i:ssnamenr"]
+                query["object"] = res[0]["f:sso_name"]
+                query["params"]["sso"] = res[0]["r:mpcDesignation"]
                 query["type"] = "sso"
                 query["hint"] = "SSO object / {} {}".format(
-                    res[0]["i:ssnamenr"], res[0]["i:name"]
+                    res[0]["r:mpcDesignation"], res[0]["f:sso_name"]
                 )
 
                 if len(res) > 1:
                     query["completions"] = list(
                         dict.fromkeys(
                             [
-                                (_["i:ssnamenr"], _["i:ssnamenr"] + " " + _["i:name"])
+                                (
+                                    _["r:mpcDesignation"],
+                                    _["r:mpcDesignation"] + " " + _["f:sso_name"],
+                                )
                                 for _ in res
-                                if _["i:ssnamenr"] != res[0]["i:ssnamenr"]
+                                if _["r:mpcDesignation"] != res[0]["r:mpcDesignation"]
                             ],
                         ),
                     )

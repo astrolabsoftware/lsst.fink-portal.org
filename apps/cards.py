@@ -53,14 +53,27 @@ APIURL = args["APIURL"]
 BAD_VALUES = [np.nan, None, "Fail", "nan", ""]
 
 
+def get_proper_name(name):
+    if name[0] == "[":  # Markdownified
+        name = name.split("[")[1].split("]")[0]
+    return name
+
+
 def card_search_result(row, i):
     """Display single item for search results"""
     badges = []
 
-    name = row["r:diaObjectId"]
+    # Check whether you have diaObject or ssObject
+    dianame = get_proper_name(str(row.get("r:diaObjectId", 0)))
+    ssname = get_proper_name(str(row.get("r:mpcDesignation", 0)))
+    if dianame in [0, "0", None]:
+        # FIXME: is 0 the normal value?
+        main_id = ssname
+        is_sso = True
+    else:
+        main_id = dianame
+        is_sso = False
     diasourceid = row["r:diaSourceId"]
-    if name[0] == "[":  # Markdownified
-        name = row["r:diaObjectId"].split("[")[1].split("]")[0]
 
     # Handle different variants for key names from different API entry points
     # classification = None
@@ -147,9 +160,9 @@ def card_search_result(row, i):
                     [
                         html.A(
                             dmc.Text(
-                                f"{name}", style={"fontWeight": 700, "fontSize": 20}
+                                f"{main_id}", style={"fontWeight": 700, "fontSize": 20}
                             ),
-                            href=f"/{name}",
+                            href=f"/{main_id}",
                             target="_blank",
                             className="text-decoration-none",
                         ),
@@ -159,7 +172,8 @@ def card_search_result(row, i):
                             "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
                             target={
                                 "type": "indicator",
-                                "diaObjectId": str(name),
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
                                 "index": i,
                             },
                             body=True,
@@ -170,7 +184,8 @@ def card_search_result(row, i):
                             className="indicator",
                             id={
                                 "type": "indicator",
-                                "diaObjectId": str(name),
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
                                 "index": i,
                             },
                         ),
@@ -179,7 +194,8 @@ def card_search_result(row, i):
                             className="indicator",
                             id={
                                 "type": "flags",
-                                "diaObjectId": str(name),
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
                                 "index": i,
                             },
                         ),
@@ -476,7 +492,8 @@ def card_search_result(row, i):
                                 ),
                                 id={
                                     "type": "search_results_lightcurve",
-                                    "diaObjectId": str(name),
+                                    "main_id": str(main_id),
+                                    "is_sso": is_sso,
                                     "index": i,
                                 },
                                 xs=12,
@@ -656,14 +673,14 @@ def generate_generic_badges(row, variant="dot"):
         )
 
     # SSO
-    ssnamenr = row.get("r:ssObjectId")
+    ssnamenr = row.get("f:sso_name")
     if ssnamenr and ssnamenr != "null":
         badges.append(
             make_badge(
                 f"SSO: {ssnamenr}",
                 variant=variant,
                 color="yellow",
-                tooltip="Nearest Solar System object",
+                tooltip="Solar System object name by quaero",
             ),
         )
 
@@ -727,7 +744,7 @@ def generate_generic_badges(row, variant="dot"):
             )
 
     gaianame = row.get("f:crossmatches_vizier:I/355/gaiadr3_DR3Name")
-    if gaianame not in BAD_VALUES:
+    if gaianame not in BAD_VALUES and not pd.isnull(gaianame):
         badges.append(
             make_badge(
                 gaianame,
