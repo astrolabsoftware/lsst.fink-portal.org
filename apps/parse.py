@@ -58,7 +58,7 @@ def call_resolver(data, kind, reverse=False, **kwargs):
         else:
             params = {
                 "resolver": kind,
-                "name": str(data),
+                "name_or_id": str(data),
                 "reverse": reverse,
             }
             params.update(kwargs)
@@ -283,20 +283,20 @@ def parse_query(string, timeout=None):
                     query["object"], "tns", timeout=timeout, reverse=reverse
                 )
                 if res:
-                    query["object"] = res[0]["d:fullname"]
+                    query["object"] = res[0]["f:fullname"]
                     query["type"] = "tns"
-                    query["hint"] = "TNS object / {}".format(res[0]["d:internalname"])
-                    query["params"]["ra"] = res[0]["d:ra"]
-                    query["params"]["dec"] = res[0]["d:declination"]
+                    query["hint"] = "TNS object / {}".format(res[0]["f:internalname"])
+                    query["params"]["ra"] = res[0]["f:ra"]
+                    query["params"]["dec"] = res[0]["f:declination"]
 
                     if len(res) > 1:
                         # Make list of unique names not equal to the first one
                         query["completions"] = list(
                             np.unique(
                                 [
-                                    _["d:fullname"]
+                                    _["f:fullname"]
                                     for _ in res
-                                    if _["d:fullname"] != res[0]["d:fullname"]
+                                    if _["f:fullname"] != res[0]["f:fullname"]
                                 ],
                             ),
                         )
@@ -306,6 +306,7 @@ def parse_query(string, timeout=None):
         if "ra" not in query["params"] and query["object"][0].isalpha():
             # Simbad
             res = call_resolver(query["object"], "simbad", timeout=timeout)
+            print(res)
             if res:
                 query["object"] = res[0]["oname"]
                 query["type"] = "simbad"
