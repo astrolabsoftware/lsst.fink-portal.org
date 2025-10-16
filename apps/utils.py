@@ -54,6 +54,12 @@ def markdownify_objectid(diaObjectid):
     return objectid_markdown
 
 
+def demarkdownify_objectid(name):
+    if name[0] == "[":  # Markdownified
+        name = name.split("[")[1].split("]")[0]
+    return name
+
+
 def convert_time(time_in, format_in="mjd", format_out="iso", scale_in="tai"):
     """Convert time to another format.
 
@@ -136,3 +142,32 @@ def isoify_time(t):
         else:
             tt = Time(ft, format="mjd")
     return tt.iso
+
+
+def is_row_static_or_moving(row: dict):
+    """Check if a row contains static or moving object data
+
+    Parameters
+    ----------
+    row: dict
+        The row of a DataFrame (as dict)
+
+    Returns
+    -------
+    main_id: str
+        diaObjectId or ssObjectId
+    is_sso: boolean
+        False if static, True if moving
+    """
+    # Check whether you have diaObject or ssObject
+    dianame = demarkdownify_objectid(str(row.get("r:diaObjectId", 0)))
+    ssname = demarkdownify_objectid(str(row.get("r:mpcDesignation", 0)))
+    if dianame in [0, "0", None]:
+        # FIXME: is 0 the normal value?
+        main_id = ssname
+        is_sso = True
+    else:
+        main_id = dianame
+        is_sso = False
+
+    return main_id, is_sso

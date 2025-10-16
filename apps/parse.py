@@ -46,19 +46,19 @@ def call_resolver(data, kind, reverse=False, **kwargs):
         data = str(data)
 
     try:
-        if kind == "ztf":
+        if kind == "lsst":
             payload = request_api(
                 "/api/v1/objects",
                 json={
-                    "objectId": data,
-                    "columns": "i:ra,i:dec",
+                    "diaObjectId": str(data),
+                    "columns": "r:ra,r:dec",
                 },
                 output="json",
             )
         else:
             params = {
                 "resolver": kind,
-                "name": str(data),
+                "name_or_id": str(data),
                 "reverse": reverse,
             }
             params.update(kwargs)
@@ -76,10 +76,10 @@ def call_resolver(data, kind, reverse=False, **kwargs):
 
 name_patterns = [
     {
-        "type": "ztf",
-        "pattern": r"^ZTF[12]\d\w{7}$",
-        "hint": "ZTF objectId (format ZTFyyccccccc)",
-        "min": 3,
+        "type": "lsst",
+        "pattern": r"^\d{18}$",
+        "hint": "LSST diaObjectId (18 digits format)",
+        "min": 8,
     },
     {
         "type": "tracklet",
@@ -261,17 +261,17 @@ def parse_query(string, timeout=None):
     # Should we resolve object name?..
     if (
         query["object"]
-        and query["type"] == "ztf"
+        and query["type"] == "lsst"
         and not query["partial"]
         and "r" in query["params"]
     ):
-        res = call_resolver(query["object"], "ztf")
+        res = call_resolver(query["object"], "lsst")
         if res:
-            query["params"]["ra"] = res[0]["i:ra"]
-            query["params"]["dec"] = res[0]["i:dec"]
+            query["params"]["ra"] = res[0]["r:ra"]
+            query["params"]["dec"] = res[0]["r:dec"]
 
     if query["object"] and query["type"] not in [
-        "ztf",
+        "lsst",
         "tracklet",
         "coordinates",
         None,
@@ -283,20 +283,20 @@ def parse_query(string, timeout=None):
                     query["object"], "tns", timeout=timeout, reverse=reverse
                 )
                 if res:
-                    query["object"] = res[0]["d:fullname"]
+                    query["object"] = res[0]["f:fullname"]
                     query["type"] = "tns"
-                    query["hint"] = "TNS object / {}".format(res[0]["d:internalname"])
-                    query["params"]["ra"] = res[0]["d:ra"]
-                    query["params"]["dec"] = res[0]["d:declination"]
+                    query["hint"] = "TNS object / {}".format(res[0]["f:internalname"])
+                    query["params"]["ra"] = res[0]["f:ra"]
+                    query["params"]["dec"] = res[0]["f:declination"]
 
                     if len(res) > 1:
                         # Make list of unique names not equal to the first one
                         query["completions"] = list(
                             np.unique(
                                 [
-                                    _["d:fullname"]
+                                    _["f:fullname"]
                                     for _ in res
-                                    if _["d:fullname"] != res[0]["d:fullname"]
+                                    if _["f:fullname"] != res[0]["f:fullname"]
                                 ],
                             ),
                         )
@@ -306,6 +306,7 @@ def parse_query(string, timeout=None):
         if "ra" not in query["params"] and query["object"][0].isalpha():
             # Simbad
             res = call_resolver(query["object"], "simbad", timeout=timeout)
+            print(res)
             if res:
                 query["object"] = res[0]["oname"]
                 query["type"] = "simbad"
@@ -317,20 +318,23 @@ def parse_query(string, timeout=None):
             # SSO - final test
             res = call_resolver(query["object"], "ssodnet", timeout=timeout)
             if res:
-                query["object"] = res[0]["i:name"]
-                query["params"]["sso"] = res[0]["i:ssnamenr"]
+                query["object"] = res[0]["f:sso_name"]
+                query["params"]["sso"] = res[0]["r:mpcDesignation"]
                 query["type"] = "sso"
                 query["hint"] = "SSO object / {} {}".format(
-                    res[0]["i:ssnamenr"], res[0]["i:name"]
+                    res[0]["r:mpcDesignation"], res[0]["f:sso_name"]
                 )
 
                 if len(res) > 1:
                     query["completions"] = list(
                         dict.fromkeys(
                             [
-                                (_["i:ssnamenr"], _["i:ssnamenr"] + " " + _["i:name"])
+                                (
+                                    _["r:mpcDesignation"],
+                                    _["r:mpcDesignation"] + " " + _["f:sso_name"],
+                                )
                                 for _ in res
-                                if _["i:ssnamenr"] != res[0]["i:ssnamenr"]
+                                if _["r:mpcDesignation"] != res[0]["r:mpcDesignation"]
                             ],
                         ),
                     )
@@ -345,9 +349,8 @@ def parse_query(string, timeout=None):
     if "ra" in query["params"] and "dec" in query["params"]:
         query["action"] = "conesearch"
 
-    elif query["type"] == "ztf":
-        query["action"] = "objectid"
-        query["object"] = query["object"][:3].upper() + query["object"][3:]
+    elif query["type"] == "lsst":
+        query["action"] = "diaObjectid"
 
     elif query["type"] == "tracklet":
         query["action"] = "tracklet"

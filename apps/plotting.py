@@ -606,7 +606,7 @@ def _data_stretch(
     return data  # .astype(np.uint8)
 
 
-def draw_lightcurve_preview(name) -> dict:
+def draw_lightcurve_preview(name, is_sso) -> dict:
     """Draw object lightcurve with errorbars (SM view - DC mag fixed)
 
     Returns
@@ -625,14 +625,24 @@ def draw_lightcurve_preview(name) -> dict:
         "r:pixelFlags_saturatedCenter",
         "r:pixelFlags_streakCenter",
     ]
-    pdf = request_api(
-        "/api/v1/sources",
-        json={
-            "diaObjectId": str(name),
-            "columns": ",".join(cols),
-            "output-format": "json",
-        },
-    )
+    if not is_sso:
+        pdf = request_api(
+            "/api/v1/sources",
+            json={
+                "diaObjectId": str(name),
+                "columns": ",".join(cols),
+                "output-format": "json",
+            },
+        )
+    else:
+        pdf = request_api(
+            "/api/v1/sso",
+            json={
+                "n_or_d": str(name),
+                "columns": ",".join(cols),
+                "output-format": "json",
+            },
+        )
 
     # type conversion
     dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")

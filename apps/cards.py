@@ -14,7 +14,6 @@
 # limitations under the License.
 """Various cards in the portal"""
 
-import textwrap
 import io
 from dash import html, dcc, Output, Input, dash_table, no_update
 
@@ -33,7 +32,8 @@ from apps.utils import class_colors
 from apps.utils import convert_time
 from apps.utils import loading
 
-from apps.utils import get_first_value
+from apps.utils import get_first_value, is_row_static_or_moving
+from apps.utils import demarkdownify_objectid
 from apps.plotting import all_radio_options, make_modal_stamps
 from apps.helpers import help_popover, lc_help
 from dash_iconify import DashIconify
@@ -47,6 +47,8 @@ from apps.configuration import extract_configuration
 
 from app import app
 
+import rocks
+
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
 
@@ -57,35 +59,8 @@ def card_search_result(row, i):
     """Display single item for search results"""
     badges = []
 
-    name = row["r:diaObjectId"]
+    main_id, is_sso = is_row_static_or_moving(row)
     diasourceid = row["r:diaSourceId"]
-    if name[0] == "[":  # Markdownified
-        name = row["r:diaObjectId"].split("[")[1].split("]")[0]
-
-    # Handle different variants for key names from different API entry points
-    # classification = None
-    # for key in ["f:crossmatches_simbad_otype"]:
-    #     if key in row:
-    #         # Classification
-    #         classification = row.get(key)
-    #         if classification in BAD_VALUES:
-    #             continue
-    #         if classification in simbad_types:
-    #             color = class_colors["Simbad"]
-    #         elif classification in class_colors.keys():
-    #             color = class_colors[classification]
-    #         else:
-    #             # Sometimes SIMBAD mess up names :-)
-    #             color = class_colors["Simbad"]
-
-    #         badges.append(
-    #             make_badge(
-    #                 classification,
-    #                 variant="outline",
-    #                 color=color,
-    #                 tooltip="SIMBAD classification",
-    #             ),
-    #         )
 
     cdsxmatch = row.get("f:crossmatches_simbad_otype")
     if cdsxmatch not in BAD_VALUES:
@@ -100,45 +75,183 @@ def card_search_result(row, i):
 
     badges += generate_generic_badges(row, variant="outline")
 
-    # FIXME: not correct for SSO
-    ndethist = row.get("r:nDiaSources", 1)
-
-    # FIXME: use first/last
-    mjdend = row.get("r:firstDiaSourceMjdTai", 60924.369825)
-    mjdstart = row.get("r:lastDiaSourceMjdTai", 60924.369825 + 3)
-    lastdate = Time(mjdend, format="mjd").iso
-
     coords = SkyCoord(row["r:ra"], row["r:dec"], unit="deg")
-
-    text = """
-    `{}` detection(s) in `{:.1f}` days
-    First: `{}`
-    Last: `{}`
-    Equ: `{} {}`
-    Gal: `{}`
-    """.format(
-        ndethist,
-        mjdend - mjdstart,
-        Time(mjdstart, format="mjd").iso[:19],
-        lastdate[:19],
-        coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
-        coords.dec.to_string(
-            pad=True, unit="deg", alwayssign=True, precision=1, sep=" "
-        ),
-        coords.galactic.to_string(style="decimal"),
-    )
-
-    text = textwrap.dedent(text)
-    # FIXME: reliability is not in rubin.objects
-    if "r:reliability" in row:
-        text += "Reliability: `{:.2f}`\n".format(row["r:reliability"])
-    if "f:anomaly_score" in row:
-        text += "Anomaly score: `{:.2f}`\n".format(row["f:anomaly_score"])
 
     if "v:separation_degree" in row:
         corner_str = "{:.1f}''".format(row["v:separation_degree"] * 3600)
     else:
         corner_str = f"#{i!s}"
+
+    if not is_sso:
+        second_card = html.Div(
+            className="second-content",
+            children=[
+                html.Div(
+                    className="container",
+                    children=[
+                        html.Div(
+                            className="canvas",
+                            children=[
+                                html.Div(
+                                    id="card2",
+                                    children=[
+                                        html.Div(
+                                            className="card-content",
+                                            children=[
+                                                html.Div(
+                                                    children=[
+                                                        dmc.Space(h=10),
+                                                        dmc.Text(
+                                                            "Last diaSourceId",
+                                                            className="subtitle3",
+                                                        ),
+                                                        dmc.Text(
+                                                            str(diasourceid),
+                                                            className="subtitle2",
+                                                        ),
+                                                        dmc.Space(h=2),
+                                                        dmc.Text(
+                                                            "Equatorial",
+                                                            className="subtitle3",
+                                                        ),
+                                                        dmc.Text(
+                                                            "{} {}".format(
+                                                                coords.ra.to_string(
+                                                                    pad=True,
+                                                                    unit="hour",
+                                                                    precision=2,
+                                                                    sep=" ",
+                                                                ),
+                                                                coords.dec.to_string(
+                                                                    pad=True,
+                                                                    unit="deg",
+                                                                    alwayssign=True,
+                                                                    precision=1,
+                                                                    sep=" ",
+                                                                ),
+                                                            ),
+                                                            className="subtitle2",
+                                                        ),
+                                                        dmc.Space(h=2),
+                                                        dmc.Text(
+                                                            "Galactic",
+                                                            className="subtitle3",
+                                                        ),
+                                                        dmc.Text(
+                                                            coords.galactic.to_string(
+                                                                style="decimal"
+                                                            ),
+                                                            className="subtitle2",
+                                                        ),
+                                                        dmc.Space(h=2),
+                                                    ],
+                                                    style={"zIndex": 10000000},
+                                                ),
+                                                dmc.Space(h=10),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
+    else:
+        # FIXME: replace with MPCORB values when they will be up
+        sso_data = rocks.Rock(row["r:mpcDesignation"], skip_id_check=False)
+        semi_major = sso_data.a.value
+        eccentricity = sso_data.e.value
+        inclination = sso_data.i.value
+        inclination_unit = sso_data.i.unit
+
+        ref_epoch_jd = sso_data.parameters.dynamical.orbital_elements.ref_epoch.value
+        if ref_epoch_jd is not None:
+            ref_epoch = Time(ref_epoch_jd, format="jd").strftime("%Y-%m-%d")
+        else:
+            ref_epoch = None
+        second_card = html.Div(
+            className="second-content",
+            children=[
+                html.Div(
+                    className="container",
+                    children=[
+                        html.Div(
+                            className="canvas",
+                            children=[
+                                html.Div(
+                                    id="card2",
+                                    children=[
+                                        html.Div(
+                                            className="card-content",
+                                            children=[
+                                                html.Div(
+                                                    children=[
+                                                        dmc.Space(h=10),
+                                                        dmc.Text(
+                                                            "Name",
+                                                            className="subtitle3",
+                                                        ),
+                                                        dmc.Text(
+                                                            sso_data.name,
+                                                            className="subtitle2",
+                                                        ),
+                                                        dmc.Space(h=5),
+                                                        dmc.Text(
+                                                            "Class",
+                                                            className="subtitle3",
+                                                        ),
+                                                        dmc.Text(
+                                                            sso_data.class_,
+                                                            className="subtitle2",
+                                                        ),
+                                                        dmc.Space(h=5),
+                                                        dmc.Text(
+                                                            "ssObjectId",
+                                                            className="subtitle3",
+                                                        ),
+                                                        dmc.Text(
+                                                            demarkdownify_objectid(
+                                                                str(
+                                                                    row.get(
+                                                                        "r:ssObjectId",
+                                                                        0,
+                                                                    )
+                                                                )
+                                                            ),
+                                                            className="subtitle2",
+                                                        ),
+                                                        dmc.Space(h=5),
+                                                        dmc.Text(
+                                                            "Orbital elements",
+                                                            className="subtitle3",
+                                                        ),
+                                                        dmc.Text(
+                                                            "a={}, e={}, incl={}{}, t0={}".format(
+                                                                semi_major,
+                                                                eccentricity,
+                                                                inclination,
+                                                                inclination_unit,
+                                                                ref_epoch,
+                                                            ),
+                                                            className="subtitle2",
+                                                        ),
+                                                        dmc.Space(h=5),
+                                                    ],
+                                                    style={"zIndex": 10000000},
+                                                ),
+                                                dmc.Space(h=10),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
 
     item = dbc.Card(
         [
@@ -147,9 +260,9 @@ def card_search_result(row, i):
                     [
                         html.A(
                             dmc.Text(
-                                f"{name}", style={"fontWeight": 700, "fontSize": 20}
+                                f"{main_id}", style={"fontWeight": 700, "fontSize": 20}
                             ),
-                            href=f"/{name}",
+                            href=f"/{main_id}",
                             target="_blank",
                             className="text-decoration-none",
                         ),
@@ -159,7 +272,8 @@ def card_search_result(row, i):
                             "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
                             target={
                                 "type": "indicator",
-                                "diaObjectId": str(name),
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
                                 "index": i,
                             },
                             body=True,
@@ -170,7 +284,8 @@ def card_search_result(row, i):
                             className="indicator",
                             id={
                                 "type": "indicator",
-                                "diaObjectId": str(name),
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
                                 "index": i,
                             },
                         ),
@@ -179,51 +294,13 @@ def card_search_result(row, i):
                             className="indicator",
                             id={
                                 "type": "flags",
-                                "diaObjectId": str(name),
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
                                 "index": i,
                             },
                         ),
                         dmc.Space(w="sm"),
                         *badges,
-                        # dmc.Stack(
-                        #     [
-                        #         dmc.Group([html.Div("u"), html.Div("g"), html.Div("r"), html.Div("i"), html.Div("z"), html.Div("y")], gap="md"),
-                        #         dmc.Group(
-                        #             [
-                        #                 DashIconify(
-                        #                     icon="tabler:arrow-up-right",
-                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
-                        #                     width=10,
-                        #                 ),
-                        #                 DashIconify(
-                        #                     icon="tabler:arrow-down-right",
-                        #                     color=dmc.DEFAULT_THEME["colors"]["red"][6],
-                        #                     width=10,
-                        #                 ),
-                        #                 DashIconify(
-                        #                     icon="tabler:letter-x",
-                        #                     color=dmc.DEFAULT_THEME["colors"]["dark"][6],
-                        #                     width=10,
-                        #                 ),
-                        #                 DashIconify(
-                        #                     icon="tabler:arrow-up-right",
-                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
-                        #                     width=10,
-                        #                 ),
-                        #                 DashIconify(
-                        #                     icon="tabler:arrow-up-right",
-                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
-                        #                     width=10,
-                        #                 ),
-                        #                 DashIconify(
-                        #                     icon="tabler:arrow-up-right",
-                        #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
-                        #                     width=10,
-                        #                 ),
-                        #             ], gap="md"
-                        #         )
-                        #     ], gap=0
-                        # ),
                     ],
                     gap=3,
                 ),
@@ -279,7 +356,6 @@ def card_search_result(row, i):
                                                                                             "index": i,
                                                                                         },
                                                                                     ),
-                                                                                    # html.Span(className="highlight", children="3D EFFECT"),
                                                                                 ],
                                                                             ),
                                                                             html.Div(
@@ -299,174 +375,9 @@ def card_search_result(row, i):
                                             ),
                                         ],
                                     ),
-                                    html.Div(
-                                        className="second-content",
-                                        children=[
-                                            html.Div(
-                                                className="container",
-                                                children=[
-                                                    html.Div(
-                                                        className="canvas",
-                                                        children=[
-                                                            html.Div(
-                                                                id="card2",
-                                                                children=[
-                                                                    html.Div(
-                                                                        className="card-content",
-                                                                        children=[
-                                                                            html.Div(
-                                                                                children=[
-                                                                                    dmc.Space(
-                                                                                        h=10
-                                                                                    ),
-                                                                                    dmc.Text(
-                                                                                        "Last diaSourceId",
-                                                                                        className="subtitle3",
-                                                                                    ),
-                                                                                    dmc.Text(
-                                                                                        str(
-                                                                                            diasourceid
-                                                                                        ),
-                                                                                        className="subtitle2",
-                                                                                    ),
-                                                                                    dmc.Space(
-                                                                                        h=2
-                                                                                    ),
-                                                                                    dmc.Text(
-                                                                                        "Equatorial",
-                                                                                        className="subtitle3",
-                                                                                    ),
-                                                                                    dmc.Text(
-                                                                                        "{} {}".format(
-                                                                                            coords.ra.to_string(
-                                                                                                pad=True,
-                                                                                                unit="hour",
-                                                                                                precision=2,
-                                                                                                sep=" ",
-                                                                                            ),
-                                                                                            coords.dec.to_string(
-                                                                                                pad=True,
-                                                                                                unit="deg",
-                                                                                                alwayssign=True,
-                                                                                                precision=1,
-                                                                                                sep=" ",
-                                                                                            ),
-                                                                                        ),
-                                                                                        className="subtitle2",
-                                                                                    ),
-                                                                                    dmc.Space(
-                                                                                        h=2
-                                                                                    ),
-                                                                                    dmc.Text(
-                                                                                        "Galactic",
-                                                                                        className="subtitle3",
-                                                                                    ),
-                                                                                    dmc.Text(
-                                                                                        coords.galactic.to_string(
-                                                                                            style="decimal"
-                                                                                        ),
-                                                                                        className="subtitle2",
-                                                                                    ),
-                                                                                    dmc.Space(
-                                                                                        h=2
-                                                                                    ),
-                                                                                ],
-                                                                                style={
-                                                                                    "zIndex": 10000000
-                                                                                },
-                                                                            ),
-                                                                            dmc.Space(
-                                                                                h=10
-                                                                            ),
-                                                                        ],
-                                                                    ),
-                                                                ],
-                                                            ),
-                                                        ],
-                                                    ),
-                                                ],
-                                            ),
-                                        ],
-                                    ),
+                                    second_card,
                                 ],
                             ),
-                            # dbc.Col(
-                            #     [
-                            #         html.Div(className="container noselect", children=[
-                            #             html.Div(className="canvas", children=[
-                            #                 html.Div(id="card", children=[
-                            #                     html.Div(className="card-content", children=[
-                            #                         dbc.Col(
-                            #                             dmc.Skeleton(
-                            #                                 style={
-                            #                                     "width": "12pc",
-                            #                                     "height": "12pc",
-                            #                                 },
-                            #                             ),
-                            #                             id={
-                            #                                 "type": "search_results_cutouts",
-                            #                                 "diaSourceId": str(diasourceid),
-                            #                                 "index": i,
-                            #                             },
-                            #                             width="auto",
-                            #                         ),
-                            #                         html.Div(className="subtitle", children=[
-                            #                             html.Span("INTERACTIVE"),
-                            #                             # html.Span(className="highlight", children="3D EFFECT"),
-                            #                         ]),
-                            #                         html.Div(className="corner-elements", children=[
-                            #                             html.Span(), html.Span(),
-                            #                         ]),
-                            #                     ]),
-                            #                 ]),
-                            #             ]),
-                            #         ]),
-                            #     ],
-                            #     width="auto",
-                            # ),
-                            # dbc.Col(
-                            #     [
-                            #         html.Div(className="container", children=[
-                            #             html.Div(className="canvas", children=[
-                            #                 html.Div(id="card2", children=[
-                            #                     html.Div(className="card-content", children=[
-                            #                         html.Div(children=[
-                            #                             dmc.Space(h=10),
-                            #                             dmc.Text("Equatorial", className="subtitle3"),
-                            #                             html.Div("{} {}".format(
-                            #                                 coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
-                            #                                 coords.dec.to_string(
-                            #                                     pad=True, unit="deg", alwayssign=True, precision=1, sep=" "
-                            #                                 )
-                            #                             ), className="subtitle2 copy-text"),
-                            #                             dmc.Space(h=2),
-                            #                             dmc.Text("Galactic", className="subtitle3"),
-                            #                             dmc.Text(coords.galactic.to_string(style="decimal"), className="subtitle2"),
-                            #                             dmc.Space(h=2),
-                            #                         ], style={"zIndex": 10000000}),
-                            #                         dmc.Space(h=10),
-                            #                         dmc.Box(badges, className="card-coord"),
-                            #                     ]),
-                            #                 ]),
-                            #             ]),
-                            #         ]),
-                            #     ],
-                            #     width="auto",
-                            # ),
-                            # dbc.Col(
-                            #     [
-                            #         dmc.Box(
-                            #             [
-                            #                 *badges,
-                            #                 dcc.Markdown(
-                            #                     text,
-                            #                     style={"white-space": "pre-wrap"},
-                            #                 ),
-                            #             ]
-                            #         )
-                            #     ],
-                            #     width="auto",
-                            # ),
                             dbc.Col(
                                 dmc.Skeleton(
                                     style={
@@ -476,7 +387,8 @@ def card_search_result(row, i):
                                 ),
                                 id={
                                     "type": "search_results_lightcurve",
-                                    "diaObjectId": str(name),
+                                    "main_id": str(main_id),
+                                    "is_sso": is_sso,
                                     "index": i,
                                 },
                                 xs=12,
@@ -502,89 +414,6 @@ def card_search_result(row, i):
         className="mb-2 border-1 rounded-1 box-shadow",
         outline=True,
     )
-
-    # Test with Mantine
-    # FIXME: does not work properly
-    # item = dmc.Card(
-    #     [
-    #         dmc.CardSection(
-    #             html.A(
-    #                 dmc.Group(
-    #                     [
-    #                         dmc.Text(
-    #                             f"{name}", style={"fontWeight": 700, "fontSize": 26}
-    #                         ),
-    #                         dmc.Space(w="sm"),
-    #                         *badges,
-    #                     ],
-    #                     gap=3,
-    #                 ),
-    #                 href=f"/{name}",
-    #                 target="_blank",
-    #                 className="text-decoration-none",
-    #             ),
-    #             withBorder=True,
-    #             inheritPadding=True,
-    #             py="xs",
-    #         ),
-    #         dbc.Row(
-    #             [
-    #                 dbc.Col(
-    #                     dmc.Skeleton(
-    #                         style={
-    #                             "width": "12pc",
-    #                             "height": "12pc",
-    #                         },
-    #                     ),
-    #                     id={
-    #                         "type": "search_results_cutouts",
-    #                         "diaObjectId": str(name),
-    #                         "index": i,
-    #                     },
-    #                     width="auto",
-    #                 ),
-    #                 dbc.Col(
-    #                     dcc.Markdown(
-    #                         text,
-    #                         style={"white-space": "pre-wrap"},
-    #                     ),
-    #                     width="auto",
-    #                 ),
-    #                 dbc.Col(
-    #                     dmc.Skeleton(
-    #                         style={
-    #                             "width": "100%",
-    #                             "height": "15pc",
-    #                         },
-    #                     ),
-    #                     id={
-    #                         "type": "search_results_lightcurve",
-    #                         "diaObjectId": str(name),
-    #                         "index": i,
-    #                     },
-    #                     xs=12,
-    #                     md=True,
-    #                 ),
-    #             ],
-    #             justify="start",
-    #             className="g-2",
-    #         ),
-    #         # Upper right corner badge
-    #         dbc.Badge(
-    #             corner_str,
-    #             color="light",
-    #             pill=True,
-    #             text_color="dark",
-    #             className="position-absolute top-0 start-100 translate-middle border",
-    #         ),
-    #     ],
-    #     # color="light",
-    #     withBorder=True,
-    #     shadow="sm",
-    #     radius="md",
-    #     # className="mb-2 shadow border-1",
-    #     # outline=True,
-    # )
 
     return item
 
@@ -656,14 +485,14 @@ def generate_generic_badges(row, variant="dot"):
         )
 
     # SSO
-    ssnamenr = row.get("r:ssObjectId")
+    ssnamenr = row.get("f:sso_name")
     if ssnamenr and ssnamenr != "null":
         badges.append(
             make_badge(
                 f"SSO: {ssnamenr}",
                 variant=variant,
                 color="yellow",
-                tooltip="Nearest Solar System object",
+                tooltip="Solar System object name by quaero",
             ),
         )
 
@@ -727,7 +556,7 @@ def generate_generic_badges(row, variant="dot"):
             )
 
     gaianame = row.get("f:crossmatches_vizier:I/355/gaiadr3_DR3Name")
-    if gaianame not in BAD_VALUES:
+    if gaianame not in BAD_VALUES and not pd.isnull(gaianame):
         badges.append(
             make_badge(
                 gaianame,
