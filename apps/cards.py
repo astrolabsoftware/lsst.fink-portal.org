@@ -32,7 +32,8 @@ from apps.utils import class_colors
 from apps.utils import convert_time
 from apps.utils import loading
 
-from apps.utils import get_first_value
+from apps.utils import get_first_value, is_row_static_or_moving
+from apps.utils import demarkdownify_objectid
 from apps.plotting import all_radio_options, make_modal_stamps
 from apps.helpers import help_popover, lc_help
 from dash_iconify import DashIconify
@@ -54,26 +55,11 @@ APIURL = args["APIURL"]
 BAD_VALUES = [np.nan, None, "Fail", "nan", ""]
 
 
-def get_proper_name(name):
-    if name[0] == "[":  # Markdownified
-        name = name.split("[")[1].split("]")[0]
-    return name
-
-
 def card_search_result(row, i):
     """Display single item for search results"""
     badges = []
 
-    # Check whether you have diaObject or ssObject
-    dianame = get_proper_name(str(row.get("r:diaObjectId", 0)))
-    ssname = get_proper_name(str(row.get("r:mpcDesignation", 0)))
-    if dianame in [0, "0", None]:
-        # FIXME: is 0 the normal value?
-        main_id = ssname
-        is_sso = True
-    else:
-        main_id = dianame
-        is_sso = False
+    main_id, is_sso = is_row_static_or_moving(row)
     diasourceid = row["r:diaSourceId"]
 
     cdsxmatch = row.get("f:crossmatches_simbad_otype")
@@ -226,7 +212,7 @@ def card_search_result(row, i):
                                                             className="subtitle3",
                                                         ),
                                                         dmc.Text(
-                                                            get_proper_name(
+                                                            demarkdownify_objectid(
                                                                 str(
                                                                     row.get(
                                                                         "r:ssObjectId",

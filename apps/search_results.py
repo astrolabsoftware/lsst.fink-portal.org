@@ -45,6 +45,7 @@ from apps.api import request_api
 from apps.utils import markdownify_objectid
 from apps.utils import class_colors
 from apps.utils import isoify_time
+from apps.utils import is_row_static_or_moving
 from apps.cards import card_search_result
 from apps.plotting import draw_cutouts_quickview
 from apps.plotting import draw_lightcurve_preview
@@ -210,45 +211,41 @@ def display_skymap(data, columns, is_open):
     if not is_open:
         return no_update
 
-    if len(data) > 0:
-        if len(data) > 1000:
-            # Silently limit the size of list we display
-            data = data[:1000]
+    if len(data) == 0:
+        return ""
 
-        pdf = pd.DataFrame(data)
+    if len(data) > 1000:
+        # Silently limit the size of list we display
+        data = data[:1000]
 
-        # Coordinate of the first alert
-        ras = pdf["r:ra"].to_numpy()
-        decs = pdf["r:dec"].to_numpy()
+    pdf = pd.DataFrame(data)
 
-        # Javascript. Note the use {{}} for dictionary
-        # Force redraw of the Aladin lite window
-        img = """var container = document.getElementById('aladin-lite-div-skymap');var txt = ''; container.innerHTML = txt;"""
+    link = '<a target="_blank" href="{}/{}">{}</a>'
+    config_args = extract_configuration("config.yaml")
 
-        # Aladin lite
-        img += """
-        var a = A.aladin('#aladin-lite-div-skymap',
-        {{
-            target: '{} {}',
-            survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
-            showReticle: true,
-            allowFullZoomout: true,
-            showContextMenu: true,
-            showCooGridControl: true,
-            fov: 360
-            }}
-        );
-        """.format(ras[0], decs[0])
+    # Determine if sso or not
+    # FIXME: refactor this piece of code because it appears in multiple places
+    row = pdf.head(1).to_dict(orient="records")[0]
+    _, is_sso = is_row_static_or_moving(row)
 
-        if "v:lastdate" not in pdf.columns:
-            # conesearch does not expose v:lastdate
-            # FIXME: need lastMJD to be filled
-            # pdf["v:lastdate"] = convert_time(pdf["i:lastTotoEtc"], format_out="iso")
-            pdf["v:lastdate"] = "2025-09-06"
+    if is_sso:
+        label = "MPC designation"
+        # get data for all sso sources and overwrite
+        endpoint = "/api/v1/sso"
+        columns = "r:ra,r:dec,r:midpointMjdTai,r:diaSourceId,r:mpcDesignation"
+        # FIXME: row["r:mpcDesignation"] is not enough if multiple SSOs in pdf
+        pdf = request_api(
+            endpoint, json={"n_or_d": row["r:mpcDesignation"], "columns": columns}
+        )
 
-        times = pdf["v:lastdate"].to_numpy()
-        link = '<a target="_blank" href="{}/{}">{}</a>'
-        config_args = extract_configuration("config.yaml")
+        titles = [
+            link.format(config_args["SITEURL"], i, i)
+            for i in pdf["r:mpcDesignation"].to_numpy()
+        ]
+        classes = ["SSO"] * len(pdf)
+        n_alert_per_class = {"SSO": len(pdf)}
+    else:
+        label = "diaObjectId"
         titles = [
             link.format(
                 config_args["SITEURL"],
@@ -257,48 +254,68 @@ def display_skymap(data, columns, is_open):
             )
             for i in pdf["r:diaObjectId"].to_numpy()
         ]
-
-        # for val in ["Fail", "nan"]:
-        #     pdf["f:crossmatches_simbad_otype"] = pdf["f:crossmatches_simbad_otype"].replace(to_replace=val, value="Unknown")
         classes = pdf["f:crossmatches_simbad_otype"].to_numpy()
         n_alert_per_class = (
             pdf.groupby("f:crossmatches_simbad_otype")
             .count()
             .to_dict()["r:diaObjectId"]
         )
-        cats = []
-        for ra, dec, time_, title, class_ in zip(ras, decs, times, titles, classes):
-            if class_ in simbad_types:
-                cat = "cat_{}".format(simbad_types.index(class_))
-                color = class_colors["Simbad"]
-            elif class_ in class_colors.keys():
-                cat = "cat_{}".format(class_.replace(" ", "_"))
-                color = class_colors[class_]
-            else:
-                # Sometimes SIMBAD mess up names :-)
-                cat = "cat_{}".format(class_)
-                color = class_colors["Simbad"]
 
-            if cat not in cats:
-                img += """var {} = A.catalog({{name: '{}', sourceSize: 15, shape: 'circle', color: '{}', onClick: 'showPopup', limit: 1000}});""".format(
-                    cat, class_ + " ({})".format(n_alert_per_class[class_]), color
-                )
-                cats.append(cat)
+    # Coordinate
+    ras = pdf["r:ra"].to_numpy()
+    decs = pdf["r:dec"].to_numpy()
+    times = pdf["r:midpointMjdTai"].to_numpy()
 
-            img += """{}.addSources([A.source({}, {}, {{diaObjectId: '{}', 'Last alert': '{}', 'Fink label': '{}'}})]);""".format(
-                cat, ra, dec, title, time_, class_
+    # Javascript. Note the use {{}} for dictionary
+    # Force redraw of the Aladin lite window
+    img = """var container = document.getElementById('aladin-lite-div-skymap');var txt = ''; container.innerHTML = txt;"""
+
+    # Aladin lite
+    img += """
+    var a = A.aladin('#aladin-lite-div-skymap',
+    {{
+        target: '{} {}',
+        survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
+        showReticle: true,
+        allowFullZoomout: true,
+        showContextMenu: true,
+        showCooGridControl: true,
+        fov: 360
+        }}
+    );
+    """.format(ras[0], decs[0])
+
+    cats = []
+    for ra, dec, time_, title, class_ in zip(ras, decs, times, titles, classes):
+        if class_ in simbad_types:
+            cat = "cat_{}".format(simbad_types.index(class_))
+            color = class_colors["Simbad"]
+        elif class_ in class_colors.keys():
+            cat = "cat_{}".format(class_.replace(" ", "_"))
+            color = class_colors[class_]
+        else:
+            # Sometimes SIMBAD mess up names :-)
+            cat = "cat_{}".format(class_)
+            color = class_colors["Simbad"]
+
+        if cat not in cats:
+            img += """var {} = A.catalog({{name: '{}', sourceSize: 15, shape: 'circle', color: '{}', onClick: 'showPopup', limit: 1000}});""".format(
+                cat, class_ + " ({})".format(n_alert_per_class[class_]), color
             )
+            cats.append(cat)
 
-        for cat in sorted(cats):
-            img += """a.addCatalog({});""".format(cat)
+        img += """{}.addSources([A.source({}, {}, {{'{}': '{}', 'Last alert': '{}', 'Fink label': '{}'}})]);""".format(
+            cat, ra, dec, label, title, time_, class_
+        )
 
-        # img cannot be executed directly because of formatting
-        # We split line-by-line and remove comments
-        img_to_show = [i for i in img.split("\n") if "// " not in i]
+    for cat in sorted(cats):
+        img += """a.addCatalog({});""".format(cat)
 
-        return " ".join(img_to_show)
-    else:
-        return ""
+    # img cannot be executed directly because of formatting
+    # We split line-by-line and remove comments
+    img_to_show = [i for i in img.split("\n") if "// " not in i]
+
+    return " ".join(img_to_show)
 
 
 def modal_skymap():
