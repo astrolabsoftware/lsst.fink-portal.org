@@ -231,3 +231,21 @@ a:hover {
     0 0 2px rgba(0, 0, 0, 0.3),
     inset 0 0 2px rgba(0, 0, 0, 0.2);
 }
+
+/* used for both CheckboxCard and RadioCard*/
+.checkboxcard-root {
+    position: relative;
+    padding: var(--mantine-spacing-md);
+    transition: border-color 150ms ease;
+
+    &[data-checked] {
+        border-color: var(--mantine-primary-color-filled);
+    }
+}
+
+.checkboxcard-root:hover {
+    background-color: light-dark(
+            var(--mantine-color-gray-0),
+            var(--mantine-color-dark-6)
+    );
+}

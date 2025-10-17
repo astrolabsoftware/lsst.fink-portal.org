@@ -132,6 +132,24 @@ def hex_to_rgba(hex, alpha, format_out="plotly"):
         return (*triplet, alpha)
 
 
+def rgb_to_rgba(rgb_value, alpha):
+    """Adds the alpha channel to an RGB Value and returns it as an RGBA Value
+
+    Parameters
+    ----------
+    rgb_value: str
+        Input RGB Value
+    alpha: float
+        Alpha Value to add  in range [0,1]
+
+    Returns
+    -------
+    out: str
+        RGBA Value
+    """
+    return f"rgba{rgb_value[3:-1]}, {alpha})"
+
+
 def isoify_time(t):
     try:
         tt = Time(t)

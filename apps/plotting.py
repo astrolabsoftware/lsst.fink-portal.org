@@ -18,6 +18,7 @@ from dash_iconify import DashIconify
 
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import plotly.colors
 
 import io
 import gzip
@@ -43,19 +44,7 @@ from apps.api import request_api
 from apps.utils import convert_time
 from apps.utils import flux_to_mag
 from apps.utils import loading
-from apps.utils import hex_to_rgba
-
-# FIXME
-COLORS_LSST = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#f5622e"]
-COLORS_LSST_NEGATIVE = [
-    "#274667",
-    "#F57A2E",
-    "#F57A2E",
-    "#274667",
-    "#F57A2E",
-    "#274667",
-    "#F57A2E",
-]
+from apps.utils import hex_to_rgba, rgb_to_rgba
 
 PIXEL_SIZE = 0.2  # arcsec/pixel
 
@@ -87,6 +76,28 @@ CONFIG_PLOT = {
 
 default_radio_options = ["Total flux", "Difference flux", "Magnitude"]
 all_radio_options = {v: default_radio_options for v in default_radio_options}
+
+
+def generate_rgb_color_sequence(color_scale: str = "Fink", n_colors: int = 6):
+    """Return a list of `n_colors` based on color_scale
+
+    Parameters
+    ----------
+    color_scale: str
+        Name of the color scale. Can be anything from
+        plotly.colors.sequential or `Fink`. Default is Fink.
+    n_colors: int
+        The number of colors to generate. Default is 6.
+    """
+    if color_scale == "Fink":
+        colors = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#f5622e"]
+    else:
+        # Generate the list of colors
+        colors = plotly.colors.sample_colorscale(
+            color_scale, [i / (n_colors - 1) for i in range(n_colors)]
+        )
+
+    return colors
 
 
 def draw_cutouts_quickview(name, kinds=None):
@@ -606,7 +617,7 @@ def _data_stretch(
     return data  # .astype(np.uint8)
 
 
-def draw_lightcurve_preview(name, is_sso) -> dict:
+def draw_lightcurve_preview(name, is_sso, color_scale) -> dict:
     """Draw object lightcurve with errorbars (SM view - DC mag fixed)
 
     Returns
@@ -703,13 +714,14 @@ def draw_lightcurve_preview(name, is_sso) -> dict:
     }
 
     indicators = []
-    for fid, fname, color, color_negative in (
-        (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
-        (2, "g", COLORS_LSST[1], COLORS_LSST_NEGATIVE[1]),
-        (3, "r", COLORS_LSST[2], COLORS_LSST_NEGATIVE[2]),
-        (4, "i", COLORS_LSST[3], COLORS_LSST_NEGATIVE[3]),
-        (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
-        (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in (
+        (1, "u", colors[0]),
+        (2, "g", colors[1]),
+        (3, "r", colors[2]),
+        (4, "i", colors[3]),
+        (5, "z", colors[4]),
+        (6, "y", colors[5]),
     ):
         idx = pdf["r:band"] == fname
 
@@ -861,13 +873,12 @@ def make_sparkline(data):
         Input("switch-mag-flux", "value"),
         Input("switch-lc-layout", "value"),
         Input("object-data", "data"),
+        Input("color_scale", "value"),
     ],
     prevent_initial_call=True,
 )
 def draw_lightcurve(
-    switch_units: str,
-    switch_layout: str,
-    object_data,
+    switch_units: str, switch_layout: str, object_data, color_scale
 ) -> dict:
     """Draw object lightcurve with errorbars
 
@@ -954,13 +965,14 @@ def draw_lightcurve(
             rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
         )
 
-    for fid, fname, color, color_negative in (
-        (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
-        (2, "g", COLORS_LSST[1], COLORS_LSST_NEGATIVE[1]),
-        (3, "r", COLORS_LSST[2], COLORS_LSST_NEGATIVE[2]),
-        (4, "i", COLORS_LSST[3], COLORS_LSST_NEGATIVE[3]),
-        (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
-        (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in (
+        (1, "u", colors[0]),
+        (2, "g", colors[1]),
+        (3, "r", colors[2]),
+        (4, "i", colors[3]),
+        (5, "z", colors[4]),
+        (6, "y", colors[5]),
     ):
         # High-quality measurements
         hovertemplate = r"""
@@ -981,7 +993,9 @@ def draw_lightcurve(
                 "array": flux_err[idx] * scale,
                 "visible": True,
                 "width": 0,
-                "color": hex_to_rgba(color, 0.5),
+                "color": hex_to_rgba(color, 0.5)
+                if color.startswith("#")
+                else rgb_to_rgba(color, 0.5),
             },
             mode="markers",
             name=f"{fname}",
@@ -998,11 +1012,7 @@ def draw_lightcurve(
             legendrank=100 + 10 * fid,
             marker={
                 "size": 12,
-                "color": flux[idx].apply(
-                    lambda x, color_negative=color_negative, color=color: color_negative
-                    if x < 0
-                    else color
-                ),
+                "color": color,
                 "symbol": "circle",
             },
             xaxis="x",
@@ -1032,10 +1042,11 @@ def draw_lightcurve(
     [
         Input("object-data", "data"),
         Input("coordinates_chips", "value"),
+        Input("color_scale", "value"),
     ],
     prevent_initial_call=True,
 )
-def draw_alert_astrometry(object_data, kind) -> dict:
+def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
     """Draw object astrometry
 
     This is the difference position of each alert wrt mean position
@@ -1061,13 +1072,14 @@ def draw_alert_astrometry(object_data, kind) -> dict:
 
     data = []
 
-    for fid, fname, color, color_negative in (
-        (1, "u", COLORS_LSST[0], COLORS_LSST_NEGATIVE[0]),
-        (2, "g", COLORS_LSST[1], COLORS_LSST_NEGATIVE[1]),
-        (3, "r", COLORS_LSST[2], COLORS_LSST_NEGATIVE[2]),
-        (4, "i", COLORS_LSST[3], COLORS_LSST_NEGATIVE[3]),
-        (5, "z", COLORS_LSST[4], COLORS_LSST_NEGATIVE[4]),
-        (6, "y", COLORS_LSST[5], COLORS_LSST_NEGATIVE[5]),
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in (
+        (1, "u", colors[0]),
+        (2, "g", colors[1]),
+        (3, "r", colors[2]),
+        (4, "i", colors[3]),
+        (5, "z", colors[4]),
+        (6, "y", colors[5]),
     ):
         data.append({
             "x": deltaRAcosDEC[pdf["r:band"] == fname],

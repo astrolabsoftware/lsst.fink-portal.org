@@ -32,6 +32,7 @@ from app import app
 from apps.configuration import extract_configuration
 from apps.searchbar import fink_search_bar
 import apps.search_results  # noqa: F401
+from apps.plotting import generate_rgb_color_sequence
 
 from apps import summary
 
@@ -406,18 +407,147 @@ navbar = html.Div(
 #     return html.Div(f"Dropdown {id['index']} = {value}")
 
 
+def make_radiocard(label, description, color_scale):
+    return dmc.RadioCard(
+        withBorder=True,
+        p="md",
+        mt="md",
+        className="checkboxcard-root",
+        value=label,
+        children=[
+            dmc.Group(
+                [
+                    dmc.Group(
+                        [
+                            dmc.RadioIndicator(),
+                            dmc.Box([
+                                dmc.Text(label, lh="1.3", fz="md", fw="bold"),
+                            ]),
+                        ],
+                    ),
+                    dmc.Group(
+                        [
+                            dmc.ActionIcon(
+                                color=color,
+                                variant="filled",
+                                size="xs",
+                            )
+                            for color in generate_rgb_color_sequence(color_scale)
+                        ],
+                        visibleFrom="md",
+                    ),
+                ],
+                justify="space-around",
+                wrap="nowrap",
+            ),
+        ],
+    )
+
+
+component = dmc.Box([
+    dmc.RadioGroup(
+        id="color_scale",
+        value="Fink",
+        persistence=True,
+        deselectable=True,
+        children=[
+            make_radiocard("Fink", "Default", "Fink"),
+            make_radiocard("Viridis", "Alternative", "Viridis"),
+        ],
+    ),
+    dmc.Box(id="radio-group-out"),
+])
+
+
 # embedding the navigation bar
+
 app.layout = dmc.MantineProvider(
     [
         dcc.Location(id="url", refresh=False),
         dmc.AppShell(
             children=[
-                # dmc.AppShellHeader(
-                #     id="header",
-                #     children=[],
-                #     p="md",
-                #     style={"background-color": "#15284F", "padding-bottom": "0px"}
-                # ),
+                dmc.AppShellHeader(
+                    id="header",
+                    children=[
+                        dmc.Flex(
+                            [
+                                dmc.ActionIcon(
+                                    DashIconify(icon="clarity:settings-line"),
+                                    variant="subtle",
+                                    color="dark",
+                                    size="lg",
+                                    radius="sm",
+                                    id="drawer-demo-button",
+                                ),
+                                dmc.Drawer(
+                                    id="drawer-simple",
+                                    padding="md",
+                                    position="right",
+                                    radius="lg",
+                                    overlayProps={"opacity": 0.1},
+                                    transitionProps={"duration": 350},
+                                    size="20%",
+                                    children=[
+                                        dmc.Title(
+                                            "Lightcurve settings",
+                                            order=4,
+                                            style={"padding-top": "0px"},
+                                        ),
+                                        dmc.Divider(
+                                            labelPosition="left",
+                                            style={"marginTop": 20, "marginBottom": 20},
+                                        ),
+                                        dmc.Group(
+                                            [
+                                                dmc.Text("Magnitude"),
+                                                dmc.Switch(
+                                                    id="switch-magnitude",
+                                                    onLabel="ON",
+                                                    offLabel="OFF",
+                                                    checked=False,
+                                                    size="md",
+                                                    color="orange",
+                                                ),
+                                            ],
+                                            justify="space-around",
+                                            grow=True,
+                                        ),
+                                        dmc.Space(h=5),
+                                        dmc.Group(
+                                            [
+                                                dmc.Text("Differential"),
+                                                dmc.Switch(
+                                                    id="switch-differential",
+                                                    onLabel="ON",
+                                                    offLabel="OFF",
+                                                    checked=False,
+                                                    size="md",
+                                                    color="orange",
+                                                ),
+                                            ],
+                                            justify="space-around",
+                                            grow=True,
+                                        ),
+                                        dmc.Space(h=40),
+                                        dmc.Title(
+                                            "Color scheme",
+                                            order=4,
+                                            style={"padding-top": "0px"},
+                                        ),
+                                        dmc.Divider(
+                                            labelPosition="left",
+                                            style={"marginTop": 20, "marginBottom": 20},
+                                        ),
+                                        component,
+                                    ],
+                                ),
+                            ],
+                            justify="flex-end",
+                        ),
+                    ],
+                    p="md",
+                    style={"background-color": "#f7f7f7", "border": "0px"},
+                ),
                 # navbar,
                 dmc.AppShellNavbar(
                     id="navbar",
@@ -451,6 +581,15 @@ app.layout = dmc.MantineProvider(
     # forceColorScheme="dark",
     # defaultColorScheme="dark"
 )
+
+
+@app.callback(
+    Output("drawer-simple", "opened"),
+    Input("drawer-demo-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+def drawer_demo(n_clicks):
+    return True
 
 
 @app.callback(
