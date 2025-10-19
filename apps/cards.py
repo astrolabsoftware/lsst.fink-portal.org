@@ -34,7 +34,7 @@ from apps.utils import loading
 
 from apps.utils import get_first_value, is_row_static_or_moving
 from apps.utils import demarkdownify_objectid
-from apps.plotting import all_radio_options, make_modal_stamps
+from apps.plotting import make_modal_stamps
 from apps.helpers import help_popover, lc_help
 from dash_iconify import DashIconify
 
@@ -633,44 +633,11 @@ def card_lightcurve_summary(diaObjectId):
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
-                        "Units customisation",
-                    ),
-                    dmc.AccordionPanel(
-                        dmc.Group(
-                            [
-                                dmc.RadioGroup(
-                                    id="switch-mag-flux",
-                                    children=dmc.Group([
-                                        dmc.Radio(k, value=k, color="orange")
-                                        for k in all_radio_options.keys()
-                                    ]),
-                                    value="Total flux",
-                                    size="sm",
-                                ),
-                            ],
-                            justify="center",
-                            align="center",
-                        ),
-                    ),
-                ],
-                value="units",
-            ),
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
                         "Layout customisation",
                     ),
                     dmc.AccordionPanel(
                         dmc.Group(
                             [
-                                # dmc.Switch(
-                                #     "Color",
-                                #     id="lightcurve_show_color",
-                                #     color="gray",
-                                #     radius="xl",
-                                #     size="sm",
-                                #     persistence=True,
-                                # ),
                                 dmc.RadioGroup(
                                     id="switch-lc-layout",
                                     children=dmc.Group([

@@ -74,6 +74,10 @@ CONFIG_PLOT = {
     },
 }
 
+BANDS = ["u", "g", "r", "i", "z", "y"]
+
+DEFAULT_FINK_COLORS = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#f5622e"]
+
 default_radio_options = ["Total flux", "Difference flux", "Magnitude"]
 all_radio_options = {v: default_radio_options for v in default_radio_options}
 
@@ -89,8 +93,10 @@ def generate_rgb_color_sequence(color_scale: str = "Fink", n_colors: int = 6):
     n_colors: int
         The number of colors to generate. Default is 6.
     """
+    if color_scale is None or color_scale == "":
+        return DEFAULT_FINK_COLORS
     if color_scale == "Fink":
-        colors = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#f5622e"]
+        colors = DEFAULT_FINK_COLORS
     else:
         # Generate the list of colors - discrete
         colors = getattr(plotly.colors.qualitative, color_scale)[:6]
@@ -727,14 +733,7 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
 
     indicators = []
     colors = generate_rgb_color_sequence(color_scale)
-    for fid, fname, color in (
-        (1, "u", colors[0]),
-        (2, "g", colors[1]),
-        (3, "r", colors[2]),
-        (4, "i", colors[3]),
-        (5, "z", colors[4]),
-        (6, "y", colors[5]),
-    ):
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
         idx = pdf["r:band"] == fname
 
         # initialise icon
@@ -992,14 +991,7 @@ def draw_lightcurve(
         )
 
     colors = generate_rgb_color_sequence(color_scale)
-    for fid, fname, color in (
-        (1, "u", colors[0]),
-        (2, "g", colors[1]),
-        (3, "r", colors[2]),
-        (4, "i", colors[3]),
-        (5, "z", colors[4]),
-        (6, "y", colors[5]),
-    ):
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
         # High-quality measurements
         hovertemplate = r"""
         <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
@@ -1100,14 +1092,7 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
     data = []
 
     colors = generate_rgb_color_sequence(color_scale)
-    for fid, fname, color in (
-        (1, "u", colors[0]),
-        (2, "g", colors[1]),
-        (3, "r", colors[2]),
-        (4, "i", colors[3]),
-        (5, "z", colors[4]),
-        (6, "y", colors[5]),
-    ):
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
         data.append({
             "x": deltaRAcosDEC[pdf["r:band"] == fname],
             "y": deltaDEC[pdf["r:band"] == fname],
