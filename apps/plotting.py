@@ -92,10 +92,13 @@ def generate_rgb_color_sequence(color_scale: str = "Fink", n_colors: int = 6):
     if color_scale == "Fink":
         colors = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#f5622e"]
     else:
-        # Generate the list of colors
-        colors = plotly.colors.sample_colorscale(
-            color_scale, [i / (n_colors - 1) for i in range(n_colors)]
-        )
+        # Generate the list of colors - discrete
+        colors = getattr(plotly.colors.qualitative, color_scale)[:6]
+
+        # Same for continuous
+        # colors = plotly.colors.sample_colorscale(
+        #     color_scale, [i / (n_colors - 1) for i in range(n_colors)]
+        # )
 
     return colors
 
@@ -617,17 +620,54 @@ def _data_stretch(
     return data  # .astype(np.uint8)
 
 
-def draw_lightcurve_preview(name, is_sso, color_scale) -> dict:
+def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> dict:
     """Draw object lightcurve with errorbars (SM view - DC mag fixed)
 
     Returns
     -------
     figure: dict
     """
+    # We should never modify global variables!!!
+    layout = dict(
+        automargin=True,
+        margin=dict(l=50, r=0, b=0, t=0),
+        hovermode="closest",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            # xanchor="right",
+            x=0,
+            y=1.2,
+            bgcolor="rgba(218, 223, 225, 0.5)",
+        ),
+        xaxis={
+            "title": "Observation date",
+            "automargin": True,
+        },
+        yaxis={
+            "automargin": True,
+        },
+    )
+
+    # shortcuts -- in milliJansky
+    if measurement == "total":
+        flux_name = "r:scienceFlux"
+        flux_err_name = "r:scienceFluxErr"
+        layout["yaxis"]["title"] = "Total flux (milliJansky)"
+    elif measurement == "differential":
+        flux_name = "r:psfFlux"
+        flux_err_name = "r:psfFluxErr"
+        layout["yaxis"]["title"] = "Difference flux (milliJansky)"
+
     cols = [
         "r:midpointMjdTai",
-        "r:scienceFlux",
-        "r:scienceFluxErr",
+        flux_name,
+        flux_err_name,
         "r:band",
         "r:snr",
         "r:reliability",
@@ -658,44 +698,16 @@ def draw_lightcurve_preview(name, is_sso, color_scale) -> dict:
     # type conversion
     dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
 
-    # Should we correct DC magnitudes for the nearby source?..
-    # is_dc_corrected = is_source_behind(pdf["i:distnr"].to_numpy()[0])
+    flux = pdf[flux_name]
+    flux_err = pdf[flux_err_name]
 
-    # shortcuts -- in milliJansky
-    flux = pdf["r:scienceFlux"] * 1e-3
-    flux_err = pdf["r:scienceFluxErr"] * 1e-3
+    if units == "flux":
+        # milli-jansky
+        flux = flux * 1e-3
+        flux_err = flux_err * 1e-3
 
     # integer nights
     pdf["id"] = pdf["r:midpointMjdTai"].apply(lambda x: int(x))
-
-    # We should never modify global variables!!!
-    layout = dict(
-        automargin=True,
-        margin=dict(l=50, r=0, b=0, t=0),
-        hovermode="closest",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        hoverlabel={
-            "align": "left",
-        },
-        legend=dict(
-            font=dict(size=10),
-            orientation="h",
-            # xanchor="right",
-            x=0,
-            y=1.2,
-            bgcolor="rgba(218, 223, 225, 0.5)",
-        ),
-        xaxis={
-            "title": "Observation date",
-            "automargin": True,
-        },
-        yaxis={
-            # "autorange": "reversed",
-            "title": "Total flux (milliJansky)",
-            "automargin": True,
-        },
-    )
 
     layout["showlegend"] = True
     layout["shapes"] = []
@@ -733,11 +745,11 @@ def draw_lightcurve_preview(name, is_sso, color_scale) -> dict:
         )
         if len(pdf[idx]) > 1:
             # Last 2 measurements in 2 different nights
-            mean_values = pdf[idx].groupby("id")["r:scienceFlux"].mean().reset_index()
+            mean_values = pdf[idx].groupby("id")[flux_name].mean().reset_index()
             if len(mean_values) > 1:
                 arr = (
                     mean_values.sort_values("id", ascending=False)
-                    .head(2)["r:scienceFlux"]
+                    .head(2)[flux_name]
                     .to_numpy()
                 )
                 diff = arr[0] - arr[1]
@@ -768,6 +780,17 @@ def draw_lightcurve_preview(name, is_sso, color_scale) -> dict:
 
         if not np.sum(idx):
             continue
+
+        if units == "magnitude":
+            # Using same names as others despite being magnitudes
+            # Redefined within the loop each time
+            # FIXME: rewrite for better efficiency
+            flux, flux_err = flux_to_mag(pdf[flux_name], pdf[flux_err_name])
+            layout["yaxis"]["autorange"] = "reversed"
+            if measurement == "differential":
+                layout["yaxis"]["title"] = "Difference magnitude"
+            else:
+                layout["yaxis"]["title"] = "Magnitude"
 
         figure["data"].append(
             {
@@ -870,15 +893,16 @@ def make_sparkline(data):
 @app.callback(
     Output("lightcurve_object_page", "figure"),
     [
-        Input("switch-mag-flux", "value"),
         Input("switch-lc-layout", "value"),
         Input("object-data", "data"),
         Input("color_scale", "value"),
+        Input("select-units", "value"),
+        Input("select-measurement", "value"),
     ],
     prevent_initial_call=True,
 )
 def draw_lightcurve(
-    switch_units: str, switch_layout: str, object_data, color_scale
+    switch_layout: str, object_data, color_scale, units, measurement
 ) -> dict:
     """Draw object lightcurve with errorbars
 
@@ -894,12 +918,7 @@ def draw_lightcurve(
     -------
     figure: dict
     """
-    # Primary high-quality data points
-    pdf = pd.read_json(io.StringIO(object_data))
-
-    # date type conversion
-    dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
-
+    # We should never modify global variables!!!
     layout = dict(
         autosize=True,
         # automargin=True,
@@ -911,7 +930,6 @@ def draw_lightcurve(
         legend=dict(
             font=dict(size=10),
             orientation="h",
-            # xanchor="right",
             x=0,
             yanchor="bottom",
             y=1.02,
@@ -923,35 +941,43 @@ def draw_lightcurve(
             "zeroline": False,
         },
         yaxis={
-            "title": "Total flux (mJy)",
             "automargin": True,
             "zeroline": False,
         },
     )
 
-    if switch_units == "Magnitude":
+    # shortcuts -- in milliJansky
+    if measurement == "total":
+        flux_name = "r:scienceFlux"
+        flux_err_name = "r:scienceFluxErr"
+        layout["yaxis"]["title"] = "Total flux (milliJansky)"
+    elif measurement == "differential":
+        flux_name = "r:psfFlux"
+        flux_err_name = "r:psfFluxErr"
+        layout["yaxis"]["title"] = "Difference flux (milliJansky)"
+
+    # Primary high-quality data points
+    pdf = pd.read_json(io.StringIO(object_data))
+
+    # date type conversion
+    dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
+
+    flux = pdf[flux_name]
+    flux_err = pdf[flux_err_name]
+
+    if units == "magnitude":
         # Using same names as others despite being magnitudes
-        flux, flux_err = flux_to_mag(pdf["r:scienceFlux"], pdf["r:scienceFluxErr"])
-        yaxis_title = "Magnitude"
+        flux, flux_err = flux_to_mag(flux, flux_err)
         layout["yaxis"]["autorange"] = "reversed"
-        scale = 1.0
-    elif switch_units == "Difference flux":
-        # shortcuts
-        flux = pdf["r:psfFlux"]
-        flux_err = pdf["r:psfFluxErr"]
+        if measurement == "differential":
+            layout["yaxis"]["title"] = "Difference magnitude"
+        else:
+            layout["yaxis"]["title"] = "Magnitude"
 
-        yaxis_title = "Difference flux (milliJansky)"
-        layout["yaxis"]["autorange"] = True
-        scale = 1e-3
-    elif switch_units == "Total flux":
-        # shortcuts
-        flux = pdf["r:scienceFlux"]
-        flux_err = pdf["r:scienceFluxErr"]
-
-        yaxis_title = "Total flux (milliJansky)"
-        layout["yaxis"]["autorange"] = True
-        scale = 1e-3
-    layout["yaxis"]["title"] = yaxis_title
+    if units == "flux":
+        # milli-jansky
+        flux = flux * 1e-3
+        flux_err = flux_err * 1e-3
 
     layout["showlegend"] = True
     layout["shapes"] = []
@@ -987,10 +1013,10 @@ def draw_lightcurve(
 
         trace = go.Scatter(
             x=dates[idx],
-            y=flux[idx] * scale,
+            y=flux[idx],
             error_y={
                 "type": "data",
-                "array": flux_err[idx] * scale,
+                "array": flux_err[idx],
                 "visible": True,
                 "width": 0,
                 "color": hex_to_rgba(color, 0.5)
@@ -1030,9 +1056,10 @@ def draw_lightcurve(
                     title="Observation date",
                 )
                 fig.update_yaxes(
-                    row=fid - 3 * (fid // 4), col=(fid // 4) + 1, title=yaxis_title
+                    row=fid - 3 * (fid // 4),
+                    col=(fid // 4) + 1,
+                    title=layout["yaxis"]["title"],
                 )
-                # fig.update_layout("yaxis{}".format(fid)=layout["yaxis"])
 
     return fig
 

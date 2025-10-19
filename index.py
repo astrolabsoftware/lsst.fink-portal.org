@@ -234,233 +234,94 @@ navbar = html.Div(
                             ),
                         ],
                     ),
-                    # Left menu
-                    # dmc.Group(
-                    #     align="end",
-                    #     justify="flex-end",
-                    #     children=[
-                    #     ],
-                    # ),
-                    # Sidebar
-                    # dmc.Drawer(
-                    #     children=[
-                    #         dmc.Divider(
-                    #             labelPosition="left",
-                    #             label=[
-                    #                 DashIconify(
-                    #                     icon="tabler:search",
-                    #                     width=15,
-                    #                     style={"marginRight": 10},
-                    #                 ),
-                    #                 "Explore",
-                    #             ],
-                    #             style={"marginTop": 20, "marginBottom": 20},
-                    #         ),
-                    #         dmc.Stack(
-                    #             [
-                    #                 dmc.Anchor(
-                    #                     "Search",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="/",
-                    #                     size="sm",
-                    #                 ),
-                    #                 dmc.Anchor(
-                    #                     "Data Transfer",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="/download",
-                    #                     size="sm",
-                    #                 ),
-                    #                 dmc.Anchor(
-                    #                     "Gravitational Waves",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="/gw",
-                    #                     size="sm",
-                    #                 ),
-                    #                 dmc.Anchor(
-                    #                     "Statistics",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="/stats",
-                    #                     size="sm",
-                    #                 ),
-                    #             ],
-                    #             align="left",
-                    #             gap="sm",
-                    #             style={"paddingLeft": 30, "paddingRight": 20},
-                    #         ),
-                    #         dmc.Divider(
-                    #             labelPosition="left",
-                    #             label=[
-                    #                 DashIconify(
-                    #                     icon="carbon:api",
-                    #                     width=15,
-                    #                     style={"marginRight": 10},
-                    #                 ),
-                    #                 "Learn",
-                    #             ],
-                    #             style={"marginTop": 20, "marginBottom": 20},
-                    #         ),
-                    #         dmc.Stack(
-                    #             [
-                    #                 dmc.Anchor(
-                    #                     "{ API }",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="https://fink-broker.readthedocs.io/en/latest/services/search/getting_started/#quick-start-api",
-                    #                     size="sm",
-                    #                 ),
-                    #                 dmc.Anchor(
-                    #                     "Tutorials",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="https://github.com/astrolabsoftware/fink-tutorials",
-                    #                     size="sm",
-                    #                 ),
-                    #             ],
-                    #             align="left",
-                    #             gap="sm",
-                    #             style={"paddingLeft": 30, "paddingRight": 20},
-                    #         ),
-                    #         dmc.Divider(
-                    #             labelPosition="left",
-                    #             label=[
-                    #                 DashIconify(
-                    #                     icon="tabler:external-link",
-                    #                     width=15,
-                    #                     style={"marginRight": 10},
-                    #                 ),
-                    #                 "External links",
-                    #             ],
-                    #             style={"marginTop": 20, "marginBottom": 20},
-                    #         ),
-                    #         dmc.Stack(
-                    #             [
-                    #                 dmc.Anchor(
-                    #                     "Fink broker",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="https://fink-broker.org",
-                    #                     size="sm",
-                    #                     # color="gray",
-                    #                 ),
-                    #                 dmc.Anchor(
-                    #                     "Portal bug tracker",
-                    #                     style={
-                    #                         "textTransform": "capitalize",
-                    #                         "textDecoration": "none",
-                    #                         "color": "gray",
-                    #                     },
-                    #                     href="https://github.com/astrolabsoftware/fink-science-portal",
-                    #                     size="sm",
-                    #                 ),
-                    #             ],
-                    #             align="left",
-                    #             gap="sm",
-                    #             style={"paddingLeft": 30, "paddingRight": 20},
-                    #         ),
-                    #     ],
-                    #     title="Fink Science Portal",
-                    #     id="drawer",
-                    #     padding="md",
-                    #     zIndex=1e7,
-                    #     transitionProps={"transition": "pop-top-left"},
-                    #     style={"fontColor": "gray"},
-                    # ),
                 ],
             ),
         ),
     ],
 )
 
-# @callback(
-#     Output({'type': 'themeicon', 'index': MATCH}, 'color'),
-#     Input('url', 'pathname'),
-#     State({'type': 'themeicon', 'index': MATCH}, 'id'),
-# )
-# def display_output(url, id):
-#     if pathname[:1] == "":
-#         return
-#     return html.Div(f"Dropdown {id['index']} = {value}")
 
-
-def make_radiocard(label, description, color_scale):
-    return dmc.RadioCard(
-        withBorder=True,
-        p="md",
-        mt="md",
-        className="checkboxcard-root",
-        value=label,
-        children=[
-            dmc.Group(
-                [
-                    dmc.Group(
-                        [
-                            dmc.RadioIndicator(),
-                            dmc.Box([
-                                dmc.Text(label, lh="1.3", fz="md", fw="bold"),
-                            ]),
-                        ],
-                    ),
-                    dmc.Group(
-                        [
-                            dmc.ActionIcon(
-                                color=color,
-                                variant="filled",
-                                size="xs",
-                            )
-                            for color in generate_rgb_color_sequence(color_scale)
-                        ],
-                        visibleFrom="md",
-                    ),
-                ],
-                justify="space-around",
-                wrap="nowrap",
-            ),
+@app.callback(Output("color_palette", "children"), Input("color_scale", "value"))
+def make_radiocard(color_scale):
+    return dmc.Group(
+        [
+            dmc.ActionIcon(
+                color=color,
+                variant="filled",
+                size="xs",
+            )
+            for color in generate_rgb_color_sequence(color_scale)
         ],
+        visibleFrom="md",
+        justify="flex-end",
+        wrap="nowrap",
     )
 
 
+plotly_color_sets = [
+    "Fink",
+    "Alphabet",
+    "Alphabet_r",
+    "Antique",
+    "Antique_r",
+    "Bold",
+    "Bold_r",
+    "D3",
+    "D3_r",
+    "Dark2",
+    "Dark24",
+    "Dark24_r",
+    "Dark2_r",
+    "G10",
+    "G10_r",
+    "Light24",
+    "Light24_r",
+    "Pastel",
+    "Pastel1",
+    "Pastel1_r",
+    "Pastel2",
+    "Pastel2_r",
+    "Pastel_r",
+    "Plotly",
+    "Plotly_r",
+    "Prism",
+    "Prism_r",
+    "Safe",
+    "Safe_r",
+    "Set1",
+    "Set1_r",
+    "Set2",
+    "Set2_r",
+    "Set3",
+    "Set3_r",
+    "T10",
+    "T10_r",
+    "Vivid",
+    "Vivid_r",
+]
+
+
 component = dmc.Box([
-    dmc.RadioGroup(
-        id="color_scale",
-        value="Fink",
-        persistence=True,
-        deselectable=True,
-        children=[
-            make_radiocard("Fink", "Default", "Fink"),
-            make_radiocard("Viridis", "Alternative", "Viridis"),
+    dmc.Group(
+        [
+            dmc.Select(
+                id="color_scale",
+                value="Fink",
+                data=[{"value": k, "label": k} for k in plotly_color_sets],
+                w=110,
+                # mb=10,
+                persistence=True,
+                searchable=True,
+                clearable=True,
+                radius="xl",
+            ),
+            html.Div(id="color_palette"),
         ],
+        justify="space-around",
     ),
-    dmc.Box(id="radio-group-out"),
 ])
 
-
 # embedding the navigation bar
-
 app.layout = dmc.MantineProvider(
     [
         dcc.Location(id="url", refresh=False),
@@ -499,14 +360,27 @@ app.layout = dmc.MantineProvider(
                                         ),
                                         dmc.Group(
                                             [
-                                                dmc.Text("Magnitude"),
-                                                dmc.Switch(
-                                                    id="switch-magnitude",
-                                                    onLabel="ON",
-                                                    offLabel="OFF",
-                                                    checked=False,
-                                                    size="md",
-                                                    color="orange",
+                                                dmc.Text("Units"),
+                                                dmc.Select(
+                                                    id="select-units",
+                                                    value="magnitude",
+                                                    data=[
+                                                        {
+                                                            "value": "magnitude",
+                                                            "label": "magnitude",
+                                                        },
+                                                        {
+                                                            "value": "flux",
+                                                            "label": "flux",
+                                                        },
+                                                    ],
+                                                    w=200,
+                                                    # size="xs",
+                                                    mb=5,
+                                                    persistence=True,
+                                                    searchable=True,
+                                                    clearable=True,
+                                                    radius="xl",
                                                 ),
                                             ],
                                             justify="space-around",
@@ -515,14 +389,26 @@ app.layout = dmc.MantineProvider(
                                         dmc.Space(h=5),
                                         dmc.Group(
                                             [
-                                                dmc.Text("Differential"),
-                                                dmc.Switch(
-                                                    id="switch-differential",
-                                                    onLabel="ON",
-                                                    offLabel="OFF",
-                                                    checked=False,
-                                                    size="md",
-                                                    color="orange",
+                                                dmc.Text("Measurement"),
+                                                dmc.Select(
+                                                    id="select-measurement",
+                                                    value="total",
+                                                    data=[
+                                                        {
+                                                            "value": "total",
+                                                            "label": "total",
+                                                        },
+                                                        {
+                                                            "value": "differential",
+                                                            "label": "differential",
+                                                        },
+                                                    ],
+                                                    w=200,
+                                                    mb=5,
+                                                    persistence=True,
+                                                    searchable=True,
+                                                    clearable=True,
+                                                    radius="xl",
                                                 ),
                                             ],
                                             justify="space-around",
