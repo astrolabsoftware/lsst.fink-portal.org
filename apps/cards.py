@@ -317,10 +317,9 @@ def card_search_result(row, i):
                                         className="first-content",
                                         children=[
                                             html.Div(
-                                                className="container noselect",
+                                                className="container",
                                                 children=[
                                                     html.Div(
-                                                        className="canvas",
                                                         children=[
                                                             html.Div(
                                                                 id="card",

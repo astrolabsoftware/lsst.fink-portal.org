@@ -236,6 +236,7 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
             mode="lines",
             line=dict(color="orange", width=2),  # Color matches the background
             showlegend=False,
+            hoverinfo="none",
         )
     )
     fig.add_trace(
@@ -245,6 +246,7 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
             mode="lines",
             line=dict(color="orange", width=2),  # Color matches the background
             showlegend=False,
+            hoverinfo="none",
         )
     )
 
@@ -256,6 +258,7 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
             mode="lines",
             line=dict(color="orange", width=2),  # Color matches the background
             showlegend=False,
+            hoverinfo="none",
         )
     )
     fig.add_trace(
@@ -265,6 +268,7 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
             mode="lines",
             line=dict(color="orange", width=2),  # Color matches the background
             showlegend=False,
+            hoverinfo="none",
         )
     )
 
