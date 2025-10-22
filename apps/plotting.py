@@ -345,15 +345,67 @@ def draw_cutouts(clickData, object_data):
         except OSError:
             data = dcc.Markdown("Load fail, refresh the page")
 
-        figs.append(
-            dbc.Col(
-                data,
-                xs=4,
-                className="p-0",
-            ),
-        )
+        shape = cutout.shape
 
-    return figs
+        card = html.Div(
+            children=[
+                html.Div(
+                    className="first-content",
+                    children=[
+                        html.Div(
+                            className="container-small",
+                            children=[
+                                html.Div(
+                                    children=[
+                                        html.Div(
+                                            id="card",
+                                            children=[
+                                                html.Div(
+                                                    className="card-content",
+                                                    children=[
+                                                        dbc.Col(data),
+                                                        html.Div(
+                                                            className="title-small",
+                                                            children=[
+                                                                html.Span(
+                                                                    kind.capitalize()
+                                                                ),
+                                                            ],
+                                                        ),
+                                                        html.Div(
+                                                            className="subtitle-small",
+                                                            children=[
+                                                                html.Span(
+                                                                    "{}px / {:.1f}''".format(
+                                                                        shape[0],
+                                                                        shape[0]
+                                                                        * PIXEL_SIZE,
+                                                                    )
+                                                                ),
+                                                            ],
+                                                        ),
+                                                        html.Div(
+                                                            className="corner-elements",
+                                                            children=[
+                                                                html.Span(),
+                                                                html.Span(),
+                                                            ],
+                                                        ),
+                                                    ],
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
+        figs.append(card)
+
+    return dmc.Group(figs, justify="space-around")
 
 
 @app.callback(

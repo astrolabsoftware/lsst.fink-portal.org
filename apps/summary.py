@@ -28,26 +28,6 @@ from app import app
 from apps.api import request_api
 from apps.cards import card_lightcurve_summary, card_id
 
-# from apps.plotting import (
-#     draw_sso_astrometry,
-#     draw_sso_lightcurve,
-#     draw_tracklet_lightcurve,
-#     draw_tracklet_radec,
-# )
-# from apps.sso.cards import card_sso_left
-# from apps.supernovae.cards import card_sn_scores
-# from apps.utils import (
-#     generate_qr,
-#     loading,
-#     pil_to_b64,
-#     request_api,
-#     retrieve_oid_from_metaname,
-# )
-# from apps.varstars.cards import card_explanation_variable
-# from apps.blazars.cards import card_explanation_blazar
-# from apps.observability.cards import card_explanation_observability
-# from apps.observability.utils import additional_observatories
-
 dcc.Location(id="url", refresh=False)
 
 
@@ -88,9 +68,6 @@ def layout(name):
             id="card_id_left",
             className="p-1",
             span=12,
-            # lg=12,
-            # md=6,
-            # sm=12,
         )
         col2 = dmc.GridCol(
             html.Div(
@@ -108,9 +85,6 @@ def layout(name):
                 ],
                 className="p-1",
             ),
-            # lg=12,
-            # md=6,
-            # sm=12,
             span=12,
         )
         struct_left = dmc.Grid([col1, col2], gutter=0, className="g-0")
@@ -129,7 +103,6 @@ def layout(name):
                 ),
                 dcc.Store(id="object-data"),
                 # dcc.Store(id="object-upper"),
-                # dcc.Store(id="object-uppervalid"),
                 # dcc.Store(id="object-sso"),
                 # dcc.Store(id="object-tracklet"),
                 dcc.Store(id="object-release"),

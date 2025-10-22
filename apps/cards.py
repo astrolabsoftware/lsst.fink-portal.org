@@ -826,25 +826,25 @@ curl -H "Content-Type: application/json" -X POST \\
                     dmc.AccordionPanel(
                         [
                             loading(
-                                dmc.Paper(
-                                    [
-                                        dbc.Row(
-                                            dmc.Skeleton(
-                                                style={
-                                                    "width": "100%",
-                                                    "aspect-ratio": "3/1",
-                                                }
-                                            ),
-                                            id="stamps",
-                                            justify="around",
-                                            className="g-0",
-                                        ),
-                                    ],
-                                    radius="sm",
-                                    shadow="sm",
-                                    withBorder=True,
-                                    style={"padding": "0px"},
+                                dbc.Row(
+                                    dmc.Skeleton(
+                                        style={
+                                            "width": "100%",
+                                            "aspect-ratio": "3/1",
+                                        }
+                                    ),
+                                    id="stamps",
+                                    justify="around",
+                                    className="g-0",
                                 ),
+                                # dmc.Paper(
+                                #     [
+                                #     ],
+                                #     radius="sm",
+                                #     shadow="sm",
+                                #     withBorder=True,
+                                #     style={"padding": "0px"},
+                                # ),
                             ),
                             dmc.Space(h=10),
                             *make_modal_stamps(pdf),

@@ -6,6 +6,13 @@
   transition: 200ms;
 }
 
+.container-small {
+  position: relative;
+  width: 120px;
+  height: 175px;
+  transition: 200ms;
+}
+
 #card {
   position: absolute;
   inset: 0;
@@ -60,7 +67,7 @@
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
-.title {
+/* .title {
   opacity: 0;
   transition: 300ms ease-in-out;
   position: absolute;
@@ -77,6 +84,17 @@
   text-shadow:
     0 0 10px rgba(92, 103, 255, 0.5),
     0 0 20px rgba(92, 103, 255, 0.3);
+} */
+
+.title {
+  position: absolute;
+  bottom: 60px;
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 2px;
+  transform: translateY(30px);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .subtitle {
@@ -86,6 +104,29 @@
   text-align: center;
   font-size: 12px;
   letter-spacing: 2px;
+  transform: translateY(30px);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.title-small {
+  position: absolute;
+  bottom: 60px;
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  /* letter-spacing: 2px; */
+  transform: translateY(30px);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.subtitle-small {
+  position: absolute;
+  bottom: 42px;
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  /* letter-spacing: 2px; */
   transform: translateY(30px);
   color: rgba(255, 255, 255, 0.6);
 }
