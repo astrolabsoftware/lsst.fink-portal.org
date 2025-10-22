@@ -111,7 +111,7 @@ def layout(name):
         )
         # I do not know why I have to pad here...
         return dmc.MantineProvider(
-            dmc.Container(struct, fluid="xxl", style={"padding-top": "20px"})
+            dmc.Container(struct, fluid="xxl", style={"padding-top": "60px"})
         )
 
 
