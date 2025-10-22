@@ -435,10 +435,15 @@ def draw_cutouts_modal(object_data, date_modal_select, is_open):
         figs.append(
             dbc.Col(
                 [
-                    html.Div(kind.capitalize(), className="text-center"),
-                    data,
+                    dmc.Stack(
+                        [
+                            dmc.Text(kind.capitalize(), className="text-center"),
+                            data,
+                        ],
+                        gap="xs",
+                    ),
                 ],
-                xs=4,
+                xs=3,
                 className="p-0",
             ),
         )
@@ -502,7 +507,7 @@ def make_modal_stamps(pdf):
                 ),
             ],
             id="stamps_modal",
-            scrollable=True,
+            scrollable=False,
             centered=True,
             size="xl",
             # style={'max-width': '800px'}

@@ -837,14 +837,6 @@ curl -H "Content-Type: application/json" -X POST \\
                                     justify="around",
                                     className="g-0",
                                 ),
-                                # dmc.Paper(
-                                #     [
-                                #     ],
-                                #     radius="sm",
-                                #     shadow="sm",
-                                #     withBorder=True,
-                                #     style={"padding": "0px"},
-                                # ),
                             ),
                             dmc.Space(h=10),
                             *make_modal_stamps(pdf),
