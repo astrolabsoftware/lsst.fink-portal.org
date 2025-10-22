@@ -963,22 +963,30 @@ clientside_callback(
             "children",
         ),
     ],
-    Input(
-        {
-            "type": "search_results_lightcurve",
-            "main_id": MATCH,
-            "is_sso": MATCH,
-            "index": MATCH,
-        },
-        "id",
-    ),
+    [
+        Input(
+            {
+                "type": "search_results_lightcurve",
+                "main_id": MATCH,
+                "is_sso": MATCH,
+                "index": MATCH,
+            },
+            "id",
+        ),
+        Input("color_scale", "value"),
+        Input("select-units", "value"),
+        Input("select-measurement", "value"),
+    ],
 )
-def on_load_lightcurve(lc_id):
+def on_load_lightcurve(lc_id, color_scale, units, measurement):
     """Draw lightcurve on cards"""
     if lc_id:
-        print(lc_id)
         fig, indicator, flags = draw_lightcurve_preview(
-            lc_id["main_id"], is_sso=lc_id["is_sso"]
+            lc_id["main_id"],
+            is_sso=lc_id["is_sso"],
+            color_scale=color_scale,
+            units=units,
+            measurement=measurement,
         )
         CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(lc_id["main_id"])
         return (

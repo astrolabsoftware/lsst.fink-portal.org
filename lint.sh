@@ -2,5 +2,5 @@
 
 ruff check --fix --preview apps
 ruff format --preview apps
-ruff check --statistics --preview *.py
-ruff format --check --preview *.py
+ruff check --fix --preview *.py
+ruff format --preview *.py
