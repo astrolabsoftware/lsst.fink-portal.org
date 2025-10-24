@@ -957,7 +957,7 @@ def make_sparkline(data):
 @app.callback(
     Output("lightcurve_object_page", "figure"),
     [
-        Input("switch-lc-layout", "value"),
+        Input("select-lc-layout", "value"),
         Input("object-data", "data"),
         Input("color_scale", "value"),
         Input("select-units", "value"),
@@ -1050,7 +1050,7 @@ def draw_lightcurve(
     layout["plot_bgcolor"] = PAPER_BGCOLOR
 
     fig = go.Figure(layout=layout)
-    if switch_layout == "Split":
+    if switch_layout == "split":
         fig = make_subplots(
             rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
         )
@@ -1099,12 +1099,12 @@ def draw_lightcurve(
                 "symbol": "circle",
             },
             xaxis="x",
-            yaxis="y" if switch_layout == "Plain" else "y{}".format(fid),
+            yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
         )
 
-        if switch_layout == "Plain":
+        if switch_layout == "plain":
             fig.add_trace(trace)
-        elif switch_layout == "Split":
+        elif switch_layout == "split":
             if len(flux[idx]) > 0:
                 fig.add_trace(trace, row=fid - 3 * (fid // 4), col=(fid // 4) + 1)
                 fig.update_xaxes(

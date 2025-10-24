@@ -421,6 +421,34 @@ app.layout = dmc.MantineProvider(
                                             justify="space-around",
                                             grow=True,
                                         ),
+                                        dmc.Space(h=5),
+                                        dmc.Group(
+                                            [
+                                                dmc.Text("Layout"),
+                                                dmc.Select(
+                                                    id="select-lc-layout",
+                                                    value="plain",
+                                                    data=[
+                                                        {
+                                                            "value": "plain",
+                                                            "label": "plain",
+                                                        },
+                                                        {
+                                                            "value": "split",
+                                                            "label": "split",
+                                                        },
+                                                    ],
+                                                    w=200,
+                                                    mb=5,
+                                                    persistence=True,
+                                                    searchable=True,
+                                                    clearable=True,
+                                                    radius="xl",
+                                                ),
+                                            ],
+                                            justify="space-around",
+                                            grow=True,
+                                        ),
                                         dmc.Space(h=40),
                                         dmc.Title(
                                             "Color scheme",

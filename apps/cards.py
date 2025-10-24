@@ -628,37 +628,11 @@ def card_lightcurve_summary(diaObjectId):
     accordions = dmc.Accordion(
         multiple=True,
         chevronPosition="left",
-        variant="contained",
+        # variant="contained",
         disableChevronRotation=False,
         radius="xl",
         chevronSize=20,
         children=[
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
-                        "Layout customisation",
-                    ),
-                    dmc.AccordionPanel(
-                        dmc.Group(
-                            [
-                                dmc.RadioGroup(
-                                    id="switch-lc-layout",
-                                    children=dmc.Group([
-                                        dmc.Radio(k, value=k, color="orange")
-                                        for k in ["Plain", "Split"]
-                                    ]),
-                                    value="Plain",
-                                    size="sm",
-                                    persistence=True,
-                                ),
-                            ],
-                            justify="center",
-                            align="center",
-                        ),
-                    ),
-                ],
-                value="layout",
-            ),
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
