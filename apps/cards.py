@@ -37,6 +37,7 @@ from apps.utils import cats_type_converter
 
 from apps.utils import get_first_value, is_row_static_or_moving
 from apps.utils import demarkdownify_objectid
+from apps.utils import create_button_for_external_conesearch
 from apps.plotting import make_modal_stamps
 from apps.helpers import help_popover, lc_help
 from dash_iconify import DashIconify
@@ -764,8 +765,8 @@ def card_lightcurve_summary(diaObjectId):
 def card_id(pdf):
     """Add a card containing basic alert data"""
     diaObjectid = pdf["r:diaObjectId"].to_numpy()[0]
-    # ra0 = pdf["r:ra"].to_numpy()[0]
-    # dec0 = pdf["r:dec"].to_numpy()[0]
+    ra0 = pdf["r:ra"].to_numpy()[0]
+    dec0 = pdf["r:dec"].to_numpy()[0]
 
     python_download = f"""import requests
 import pandas as pd
@@ -983,30 +984,30 @@ curl -H "Content-Type: application/json" -X POST \\
                 ],
                 value="api",
             ),
-            # dmc.AccordionItem(
-            #     [
-            #         dmc.AccordionControl(
-            #             "Neighbourhood",
-            #             icon=[
-            #                 DashIconify(
-            #                     icon="tabler:external-link",
-            #                     color="#15284F",
-            #                     width=20,
-            #                 ),
-            #             ],
-            #         ),
-            #         dmc.AccordionPanel(
-            #             dmc.Stack(
-            #                 [
-            #                     card_neighbourhood(pdf),
-            #                     *create_external_conesearches(ra0, dec0),
-            #                 ],
-            #                 align="center",
-            #             ),
-            #         ),
-            #     ],
-            #     value="external",
-            # ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Neighbourhood",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:external-link",
+                                color="#15284F",
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Stack(
+                            [
+                                # card_neighbourhood(pdf),
+                                *create_external_conesearches(ra0, dec0),
+                            ],
+                            align="center",
+                        ),
+                    ),
+                ],
+                value="external",
+            ),
             # dmc.AccordionItem(
             #     [
             #         dmc.AccordionControl(
@@ -1558,100 +1559,100 @@ def generate_metadata_name(oid):
 #     return card
 
 
-# def create_external_conesearches(ra0, dec0):
-#     """Create two rows of buttons to trigger external conesearch
+def create_external_conesearches(ra0, dec0):
+    """Create two rows of buttons to trigger external conesearch
 
-#     Parameters
-#     ----------
-#     ra0: float
-#         RA for the conesearch center
-#     dec0: float
-#         DEC for the conesearch center
-#     """
-#     width = 3
-#     buttons = [
-#         dbc.Row(
-#             [
-#                 create_button_for_external_conesearch(
-#                     kind="tns", ra0=ra0, dec0=dec0, radius=5, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="simbad", ra0=ra0, dec0=dec0, radius=0.08, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
-#                 ),
-#             ],
-#             justify="around",
-#         ),
-#         dbc.Row(
-#             [
-#                 create_button_for_external_conesearch(
-#                     kind="ned", ra0=ra0, dec0=dec0, radius=1.0, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="sdss", ra0=ra0, dec0=dec0, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="asas-sn", ra0=ra0, dec0=dec0, radius=0.5, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="vsx", ra0=ra0, dec0=dec0, radius=0.1, width=width
-#                 ),
-#             ],
-#             justify="around",
-#         ),
-#     ]
-#     return buttons
+    Parameters
+    ----------
+    ra0: float
+        RA for the conesearch center
+    dec0: float
+        DEC for the conesearch center
+    """
+    width = 3
+    buttons = [
+        dbc.Row(
+            [
+                create_button_for_external_conesearch(
+                    kind="tns", ra0=ra0, dec0=dec0, radius=5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="simbad", ra0=ra0, dec0=dec0, radius=0.08, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
+                ),
+            ],
+            justify="around",
+        ),
+        dbc.Row(
+            [
+                create_button_for_external_conesearch(
+                    kind="ned", ra0=ra0, dec0=dec0, radius=1.0, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="sdss", ra0=ra0, dec0=dec0, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="asas-sn", ra0=ra0, dec0=dec0, radius=0.5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="vsx", ra0=ra0, dec0=dec0, radius=0.1, width=width
+                ),
+            ],
+            justify="around",
+        ),
+    ]
+    return buttons
 
 
-# def create_external_links_brokers(objectId):
-#     """ """
-#     buttons = dbc.Row(
-#         [
-#             dbc.Col(
-#                 dbc.Button(
-#                     className="btn btn-default btn-circle btn-lg zoom btn-image",
-#                     style={"background-image": "url(/assets/buttons/logo_alerce.png)"},
-#                     color="dark",
-#                     outline=True,
-#                     id="alerce",
-#                     title="ALeRCE",
-#                     target="_blank",
-#                     href=f"https://alerce.online/object/{objectId}",
-#                 ),
-#             ),
-#             dbc.Col(
-#                 dbc.Button(
-#                     className="btn btn-default btn-circle btn-lg zoom btn-image",
-#                     style={"background-image": "url(/assets/buttons/logo_antares.png)"},
-#                     color="dark",
-#                     outline=True,
-#                     id="antares",
-#                     title="ANTARES",
-#                     target="_blank",
-#                     href=f"https://antares.noirlab.edu/loci?query=%7B%22currentPage%22%3A1,%22filters%22%3A%5B%7B%22type%22%3A%22query_string%22,%22field%22%3A%7B%22query%22%3A%22%2a{objectId}%2a%22,%22fields%22%3A%5B%22properties.ztf_object_id%22,%22locus_id%22%5D%7D,%22value%22%3Anull,%22text%22%3A%22ID%20Lookup%3A%20ZTF21abfmbix%22%7D%5D,%22sortBy%22%3A%22properties.newest_alert_observation_time%22,%22sortDesc%22%3Atrue,%22perPage%22%3A25%7D",
-#                 ),
-#             ),
-#             dbc.Col(
-#                 dbc.Button(
-#                     className="btn btn-default btn-circle btn-lg zoom btn-image",
-#                     style={"background-image": "url(/assets/buttons/logo_lasair.png)"},
-#                     color="dark",
-#                     outline=True,
-#                     id="lasair",
-#                     title="Lasair",
-#                     target="_blank",
-#                     href=f"https://lasair-ztf.lsst.ac.uk/objects/{objectId}",
-#                 ),
-#             ),
-#         ],
-#         justify="around",
-#     )
-#     return buttons
+def create_external_links_brokers(objectId):
+    """ """
+    buttons = dbc.Row(
+        [
+            dbc.Col(
+                dbc.Button(
+                    className="btn btn-default btn-circle btn-lg zoom btn-image",
+                    style={"background-image": "url(/assets/buttons/logo_alerce.png)"},
+                    color="dark",
+                    outline=True,
+                    id="alerce",
+                    title="ALeRCE",
+                    target="_blank",
+                    href=f"https://alerce.online/object/{objectId}",
+                ),
+            ),
+            dbc.Col(
+                dbc.Button(
+                    className="btn btn-default btn-circle btn-lg zoom btn-image",
+                    style={"background-image": "url(/assets/buttons/logo_antares.png)"},
+                    color="dark",
+                    outline=True,
+                    id="antares",
+                    title="ANTARES",
+                    target="_blank",
+                    href=f"https://antares.noirlab.edu/loci?query=%7B%22currentPage%22%3A1,%22filters%22%3A%5B%7B%22type%22%3A%22query_string%22,%22field%22%3A%7B%22query%22%3A%22%2a{objectId}%2a%22,%22fields%22%3A%5B%22properties.ztf_object_id%22,%22locus_id%22%5D%7D,%22value%22%3Anull,%22text%22%3A%22ID%20Lookup%3A%20ZTF21abfmbix%22%7D%5D,%22sortBy%22%3A%22properties.newest_alert_observation_time%22,%22sortDesc%22%3Atrue,%22perPage%22%3A25%7D",
+                ),
+            ),
+            dbc.Col(
+                dbc.Button(
+                    className="btn btn-default btn-circle btn-lg zoom btn-image",
+                    style={"background-image": "url(/assets/buttons/logo_lasair.png)"},
+                    color="dark",
+                    outline=True,
+                    id="lasair",
+                    title="Lasair",
+                    target="_blank",
+                    href=f"https://lasair-ztf.lsst.ac.uk/objects/{objectId}",
+                ),
+            ),
+        ],
+        justify="around",
+    )
+    return buttons
 
 
 # def card_neighbourhood(pdf):
