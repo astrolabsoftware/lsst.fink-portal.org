@@ -19,7 +19,6 @@ import dash_mantine_components as dmc
 import numpy as np
 import pandas as pd
 
-import visdcc
 from dash import Input, Output, State, dcc, html, no_update, ALL
 from dash.exceptions import PreventUpdate
 
@@ -63,55 +62,33 @@ def layout(name):
         )
         return layout_
     else:
-        col1 = dmc.GridCol(
+        col_left = html.Div(
             dmc.Skeleton(style={"width": "100%", "height": "15pc"}),
             id="card_id_left",
             className="p-1",
-            span=12,
         )
-        col2 = dmc.GridCol(
-            html.Div(
-                [
-                    visdcc.Run_js(id="aladin-lite-runner"),
-                    dmc.Skeleton(
-                        style={
-                            "width": "100%",
-                            "height": "100%",
-                        },
-                    ),
-                    html.Div(
-                        id="aladin-lite-div", style={"width": "100%", "height": "27pc"}
-                    ),
-                ],
-                className="p-1",
-            ),
-            span=12,
-        )
-        struct_left = dmc.Grid([col1, col2], gutter=0, className="g-0")
+
+        col_right = tabs(pdf)
+
         struct = dmc.Grid(
             [
                 dmc.GridCol(
-                    struct_left, span={"base": 12, "md": 3, "lg": 3}, className="p-1"
+                    col_left, span={"base": 12, "md": 2, "lg": 2}, className="p-1"
                 ),
                 dmc.GridCol(
-                    [
-                        dmc.Space(h=10),
-                        tabs(pdf),
-                    ],
-                    span={"base": 12, "md": 9, "lg": 9},
-                    className="p-1",
+                    col_right, span={"base": 12, "md": 9, "lg": 9}, className="p-1"
                 ),
                 dcc.Store(id="object-data"),
-                # dcc.Store(id="object-upper"),
-                # dcc.Store(id="object-sso"),
-                # dcc.Store(id="object-tracklet"),
                 dcc.Store(id="object-release"),
+                # dcc.Store(id="object-sso"),
             ],
-            gutter="xl",
+            grow=True,
+            gutter="xs",
+            justify="center",
+            align="stretch",
         )
-        # I do not know why I have to pad here...
         return dmc.MantineProvider(
-            dmc.Container(struct, fluid="xxl", style={"padding-top": "60px"})
+            dmc.Container(struct, fluid="xxl", style={"padding-top": "40px"})
         )
 
 
