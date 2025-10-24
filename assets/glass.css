@@ -13,6 +13,13 @@
   transition: 200ms;
 }
 
+.container-large {
+  position: relative;
+  width: 240px;
+  height: 300px;
+  transition: 200ms;
+}
+
 #card {
   position: absolute;
   inset: 0;
@@ -29,6 +36,27 @@
     0 0 20px rgba(0, 0, 0, 0.3),
     inset 0 0 20px rgba(0, 0, 0, 0.2);
 }
+
+/* .aladin-location {
+  z-index: 20;
+  position: absolute;
+  top: 0px;
+  padding: 2px 4px;
+  background-color: #09070780;
+  font-size: 11px;
+}
+
+.aladin-fov {
+  z-index: 20;
+  position: absolute;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: monospace;
+  bottom: 0px;
+  padding: 2px;
+  color: #321bdf;
+  background-color: #15141480;
+} */
 
 #card2 {
   position: absolute;
