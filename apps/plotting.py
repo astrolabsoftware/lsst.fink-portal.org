@@ -1290,7 +1290,7 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
 @app.callback(
     Output("aladin-lite-runner", "run"),
     Input("object-data", "data"),
-    prevent_initial_call=True,
+    prevent_initial_call=False,
 )
 def integrate_aladin_lite(object_data):
     """Integrate aladin light in the 2nd Tab of the dashboard.
@@ -1318,16 +1318,24 @@ def integrate_aladin_lite(object_data):
     dec0 = pdf["r:dec"].to_numpy()[0]
 
     # Javascript. Note the use {{}} for dictionary
-    img = f"""
+    img = """var container = document.getElementById('aladin-lite-div');var txt = ''; container.innerHTML = txt;"""
+    img += f"""
     var aladin = A.aladin('#aladin-lite-div',
               {{
                 survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
                 fov: 0.025,
                 target: '{ra0} {dec0}',
-                reticleColor: '#ff89ff',
+                reticleColor: '#e89070',
                 reticleSize: 32,
                 showContextMenu: true,
-                showCooGridControl: true,
+                showCooGridControl: false,
+                showShareControl: true,
+                showCooGrid: false,
+                showProjectionControl: false,
+                showFrame: true,
+                showFullscreenControl: false,
+                showCooGridControl: false,
+                showGotoControl: false
     }});
     var cat_simbad = 'https://axel.u-strasbg.fr/HiPSCatService/Simbad';
     var hips_simbad = A.catalogHiPS(cat_simbad, {{onClick: 'showTable', name: 'Simbad', sourceSize: 15}});
