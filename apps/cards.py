@@ -680,7 +680,7 @@ def card_lightcurve_summary(diaObjectId):
                                         size="xs",
                                     ),
                                     dmc.Button(
-                                        "Add ZTF DR photometry",
+                                        "ZTF DR photometry",
                                         id={
                                             "type": "lightcurve_request_release",
                                             "name": "main",
@@ -744,7 +744,7 @@ def card_lightcurve_summary(diaObjectId):
                     id="lightcurve_object_page",
                     style={
                         "width": "100%",
-                        "height": "30pc",
+                        "height": "35pc",
                     },
                     config=CONFIG_PLOT,
                     className="mb-2 rounded-5",
@@ -1216,55 +1216,22 @@ def card_id_left(object_data):
         tns_class = "N/A"
 
     card_aladin = html.Div(
-        children=[
-            html.Div(
-                className="first-content",
-                children=[
-                    html.Div(
-                        className="container-large",
-                        children=[
-                            html.Div(
-                                children=[
-                                    html.Div(
-                                        id="card",
-                                        children=[
-                                            html.Div(
-                                                className="card-content",
-                                                children=[
-                                                    html.Div(
-                                                        [
-                                                            visdcc.Run_js(
-                                                                id="aladin-lite-runner"
-                                                            ),
-                                                            dmc.Skeleton(
-                                                                style={
-                                                                    "width": "100%",
-                                                                    "height": "100%",
-                                                                },
-                                                            ),
-                                                            html.Div(
-                                                                id="aladin-lite-div",
-                                                                style={
-                                                                    "width": "230px",
-                                                                    "height": "290px",
-                                                                    "border-radius": "20px",
-                                                                    "border": "2px solid rgba(255, 255, 255, 0.1)",
-                                                                },
-                                                            ),
-                                                        ],
-                                                        className="p-1",
-                                                    ),
-                                                ],
-                                            ),
-                                        ],
-                                    ),
-                                ],
-                            ),
-                        ],
-                    ),
-                ],
+        [
+            visdcc.Run_js(id="aladin-lite-runner"),
+            dmc.Center(
+                html.Div(
+                    id="aladin-lite-div",
+                    style={
+                        "width": "280px",
+                        "height": "280px",
+                        "border-radius": "10px",
+                        "border": "2px solid rgba(255, 255, 255, 0.1)",
+                        # "font-size": 10,
+                    },
+                ),
             ),
         ],
+        className="p-1",
     )
 
     card = html.Div(
@@ -1409,23 +1376,33 @@ def card_id_left(object_data):
                                 className="item",
                                 children=[
                                     html.Span(
-                                        children="{} {}".format(
-                                            coords.ra.to_string(
-                                                pad=True,
-                                                unit="hour",
-                                                precision=2,
-                                                sep=" ",
+                                        children=[
+                                            html.Div(
+                                                "{} {}".format(
+                                                    coords.ra.to_string(
+                                                        pad=True,
+                                                        unit="hour",
+                                                        precision=2,
+                                                        sep=" ",
+                                                    ),
+                                                    coords.dec.to_string(
+                                                        pad=True,
+                                                        unit="deg",
+                                                        alwayssign=True,
+                                                        precision=1,
+                                                        sep=" ",
+                                                    ),
+                                                ),
+                                                id="coord_card",
+                                                className="big-text",
+                                                style={"color": "white"},
                                             ),
-                                            coords.dec.to_string(
-                                                pad=True,
-                                                unit="deg",
-                                                alwayssign=True,
-                                                precision=1,
-                                                sep=" ",
+                                            dcc.Clipboard(
+                                                target_id="coord_card",
+                                                title="Copy to clipboard",
+                                                style={"color": "gray"},
                                             ),
-                                        ),
-                                        className="big-text",
-                                        style={"color": "white"},
+                                        ],
                                     ),
                                     html.Span(
                                         children="Coordinates",

@@ -274,7 +274,7 @@ def store_query(name):
     [
         Output("object-release", "data"),
         Output({"type": "lightcurve_request_release", "name": ALL}, "children"),
-        Output("switch-mag-flux", "value"),
+        Output("select-measurement", "value"),
     ],
     [
         Input({"type": "lightcurve_request_release", "name": ALL}, "n_clicks"),
@@ -283,11 +283,6 @@ def store_query(name):
     prevent_initial_call=True,
     background=True,
     running=[
-        (
-            Output({"type": "lightcurve_request_release", "name": ALL}, "disabled"),
-            True,
-            True,
-        ),
         (
             Output({"type": "lightcurve_request_release", "name": ALL}, "loading"),
             True,
@@ -324,7 +319,7 @@ def store_release_photometry(n_clicks, object_data):
         return (
             pdf_release.to_json(),
             [f"DR photometry: {len(pdf_release.index)} points"] * len(n_clicks),
-            "DC magnitude",
+            "total",
         )
 
     return no_update, ["No DR photometry"] * len(n_clicks), no_update
