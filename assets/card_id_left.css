@@ -1,10 +1,13 @@
 .card_id_left {
   width: 300px;
   border-radius: 20px;
-  background: #15284F;
+  background: #15284f;
+  /* background: linear-gradient(215deg, #15284f 95%, rgb(228, 226, 226) 100%); */
   padding: 5px;
   overflow: hidden;
   box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 20px 0px;
+  border-bottom-right-radius: 50px;
+  border-bottom-left-radius: 50px;
 }
 
 .title-card_id_left {

@@ -980,13 +980,41 @@ clientside_callback(
 )
 def on_load_lightcurve(lc_id, color_scale, units, measurement):
     """Draw lightcurve on cards"""
+    layout = dict(
+        margin=dict(l=50, r=0, b=0, t=0),
+        hovermode="closest",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        showlegend=True,
+        shapes=[],
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            # xanchor="right",
+            x=0,
+            y=1.2,
+            bgcolor="rgba(218, 223, 225, 0.5)",
+        ),
+        xaxis={
+            "title": "Observation date",
+            "automargin": True,
+        },
+        yaxis={
+            "automargin": True,
+        },
+    )
     if lc_id:
         fig, indicator, flags = draw_lightcurve_preview(
-            lc_id["main_id"],
+            main_id=lc_id["main_id"],
             is_sso=lc_id["is_sso"],
             color_scale=color_scale,
             units=units,
             measurement=measurement,
+            layout=layout,
+            switch_layout="plain",
         )
         CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(lc_id["main_id"])
         return (

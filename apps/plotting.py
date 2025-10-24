@@ -20,6 +20,7 @@ import dash_mantine_components as dmc
 
 import plotly.graph_objects as go
 import plotly.colors
+from plotly.subplots import make_subplots
 
 import io
 import gzip
@@ -45,7 +46,7 @@ from apps.api import request_api
 from apps.utils import convert_time
 from apps.utils import flux_to_mag
 from apps.utils import loading
-from apps.utils import is_row_static_or_moving
+from apps.utils import hex_to_rgba, rgb_to_rgba
 import apps.observability.utils as observability
 
 
@@ -690,40 +691,22 @@ def _data_stretch(
     return data  # .astype(np.uint8)
 
 
-def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> dict:
+def draw_lightcurve_preview(
+    pdf=None,
+    main_id=None,
+    is_sso=False,
+    color_scale="Fink",
+    units="magnitude",
+    measurement="total",
+    switch_layout="plain",
+    layout=None,
+) -> dict:
     """Draw object lightcurve with errorbars (SM view - DC mag fixed)
 
     Returns
     -------
     figure: dict
     """
-    # We should never modify global variables!!!
-    layout = dict(
-        automargin=True,
-        margin=dict(l=50, r=0, b=0, t=0),
-        hovermode="closest",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        hoverlabel={
-            "align": "left",
-        },
-        legend=dict(
-            font=dict(size=10),
-            orientation="h",
-            # xanchor="right",
-            x=0,
-            y=1.2,
-            bgcolor="rgba(218, 223, 225, 0.5)",
-        ),
-        xaxis={
-            "title": "Observation date",
-            "automargin": True,
-        },
-        yaxis={
-            "automargin": True,
-        },
-    )
-
     # shortcuts -- in milliJansky
     if measurement == "total":
         flux_name = "r:scienceFlux"
@@ -734,42 +717,53 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
         flux_err_name = "r:psfFluxErr"
         layout["yaxis"]["title"] = "Difference flux (milliJansky)"
 
-    cols = [
-        "r:midpointMjdTai",
-        flux_name,
-        flux_err_name,
-        "r:band",
-        "r:snr",
-        "r:reliability",
-        "r:pixelFlags_bad",
-        "r:pixelFlags_cr",
-        "r:pixelFlags_saturatedCenter",
-        "r:pixelFlags_streakCenter",
-    ]
-    if not is_sso:
-        pdf = request_api(
-            "/api/v1/sources",
-            json={
-                "diaObjectId": str(name),
-                "columns": ",".join(cols),
-                "output-format": "json",
-            },
-        )
-    else:
-        pdf = request_api(
-            "/api/v1/sso",
-            json={
-                "n_or_d": str(name),
-                "columns": ",".join(cols),
-                "output-format": "json",
-            },
-        )
+    # Get data if necessary
+    if pdf is None and isinstance(main_id, str):
+        cols = [
+            "r:midpointMjdTai",
+            flux_name,
+            flux_err_name,
+            "r:band",
+            "r:snr",
+            "r:reliability",
+            "r:pixelFlags_bad",
+            "r:pixelFlags_cr",
+            "r:pixelFlags_saturatedCenter",
+            "r:pixelFlags_streakCenter",
+        ]
+        if not is_sso:
+            pdf = request_api(
+                "/api/v1/sources",
+                json={
+                    "diaObjectId": main_id,
+                    "columns": ",".join(cols),
+                    "output-format": "json",
+                },
+            )
+        else:
+            pdf = request_api(
+                "/api/v1/sso",
+                json={
+                    "n_or_d": main_id,
+                    "columns": ",".join(cols),
+                    "output-format": "json",
+                },
+            )
 
-    # type conversion
+    # date type conversion
     dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
 
     flux = pdf[flux_name]
     flux_err = pdf[flux_err_name]
+
+    if units == "magnitude":
+        # Using same names as others despite being magnitudes
+        flux, flux_err = flux_to_mag(flux, flux_err)
+        layout["yaxis"]["autorange"] = "reversed"
+        if measurement == "differential":
+            layout["yaxis"]["title"] = "Difference magnitude"
+        else:
+            layout["yaxis"]["title"] = "Magnitude"
 
     if units == "flux":
         # milli-jansky
@@ -779,22 +773,80 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
     # integer nights
     pdf["id"] = pdf["r:midpointMjdTai"].apply(lambda x: int(x))
 
-    layout["showlegend"] = True
-    layout["shapes"] = []
+    fig = go.Figure(layout=layout)
+    if switch_layout == "split":
+        fig = make_subplots(
+            rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
+        )
 
-    hovertemplate = r"""
-    <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
-    <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-    <b>mjd</b>: %{customdata[0]}<br>
-    <b>SNR</b>: %{customdata[1]:.2f}<br>
-    <b>Reliability</b>: %{customdata[2]:.2f}
-    <extra></extra>
-    """
-    figure = {
-        "data": [],
-        "layout": layout,
-    }
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+        # High-quality measurements
+        hovertemplate = r"""
+        <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
+        <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
+        <b>mjd</b>: %{customdata[0]}<br>
+        <b>SNR</b>: %{customdata[1]:.2f}<br>
+        <b>Reliability</b>: %{customdata[2]:.2f}
+        <extra></extra>
+        """
+        idx = pdf["r:band"] == fname
 
+        trace = go.Scatter(
+            x=dates[idx],
+            y=flux[idx],
+            error_y={
+                "type": "data",
+                "array": flux_err[idx],
+                "visible": True,
+                "width": 0,
+                "color": hex_to_rgba(color, 0.5)
+                if color.startswith("#")
+                else rgb_to_rgba(color, 0.5),
+            },
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:midpointMjdTai"][idx],
+                    pdf["r:snr"][idx],
+                    pdf["r:reliability"][idx],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={
+                "size": 12,
+                "color": color,
+                "symbol": "circle",
+            },
+            xaxis="x",
+            yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
+        )
+
+        if switch_layout == "plain":
+            fig.add_trace(trace)
+        elif switch_layout == "split":
+            row = fid - 3 * (fid // 4)
+            col = (fid // 4) + 1
+            if len(flux[idx]) > 0:
+                fig.add_trace(trace, row=row, col=col)
+                fig.update_xaxes(
+                    row=row,
+                    col=col,
+                    title="Observation date",
+                )
+                fig.update_yaxes(
+                    row=row,
+                    col=col,
+                    title=layout["yaxis"]["title"],
+                )
+                if units == "magnitude":
+                    fig.update_yaxes(row=row, col=col, autorange="reversed")
+
+    # indicators
     indicators = []
     colors = generate_rgb_color_sequence(color_scale)
     for fid, fname, color in zip(range(1, 7), BANDS, colors):
@@ -841,52 +893,52 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
             ),
         )
 
-        if not np.sum(idx):
-            continue
+        # if not np.sum(idx):
+        #     continue
 
-        if units == "magnitude":
-            # Using same names as others despite being magnitudes
-            # Redefined within the loop each time
-            # FIXME: rewrite for better efficiency
-            flux, flux_err = flux_to_mag(pdf[flux_name], pdf[flux_err_name])
-            layout["yaxis"]["autorange"] = "reversed"
-            if measurement == "differential":
-                layout["yaxis"]["title"] = "Difference magnitude"
-            else:
-                layout["yaxis"]["title"] = "Magnitude"
+        # if units == "magnitude":
+        #     # Using same names as others despite being magnitudes
+        #     # Redefined within the loop each time
+        #     # FIXME: rewrite for better efficiency
+        #     flux, flux_err = flux_to_mag(pdf[flux_name], pdf[flux_err_name])
+        #     layout["yaxis"]["autorange"] = "reversed"
+        #     if measurement == "differential":
+        #         layout["yaxis"]["title"] = "Difference magnitude"
+        #     else:
+        #         layout["yaxis"]["title"] = "Magnitude"
 
-        figure["data"].append(
-            {
-                "x": dates[idx],
-                "y": flux[idx],
-                "error_y": {
-                    "type": "data",
-                    "array": flux_err[idx],
-                    "visible": True,
-                    "width": 0,
-                    "color": color,  # It does not support arrays of colors so let's use positive one for all points
-                    "opacity": 0.5,
-                },
-                "mode": "markers",
-                "name": f"{fname}",
-                "customdata": np.stack(
-                    (
-                        pdf["r:midpointMjdTai"][idx],
-                        pdf["r:snr"][idx],
-                        pdf["r:reliability"][idx],
-                    ),
-                    axis=-1,
-                ),
-                "hovertemplate": hovertemplate,
-                "marker": {
-                    "size": 12,
-                    "color": color,
-                    "symbol": "o",
-                    "line": {"width": 0},
-                    "opacity": 1,
-                },
-            },
-        )
+        # figure["data"].append(
+        #     {
+        #         "x": dates[idx],
+        #         "y": flux[idx],
+        #         "error_y": {
+        #             "type": "data",
+        #             "array": flux_err[idx],
+        #             "visible": True,
+        #             "width": 0,
+        #             "color": color,  # It does not support arrays of colors so let's use positive one for all points
+        #             "opacity": 0.5,
+        #         },
+        #         "mode": "markers",
+        #         "name": f"{fname}",
+        #         "customdata": np.stack(
+        #             (
+        #                 pdf["r:midpointMjdTai"][idx],
+        #                 pdf["r:snr"][idx],
+        #                 pdf["r:reliability"][idx],
+        #             ),
+        #             axis=-1,
+        #         ),
+        #         "hovertemplate": hovertemplate,
+        #         "marker": {
+        #             "size": 12,
+        #             "color": color,
+        #             "symbol": "o",
+        #             "line": {"width": 0},
+        #             "opacity": 1,
+        #         },
+        #     },
+        # )
 
     flags = []
     cols = [
@@ -907,7 +959,7 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                 html.Div([
                     dbc.Popover(
                         "{}".format(doc.capitalize()),
-                        target="{}_{}".format(name, col),
+                        target="{}_{}".format(main_id, col),
                         body=True,
                         trigger="hover",
                         placement="top",
@@ -916,7 +968,7 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                         icon="tabler:square-rounded-filled",
                         color=dmc.DEFAULT_THEME["colors"]["red"][6],
                         width=20,
-                        id="{}_{}".format(name, col),
+                        id="{}_{}".format(main_id, col),
                     ),
                 ])
             )
@@ -925,7 +977,7 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                 html.Div([
                     dbc.Popover(
                         "No {}".format(doc),
-                        target="{}_{}".format(name, col),
+                        target="{}_{}".format(main_id, col),
                         body=True,
                         trigger="hover",
                         placement="top",
@@ -934,12 +986,12 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                         icon="tabler:square-rounded-filled",
                         color=dmc.DEFAULT_THEME["colors"]["green"][6],
                         width=20,
-                        id="{}_{}".format(name, col),
+                        id="{}_{}".format(main_id, col),
                     ),
                 ])
             )
 
-    return figure, indicators, flags
+    return fig, indicators, flags
 
 
 def make_sparkline(data):
@@ -967,7 +1019,7 @@ def make_sparkline(data):
 def draw_lightcurve(
     switch_layout: str, object_data, color_scale, units, measurement
 ) -> dict:
-    """Draw object lightcurve with errorbars
+    """Draw diaObject lightcurve with errorbars
 
     Parameters
     ----------
@@ -981,47 +1033,45 @@ def draw_lightcurve(
     -------
     figure: dict
     """
-    # FIXME: (1) no need to pass by pandas
-    # FIXME: (2) enable update layout (need optional args to draw_lightcurve_preview)
-    # FIXME: (3) change name of draw_lightcurve_preview
-    # FIXME: (4) add switch_layout to LC
-    # Primary high-quality data points
+    layout = dict(
+        autosize=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        showlegend=True,
+        shapes=[],
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            x=0,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        xaxis={
+            "title": "Observation date",
+            "automargin": True,
+            "zeroline": False,
+        },
+        yaxis={
+            "automargin": True,
+            "zeroline": False,
+        },
+    )
     pdf = pd.read_json(io.StringIO(object_data))
-    row = pdf.head(1).to_dict(orient="records")[0]
-    main_id, is_sso = is_row_static_or_moving(row)
     fig, indicator, flags = draw_lightcurve_preview(
-        main_id,
-        is_sso=is_sso,
+        pdf=pdf,
+        is_sso=False,
         color_scale=color_scale,
         units=units,
         measurement=measurement,
+        layout=layout,
+        switch_layout=switch_layout,
     )
-    # layout = dict(
-    #     autosize=True,
-    #     # automargin=True,
-    #     margin=dict(l=50, r=30, b=0, t=0),
-    #     hovermode="closest",
-    #     hoverlabel={
-    #         "align": "left",
-    #     },
-    #     legend=dict(
-    #         font=dict(size=10),
-    #         orientation="h",
-    #         x=0,
-    #         yanchor="bottom",
-    #         y=1.02,
-    #         bgcolor="rgba(218, 223, 225, 0.3)",
-    #     ),
-    #     xaxis={
-    #         "title": "Observation date",
-    #         "automargin": True,
-    #         "zeroline": False,
-    #     },
-    #     yaxis={
-    #         "automargin": True,
-    #         "zeroline": False,
-    #     },
-    # )
 
     # # shortcuts -- in milliJansky
     # if measurement == "total":
@@ -1055,12 +1105,6 @@ def draw_lightcurve(
     #     # milli-jansky
     #     flux = flux * 1e-3
     #     flux_err = flux_err * 1e-3
-
-    # layout["showlegend"] = True
-    # layout["shapes"] = []
-
-    # layout["paper_bgcolor"] = PAPER_BGCOLOR
-    # layout["plot_bgcolor"] = PAPER_BGCOLOR
 
     # fig = go.Figure(layout=layout)
     # if switch_layout == "split":
