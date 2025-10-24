@@ -1008,29 +1008,29 @@ curl -H "Content-Type: application/json" -X POST \\
                 ],
                 value="external",
             ),
-            # dmc.AccordionItem(
-            #     [
-            #         dmc.AccordionControl(
-            #             "Other brokers",
-            #             icon=[
-            #                 DashIconify(
-            #                     icon="tabler:atom-2",
-            #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
-            #                     width=20,
-            #                 ),
-            #             ],
-            #         ),
-            #         dmc.AccordionPanel(
-            #             dmc.Stack(
-            #                 [
-            #                     create_external_links_brokers(objectid),
-            #                 ],
-            #                 align="center",
-            #             ),
-            #         ),
-            #     ],
-            #     value="external_brokers",
-            # ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Other brokers",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:atom-2",
+                                color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Stack(
+                            [
+                                create_external_links_brokers(diaObjectid),
+                            ],
+                            align="center",
+                        ),
+                    ),
+                ],
+                value="external_brokers",
+            ),
             # dmc.AccordionItem(
             #     [
             #         dmc.AccordionControl(
@@ -1625,18 +1625,18 @@ def create_external_links_brokers(objectId):
                     href=f"https://alerce.online/object/{objectId}",
                 ),
             ),
-            dbc.Col(
-                dbc.Button(
-                    className="btn btn-default btn-circle btn-lg zoom btn-image",
-                    style={"background-image": "url(/assets/buttons/logo_antares.png)"},
-                    color="dark",
-                    outline=True,
-                    id="antares",
-                    title="ANTARES",
-                    target="_blank",
-                    href=f"https://antares.noirlab.edu/loci?query=%7B%22currentPage%22%3A1,%22filters%22%3A%5B%7B%22type%22%3A%22query_string%22,%22field%22%3A%7B%22query%22%3A%22%2a{objectId}%2a%22,%22fields%22%3A%5B%22properties.ztf_object_id%22,%22locus_id%22%5D%7D,%22value%22%3Anull,%22text%22%3A%22ID%20Lookup%3A%20ZTF21abfmbix%22%7D%5D,%22sortBy%22%3A%22properties.newest_alert_observation_time%22,%22sortDesc%22%3Atrue,%22perPage%22%3A25%7D",
-                ),
-            ),
+            # dbc.Col(
+            #     dbc.Button(
+            #         className="btn btn-default btn-circle btn-lg zoom btn-image",
+            #         style={"background-image": "url(/assets/buttons/logo_antares.png)"},
+            #         color="dark",
+            #         outline=True,
+            #         id="antares",
+            #         title="ANTARES",
+            #         target="_blank",
+            #         href=f"https://antares.noirlab.edu/loci?query=%7B%22currentPage%22%3A1,%22filters%22%3A%5B%7B%22type%22%3A%22query_string%22,%22field%22%3A%7B%22query%22%3A%22%2a{objectId}%2a%22,%22fields%22%3A%5B%22properties.ztf_object_id%22,%22locus_id%22%5D%7D,%22value%22%3Anull,%22text%22%3A%22ID%20Lookup%3A%20ZTF21abfmbix%22%7D%5D,%22sortBy%22%3A%22properties.newest_alert_observation_time%22,%22sortDesc%22%3Atrue,%22perPage%22%3A25%7D",
+            #     ),
+            # ),
             dbc.Col(
                 dbc.Button(
                     className="btn btn-default btn-circle btn-lg zoom btn-image",
@@ -1646,7 +1646,7 @@ def create_external_links_brokers(objectId):
                     id="lasair",
                     title="Lasair",
                     target="_blank",
-                    href=f"https://lasair-ztf.lsst.ac.uk/objects/{objectId}",
+                    href=f"https://lasair-lsst.lsst.ac.uk/objects/{objectId}",
                 ),
             ),
         ],
@@ -1654,50 +1654,6 @@ def create_external_links_brokers(objectId):
     )
     return buttons
 
-
-# def card_neighbourhood(pdf):
-#     distnr = get_first_value(pdf, "i:distnr")
-#     ssnamenr = get_first_value(pdf, "i:ssnamenr")
-#     distpsnr1 = get_first_value(pdf, "i:distpsnr1")
-#     neargaia = get_first_value(pdf, "i:neargaia")
-#     constellation = get_first_value(pdf, "v:constellation")
-#     gaianame = get_multi_labels(pdf, "d:DR3Name", to_avoid=["nan"])
-#     cdsxmatch = get_multi_labels(pdf, "d:cdsxmatch", to_avoid=["nan"])
-#     vsx = get_multi_labels(pdf, "d:vsx", to_avoid=["nan"])
-#     gcvs = get_multi_labels(pdf, "d:gcvs", to_avoid=["nan"])
-
-#     # Sanitize empty values
-#     if ssnamenr == "null":
-#         ssnamenr = "N/A"
-
-#     if not vsx or vsx == "nan":
-#         vsx = "Unknown"
-
-#     card = dmc.Paper(
-#         [
-#             dcc.Markdown(
-#                 f"""
-#                 Constellation: `{constellation}`
-#                 Class (SIMBAD): `{cdsxmatch}`
-#                 Class (VSX): `{vsx}`
-#                 Class (GCVS): `{gcvs}`
-#                 Name (MPC): `{ssnamenr}`
-#                 Name (Gaia): `{gaianame}`
-#                 Distance (Gaia): `{float(neargaia):.2f}` arcsec
-#                 Distance (PS1): `{float(distpsnr1):.2f}` arcsec
-#                 Distance (ZTF): `{float(distnr):.2f}` arcsec
-#                 """,
-#                 className="markdown markdown-pre ps-2 pe-2",
-#             ),
-#         ],
-#         radius="sm",
-#         p="xs",
-#         shadow="sm",
-#         withBorder=True,
-#         style={"width": "100%"},
-#     )
-
-#     return card
 
 # Downloads handling. Requires CORS to be enabled on the server.
 # TODO: We are mostly using it like this until GET requests properly initiate

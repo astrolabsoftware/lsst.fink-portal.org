@@ -712,7 +712,7 @@ def tab_observability(pdf):
                 placeholder="Select an observatory from the list",
                 id="observatory",
                 data=[{"value": obs, "label": obs} for obs in observatories],
-                value="Palomar",
+                value="Rubin Observatory",
                 searchable=True,
                 clearable=True,
             ),
