@@ -18,7 +18,6 @@ from dash_iconify import DashIconify
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.colors
 
@@ -46,7 +45,7 @@ from apps.api import request_api
 from apps.utils import convert_time
 from apps.utils import flux_to_mag
 from apps.utils import loading
-from apps.utils import hex_to_rgba, rgb_to_rgba
+from apps.utils import is_row_static_or_moving
 import apps.observability.utils as observability
 
 
@@ -982,141 +981,155 @@ def draw_lightcurve(
     -------
     figure: dict
     """
-    # We should never modify global variables!!!
-    layout = dict(
-        autosize=True,
-        # automargin=True,
-        margin=dict(l=50, r=30, b=0, t=0),
-        hovermode="closest",
-        hoverlabel={
-            "align": "left",
-        },
-        legend=dict(
-            font=dict(size=10),
-            orientation="h",
-            x=0,
-            yanchor="bottom",
-            y=1.02,
-            bgcolor="rgba(218, 223, 225, 0.3)",
-        ),
-        xaxis={
-            "title": "Observation date",
-            "automargin": True,
-            "zeroline": False,
-        },
-        yaxis={
-            "automargin": True,
-            "zeroline": False,
-        },
-    )
-
-    # shortcuts -- in milliJansky
-    if measurement == "total":
-        flux_name = "r:scienceFlux"
-        flux_err_name = "r:scienceFluxErr"
-        layout["yaxis"]["title"] = "Total flux (milliJansky)"
-    elif measurement == "differential":
-        flux_name = "r:psfFlux"
-        flux_err_name = "r:psfFluxErr"
-        layout["yaxis"]["title"] = "Difference flux (milliJansky)"
-
+    # FIXME: (1) no need to pass by pandas
+    # FIXME: (2) enable update layout (need optional args to draw_lightcurve_preview)
+    # FIXME: (3) change name of draw_lightcurve_preview
+    # FIXME: (4) add switch_layout to LC
     # Primary high-quality data points
     pdf = pd.read_json(io.StringIO(object_data))
+    row = pdf.head(1).to_dict(orient="records")[0]
+    main_id, is_sso = is_row_static_or_moving(row)
+    fig, indicator, flags = draw_lightcurve_preview(
+        main_id,
+        is_sso=is_sso,
+        color_scale=color_scale,
+        units=units,
+        measurement=measurement,
+    )
+    # layout = dict(
+    #     autosize=True,
+    #     # automargin=True,
+    #     margin=dict(l=50, r=30, b=0, t=0),
+    #     hovermode="closest",
+    #     hoverlabel={
+    #         "align": "left",
+    #     },
+    #     legend=dict(
+    #         font=dict(size=10),
+    #         orientation="h",
+    #         x=0,
+    #         yanchor="bottom",
+    #         y=1.02,
+    #         bgcolor="rgba(218, 223, 225, 0.3)",
+    #     ),
+    #     xaxis={
+    #         "title": "Observation date",
+    #         "automargin": True,
+    #         "zeroline": False,
+    #     },
+    #     yaxis={
+    #         "automargin": True,
+    #         "zeroline": False,
+    #     },
+    # )
 
-    # date type conversion
-    dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
+    # # shortcuts -- in milliJansky
+    # if measurement == "total":
+    #     flux_name = "r:scienceFlux"
+    #     flux_err_name = "r:scienceFluxErr"
+    #     layout["yaxis"]["title"] = "Total flux (milliJansky)"
+    # elif measurement == "differential":
+    #     flux_name = "r:psfFlux"
+    #     flux_err_name = "r:psfFluxErr"
+    #     layout["yaxis"]["title"] = "Difference flux (milliJansky)"
 
-    flux = pdf[flux_name]
-    flux_err = pdf[flux_err_name]
+    # # Primary high-quality data points
+    # pdf = pd.read_json(io.StringIO(object_data))
 
-    if units == "magnitude":
-        # Using same names as others despite being magnitudes
-        flux, flux_err = flux_to_mag(flux, flux_err)
-        layout["yaxis"]["autorange"] = "reversed"
-        if measurement == "differential":
-            layout["yaxis"]["title"] = "Difference magnitude"
-        else:
-            layout["yaxis"]["title"] = "Magnitude"
+    # # date type conversion
+    # dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
 
-    if units == "flux":
-        # milli-jansky
-        flux = flux * 1e-3
-        flux_err = flux_err * 1e-3
+    # flux = pdf[flux_name]
+    # flux_err = pdf[flux_err_name]
 
-    layout["showlegend"] = True
-    layout["shapes"] = []
+    # if units == "magnitude":
+    #     # Using same names as others despite being magnitudes
+    #     flux, flux_err = flux_to_mag(flux, flux_err)
+    #     layout["yaxis"]["autorange"] = "reversed"
+    #     if measurement == "differential":
+    #         layout["yaxis"]["title"] = "Difference magnitude"
+    #     else:
+    #         layout["yaxis"]["title"] = "Magnitude"
 
-    layout["paper_bgcolor"] = PAPER_BGCOLOR
-    layout["plot_bgcolor"] = PAPER_BGCOLOR
+    # if units == "flux":
+    #     # milli-jansky
+    #     flux = flux * 1e-3
+    #     flux_err = flux_err * 1e-3
 
-    fig = go.Figure(layout=layout)
-    if switch_layout == "split":
-        fig = make_subplots(
-            rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
-        )
+    # layout["showlegend"] = True
+    # layout["shapes"] = []
 
-    colors = generate_rgb_color_sequence(color_scale)
-    for fid, fname, color in zip(range(1, 7), BANDS, colors):
-        # High-quality measurements
-        hovertemplate = r"""
-        <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
-        <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-        <b>mjd</b>: %{customdata[0]}<br>
-        <b>SNR</b>: %{customdata[1]:.2f}<br>
-        <b>Reliability</b>: %{customdata[2]:.2f}
-        <extra></extra>
-        """
-        idx = pdf["r:band"] == fname
+    # layout["paper_bgcolor"] = PAPER_BGCOLOR
+    # layout["plot_bgcolor"] = PAPER_BGCOLOR
 
-        trace = go.Scatter(
-            x=dates[idx],
-            y=flux[idx],
-            error_y={
-                "type": "data",
-                "array": flux_err[idx],
-                "visible": True,
-                "width": 0,
-                "color": hex_to_rgba(color, 0.5)
-                if color.startswith("#")
-                else rgb_to_rgba(color, 0.5),
-            },
-            mode="markers",
-            name=f"{fname}",
-            customdata=np.stack(
-                (
-                    pdf["r:midpointMjdTai"][idx],
-                    pdf["r:snr"][idx],
-                    pdf["r:reliability"][idx],
-                ),
-                axis=-1,
-            ),
-            hovertemplate=hovertemplate,
-            legendgroup=f"{fname} band",
-            legendrank=100 + 10 * fid,
-            marker={
-                "size": 12,
-                "color": color,
-                "symbol": "circle",
-            },
-            xaxis="x",
-            yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
-        )
+    # fig = go.Figure(layout=layout)
+    # if switch_layout == "split":
+    #     fig = make_subplots(
+    #         rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
+    #     )
 
-        if switch_layout == "plain":
-            fig.add_trace(trace)
-        elif switch_layout == "split":
-            if len(flux[idx]) > 0:
-                fig.add_trace(trace, row=fid - 3 * (fid // 4), col=(fid // 4) + 1)
-                fig.update_xaxes(
-                    row=fid - 3 * (fid // 4),
-                    col=(fid // 4) + 1,
-                    title="Observation date",
-                )
-                fig.update_yaxes(
-                    row=fid - 3 * (fid // 4),
-                    col=(fid // 4) + 1,
-                    title=layout["yaxis"]["title"],
-                )
+    # colors = generate_rgb_color_sequence(color_scale)
+    # for fid, fname, color in zip(range(1, 7), BANDS, colors):
+    #     # High-quality measurements
+    #     hovertemplate = r"""
+    #     <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
+    #     <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
+    #     <b>mjd</b>: %{customdata[0]}<br>
+    #     <b>SNR</b>: %{customdata[1]:.2f}<br>
+    #     <b>Reliability</b>: %{customdata[2]:.2f}
+    #     <extra></extra>
+    #     """
+    #     idx = pdf["r:band"] == fname
+
+    #     trace = go.Scatter(
+    #         x=dates[idx],
+    #         y=flux[idx],
+    #         error_y={
+    #             "type": "data",
+    #             "array": flux_err[idx],
+    #             "visible": True,
+    #             "width": 0,
+    #             "color": hex_to_rgba(color, 0.5)
+    #             if color.startswith("#")
+    #             else rgb_to_rgba(color, 0.5),
+    #         },
+    #         mode="markers",
+    #         name=f"{fname}",
+    #         customdata=np.stack(
+    #             (
+    #                 pdf["r:midpointMjdTai"][idx],
+    #                 pdf["r:snr"][idx],
+    #                 pdf["r:reliability"][idx],
+    #             ),
+    #             axis=-1,
+    #         ),
+    #         hovertemplate=hovertemplate,
+    #         legendgroup=f"{fname} band",
+    #         legendrank=100 + 10 * fid,
+    #         marker={
+    #             "size": 12,
+    #             "color": color,
+    #             "symbol": "circle",
+    #         },
+    #         xaxis="x",
+    #         yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
+    #     )
+
+    #     if switch_layout == "plain":
+    #         fig.add_trace(trace)
+    #     elif switch_layout == "split":
+    #         if len(flux[idx]) > 0:
+    #             fig.add_trace(trace, row=fid - 3 * (fid // 4), col=(fid // 4) + 1)
+    #             fig.update_xaxes(
+    #                 row=fid - 3 * (fid // 4),
+    #                 col=(fid // 4) + 1,
+    #                 title="Observation date",
+    #             )
+    #             fig.update_yaxes(
+    #                 row=fid - 3 * (fid // 4),
+    #                 col=(fid // 4) + 1,
+    #                 title=layout["yaxis"]["title"],
+    #             )
 
     return fig
 
