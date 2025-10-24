@@ -20,6 +20,8 @@ from dash import html, dcc, Output, Input, dash_table, no_update
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 
+import visdcc
+
 import numpy as np
 import pandas as pd
 
@@ -31,6 +33,7 @@ from apps.api import request_api
 from apps.utils import class_colors
 from apps.utils import convert_time
 from apps.utils import loading
+from apps.utils import cats_type_converter
 
 from apps.utils import get_first_value, is_row_static_or_moving
 from apps.utils import demarkdownify_objectid
@@ -1176,106 +1179,267 @@ def card_id_left(object_data):
     discovery_date = convert_time(
         pdf["r:midpointMjdTai"].to_numpy()[-1], format_in="mjd", format_out="iso"
     )
-    mjds = pdf["r:midpointMjdTai"].to_numpy()
-    ndet = len(pdf)
 
-    badges = []
-    # for c in np.unique(pdf["f:crossmatches_simbad_otype"]):
-    #     if c in BAD_VALUES:
-    #         continue
-    #     if c in simbad_types:
-    #         color = class_colors["Simbad"]
-    #     elif c in class_colors.keys():
-    #         color = class_colors[c]
-    #     else:
-    #         # Sometimes SIMBAD mess up names :-)
-    #         color = class_colors["Simbad"]
+    # FIXME: what to do with badges?
+    # badges = []
+    # cdsxmatches = np.unique(pdf["f:crossmatches_simbad_otype"])
+    # for cdsxmatch in cdsxmatches:
+    #     if cdsxmatch not in BAD_VALUES:
+    #         badges.append(
+    #             make_badge(
+    #                 f"SIMBAD: {cdsxmatch}",
+    #                 variant="dot",
+    #                 color=class_colors["Simbad"],
+    #                 tooltip="SIMBAD classification",
+    #             ),
+    #         )
 
-    #     badges.append(
-    #         make_badge(
-    #             c,
-    #             color=color,
-    #             tooltip="SIMBAD classification",
-    #         ),
-    #     )
-    cdsxmatches = np.unique(pdf["f:crossmatches_simbad_otype"])
-    for cdsxmatch in cdsxmatches:
-        if cdsxmatch not in BAD_VALUES:
-            badges.append(
-                make_badge(
-                    f"SIMBAD: {cdsxmatch}",
-                    variant="dot",
-                    color=class_colors["Simbad"],
-                    tooltip="SIMBAD classification",
-                ),
-            )
+    # tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
+    # if tns_badge is not None:
+    #     badges.append(tns_badge)
 
-    tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
-    if tns_badge is not None:
-        badges.append(tns_badge)
-
-    badges += generate_generic_badges(pdf, variant="dot")
-
-    meta_name = generate_metadata_name(get_first_value(pdf, "r:diaObjectId"))
-    if meta_name is not None:
-        extra_div = dbc.Row(
-            [
-                dbc.Col(
-                    dmc.Title(meta_name, order=4, style={"color": "#15284F"}), width=10
-                ),
-            ],
-            justify="start",
-            align="center",
-        )
-    else:
-        extra_div = html.Div()
+    # badges += generate_generic_badges(pdf, variant="dot")
 
     coords = SkyCoord(
         get_first_value(pdf, "r:ra"), get_first_value(pdf, "r:dec"), unit="deg"
     )
 
-    c1 = dmc.Avatar(src="/assets/Fink_SecondaryLogo_WEB.png", size="lg")
-    c2 = dmc.Title(
-        str(diaObjectid), order=1, style={"color": "#15284F", "wordWrap": "break-word"}
-    )
-    card = dmc.Paper(
-        [
-            dmc.Grid(
-                [dmc.GridCol(c1, span="content"), dmc.GridCol(c2, span="auto")],
-                gutter="xs",
-            ),
-            extra_div,
-            html.Div(badges),
-            dcc.Markdown(
-                """
-                Discovery date: `{}`
-                Last detection: `{}`
-                Last alert SNR: `{:.2f}`
-                Duration: `{:.2f}` days
-                Number of detections: `{}`
-                RA/Dec: `{} {}`
-                """.format(
-                    discovery_date[:19],
-                    date_end[:19],
-                    pdf["r:snr"].to_numpy()[0],
-                    mjds[0] - mjds[-1],
-                    # get_first_value(pdf, "i:last") # FIXME with first/last
-                    # - get_first_value(pdf, "i:first"),
-                    ndet,
-                    coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
-                    coords.dec.to_string(
-                        pad=True, unit="deg", alwayssign=True, precision=1, sep=" "
+    cats_mapping = cats_type_converter()
+    cats_class = cats_mapping[pdf["f:classifiers_cats_class"].to_numpy()[0]]
+    simbad_class = pdf["f:crossmatches_simbad_otype"].to_numpy()[0]
+    if pd.isnull(simbad_class) or simbad_class in BAD_VALUES:
+        simbad_class = "N/A"
+
+    tns_class = pdf["f:crossmatches_tns_type"].to_numpy()[0]
+    if pd.isnull(tns_class) or tns_class in BAD_VALUES:
+        tns_class = "N/A"
+
+    card_aladin = html.Div(
+        children=[
+            html.Div(
+                className="first-content",
+                children=[
+                    html.Div(
+                        className="container-large",
+                        children=[
+                            html.Div(
+                                children=[
+                                    html.Div(
+                                        id="card",
+                                        children=[
+                                            html.Div(
+                                                className="card-content",
+                                                children=[
+                                                    html.Div(
+                                                        [
+                                                            visdcc.Run_js(
+                                                                id="aladin-lite-runner"
+                                                            ),
+                                                            dmc.Skeleton(
+                                                                style={
+                                                                    "width": "100%",
+                                                                    "height": "100%",
+                                                                },
+                                                            ),
+                                                            html.Div(
+                                                                id="aladin-lite-div",
+                                                                style={
+                                                                    "width": "230px",
+                                                                    "height": "290px",
+                                                                    "border-radius": "20px",
+                                                                    "border": "2px solid rgba(255, 255, 255, 0.1)",
+                                                                },
+                                                            ),
+                                                        ],
+                                                        className="p-1",
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
                     ),
-                ),
-                className="markdown markdown-pre ps-2 pe-2 mt-2",
+                ],
             ),
         ],
-        radius="xl",
-        p="md",
-        shadow="xl",
-        withBorder=True,
     )
-    return card
+
+    card = html.Div(
+        className="card_id_left",
+        children=[
+            # Top section
+            html.Div(
+                className="top-section",
+                children=[
+                    html.Div(
+                        html.Div(str(diaObjectid), className="title-card_id_left"),
+                        className="border2",
+                    ),
+                    html.Div(
+                        className="bottom-section",
+                        children=[
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=discovery_date[:10],
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="Discovery",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=date_end[:10],
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="Last observation",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=len(pdf), className="big-text"
+                                            ),
+                                            html.Span(
+                                                children="Detections",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children="{:.2f}".format(
+                                                    pdf["r:snr"].to_numpy()[0]
+                                                ),
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="Last SNR",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=simbad_class,
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="SIMBAD",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=tns_class, className="big-text"
+                                            ),
+                                            html.Span(
+                                                children="TNS",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=cats_class,
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="CATS",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            # Bottom section
+            html.Div(
+                className="bottom-section",
+                children=[
+                    html.Div(
+                        className="row",
+                        children=[
+                            card_aladin,
+                            dmc.Space(h=20),
+                            html.Div(
+                                className="item",
+                                children=[
+                                    html.Span(
+                                        children="{} {}".format(
+                                            coords.ra.to_string(
+                                                pad=True,
+                                                unit="hour",
+                                                precision=2,
+                                                sep=" ",
+                                            ),
+                                            coords.dec.to_string(
+                                                pad=True,
+                                                unit="deg",
+                                                alwayssign=True,
+                                                precision=1,
+                                                sep=" ",
+                                            ),
+                                        ),
+                                        className="big-text",
+                                        style={"color": "white"},
+                                    ),
+                                    html.Span(
+                                        children="Coordinates",
+                                        className="regular-text",
+                                        style={"color": "white"},
+                                    ),
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            ),
+        ],
+    )
+    return html.Div(card, style={"padding-top": "10px"})
 
 
 def generate_tns_badge(oid):
