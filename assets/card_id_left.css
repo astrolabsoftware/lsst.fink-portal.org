@@ -1,0 +1,125 @@
+.card_id_left {
+  width: 300px;
+  border-radius: 20px;
+  background: #15284F;
+  padding: 5px;
+  overflow: hidden;
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 20px 0px;
+}
+
+.title-card_id_left {
+  padding-bottom: 10px;
+  padding-left: 10px;
+  color: white;
+  overflow: hidden;
+  display: flex;
+  font-weight: 800;
+  letter-spacing: 2px;
+  transform: skew(40deg);
+}
+
+.card_id_left .top-section {
+  height: 330px;
+  border-radius: 15px;
+  padding: 0px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(35deg, #f7f7f7 80%, #e89070 100%);
+  position: relative;
+}
+
+.card_id_left .top-section .border2 {
+  border-bottom-right-radius: 10px;
+  height: 30px;
+  width: 220px;
+  background: #15284F;
+  position: relative;
+  transform: skew(-40deg);
+  box-shadow: -10px -10px 0 0 #15284F;
+}
+
+.card_id_left .top-section .border2::before {
+  content: "";
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  padding-top: -30px;
+  /* top: 0; */
+  right: -15px;
+  background: rgba(255, 255, 255, 0);
+  border-top-left-radius: 10px;
+  box-shadow: -5px -5px 0 2px #15284F;
+}
+
+.card_id_left .top-section .icons {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: 30px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.card_id_left .top-section .icons .logo {
+  height: 100%;
+  aspect-ratio: 1;
+  padding: 7px 0 7px 15px;
+}
+
+.card_id_left .top-section .icons .logo .top-section {
+  height: 100%;
+}
+
+.card_id_left .top-section .icons .social-media {
+  height: 100%;
+  padding: 8px 15px;
+  display: flex;
+  gap: 7px;
+}
+
+.card_id_left .top-section .icons .social-media .svg {
+  height: 100%;
+  fill: #1b233d;
+}
+
+.card_id_left .bottom-section {
+  margin-top: 0px;
+  padding: 10px 5px;
+}
+
+.card_id_left .bottom-section .title {
+  display: block;
+  font-size: 17px;
+  font-weight: bolder;
+  color: white;
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+.card_id_left .bottom-section .row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.card_id_left .bottom-section .row .item {
+  flex: 30%;
+  text-align: center;
+  padding: 5px;
+  color: rgba(5, 22, 29, 0.721);
+}
+
+.card_id_left .bottom-section .row .item .big-text {
+  font-size: 18px;
+  font-weight: 600;
+  display: block;
+}
+
+.card_id_left .bottom-section .row .item .regular-text {
+  font-size: 14px;
+}
+
+.card_id_left .bottom-section .row .item:nth-child(2) {
+  border-left: 1px solid rgba(255, 255, 255, 0.126);
+  border-right: 1px solid rgba(255, 255, 255, 0.126);
+}
