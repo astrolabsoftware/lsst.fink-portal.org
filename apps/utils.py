@@ -189,3 +189,22 @@ def is_row_static_or_moving(row: dict):
         is_sso = False
 
     return main_id, is_sso
+
+
+def cats_type_converter():
+    """Class mapping for CATS
+
+    Returns
+    -------
+    out: dict
+        Mapping int -> name
+    """
+    mapping_cats_general = {
+        11: "SN-like",  # SN-like
+        12: "Fast",  # Fast: KN, ulens, Novae, ...
+        13: "Long",  # Long: SLSN, TDE, PISN, ...
+        21: "Periodic",  # Periodic: RRLyrae, EB, LPV, ...
+        22: "Non-periodic",  # Non-periodic: AGN
+    }
+
+    return mapping_cats_general
