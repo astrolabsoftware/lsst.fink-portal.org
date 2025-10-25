@@ -46,6 +46,7 @@ from dash_iconify import DashIconify
 from apps.plotting import draw_lightcurve  # noqa: F401
 from apps.plotting import draw_cutouts  # noqa: F401
 from apps.plotting import CONFIG_PLOT
+from apps.plotting import DEFAULT_FINK_COLORS
 
 from apps.configuration import extract_configuration
 
@@ -796,7 +797,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:flare",
-                                color=dmc.DEFAULT_THEME["colors"]["dark"][6],
+                                color=DEFAULT_FINK_COLORS[0],
                                 width=20,
                             ),
                         ],
@@ -830,7 +831,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:file-description",
-                                color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                                color=DEFAULT_FINK_COLORS[1],
                                 width=20,
                             ),
                         ],
@@ -848,7 +849,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:target",
-                                color=dmc.DEFAULT_THEME["colors"]["orange"][6],
+                                color=DEFAULT_FINK_COLORS[2],
                                 width=20,
                             ),
                         ],
@@ -879,7 +880,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:database-export",
-                                color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                                color=DEFAULT_FINK_COLORS[3],
                                 width=20,
                             ),
                         ],
@@ -965,7 +966,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:external-link",
-                                color="#15284F",
+                                color=DEFAULT_FINK_COLORS[4],
                                 width=20,
                             ),
                         ],
@@ -989,7 +990,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:atom-2",
-                                color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                                color=DEFAULT_FINK_COLORS[5],
                                 width=20,
                             ),
                         ],
@@ -1058,6 +1059,7 @@ def alert_properties(object_data, clickData):
             return no_update
 
     pdf = pdf_.head(1)
+    print(pdf)
     pdf = pd.DataFrame({"Name": pdf.columns, "Value": pdf.to_numpy()[0]})
     columns = [
         {
