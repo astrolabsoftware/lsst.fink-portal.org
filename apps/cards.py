@@ -20,7 +20,6 @@ from dash import html, dcc, Output, Input, dash_table, no_update
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 
-import visdcc
 
 import numpy as np
 import pandas as pd
@@ -1191,25 +1190,6 @@ def card_id_left(object_data):
     if pd.isnull(tns_class) or tns_class in BAD_VALUES:
         tns_class = "N/A"
 
-    card_aladin = html.Div(
-        [
-            visdcc.Run_js(id="aladin-lite-runner"),
-            dmc.Center(
-                html.Div(
-                    id="aladin-lite-div",
-                    style={
-                        "width": "280px",
-                        "height": "280px",
-                        "border-radius": "10px",
-                        "border": "2px solid rgba(255, 255, 255, 0.1)",
-                        # "font-size": 10,
-                    },
-                ),
-            ),
-        ],
-        className="p-1",
-    )
-
     card = html.Div(
         className="card_id_left",
         children=[
@@ -1346,8 +1326,8 @@ def card_id_left(object_data):
                     html.Div(
                         className="row",
                         children=[
-                            card_aladin,
-                            dmc.Space(h=20),
+                            # card_aladin,
+                            # dmc.Space(h=20),
                             html.Div(
                                 className="item",
                                 children=[
@@ -1379,11 +1359,6 @@ def card_id_left(object_data):
                                                 style={"color": "gray"},
                                             ),
                                         ],
-                                    ),
-                                    html.Span(
-                                        children="Coordinates",
-                                        className="regular-text",
-                                        style={"color": "white"},
                                     ),
                                 ],
                             ),

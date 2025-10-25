@@ -18,6 +18,7 @@ import requests
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
+import visdcc
 
 import numpy as np
 import pandas as pd
@@ -73,9 +74,31 @@ def layout(name):
         return layout_
     else:
         col_left = html.Div(
-            dmc.Skeleton(style={"width": "100%", "height": "15pc"}),
+            dmc.Skeleton(style={"width": "100%", "height": "100%"}),
             id="card_id_left",
             className="p-1",
+        )
+
+        card_aladin = html.Div(
+            [
+                visdcc.Run_js(id="aladin-lite-runner"),
+                dmc.Center(
+                    html.Div(
+                        id="aladin-lite-div",
+                        style={
+                            "width": "280px",
+                            "height": "350px",
+                            "border-radius": "10px",
+                            "border": "2px solid rgba(255, 255, 255, 0.1)",
+                            "overflow": "hidden",
+                            "display": "flex",
+                            # "font-size": 10,
+                        },
+                    ),
+                ),
+            ],
+            className="card_id_left",
+            style={"height": "380px"},
         )
 
         col_right = tabs(pdf)
@@ -83,7 +106,8 @@ def layout(name):
         struct = dmc.Grid(
             [
                 dmc.GridCol(
-                    col_left, span={"base": 12, "md": 2, "lg": 2}, className="p-1"
+                    dmc.Group([col_left, card_aladin]),
+                    span={"base": 12, "md": 2, "lg": 2},  # className="p-1"
                 ),
                 dmc.GridCol(
                     col_right, span={"base": 12, "md": 9, "lg": 9}, className="p-1"

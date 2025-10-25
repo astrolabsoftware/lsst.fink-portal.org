@@ -1249,7 +1249,7 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
 @app.callback(
     Output("aladin-lite-runner", "run"),
     Input("object-data", "data"),
-    prevent_initial_call=False,
+    prevent_initial_call=True,
 )
 def integrate_aladin_lite(object_data):
     """Integrate aladin light in the 2nd Tab of the dashboard.
@@ -1277,8 +1277,7 @@ def integrate_aladin_lite(object_data):
     dec0 = pdf["r:dec"].to_numpy()[0]
 
     # Javascript. Note the use {{}} for dictionary
-    img = """var container = document.getElementById('aladin-lite-div');var txt = ''; container.innerHTML = txt;"""
-    img += f"""
+    img = f"""
     var aladin = A.aladin('#aladin-lite-div',
               {{
                 survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
@@ -1288,11 +1287,11 @@ def integrate_aladin_lite(object_data):
                 reticleSize: 32,
                 showContextMenu: true,
                 showCooGridControl: false,
-                showShareControl: true,
+                showShareControl: false,
                 showCooGrid: false,
                 showProjectionControl: false,
                 showFrame: true,
-                showFullscreenControl: false,
+                showFullscreenControl: true,
                 showCooGridControl: false,
                 showGotoControl: false
     }});
