@@ -1020,7 +1020,7 @@ def make_sparkline(data):
         Input("select-units", "value"),
         Input("select-measurement", "value"),
     ],
-    prevent_initial_call=True,
+    prevent_initial_call=False,
 )
 def draw_lightcurve(
     switch_layout: str, object_data, color_scale, units, measurement
@@ -1069,9 +1069,13 @@ def draw_lightcurve(
         },
     )
     pdf = pd.read_json(io.StringIO(object_data))
+    if "r:mpcDesignation" in pdf.columns:
+        is_sso = True
+    else:
+        is_sso = False
     fig, indicator, flags = draw_lightcurve_preview(
         pdf=pdf,
-        is_sso=False,
+        is_sso=is_sso,
         color_scale=color_scale,
         units=units,
         measurement=measurement,
@@ -1311,7 +1315,7 @@ def integrate_aladin_lite(object_data):
     """
 
     # # Unique positions of nearest reference object
-    # pdfnr = pdf[["i:ranr", "i:decnr", "i:magnr", "i:sigmagnr", "i:fid"]][
+    # pdfnr = pdf[["i:ranr", "i:decnr", "i:magnr", "i:sigmagnr", "r:band"]][
     #     np.isfinite(pdf["i:magnr"])
     # ].drop_duplicates()
 
@@ -1325,12 +1329,12 @@ def integrate_aladin_lite(object_data):
     #         img += """
     #         catnr_{}.addSources([A.source({}, {}, {{ZTF: 'Reference', mag: {:.2f}, err: {:.2f}, filter: '{}'}})]);
     #         """.format(
-    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["i:fid"]),
+    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["r:band"]),
     #             row["i:ranr"],
     #             row["i:decnr"],
     #             row["i:magnr"],
     #             row["i:sigmagnr"],
-    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["i:fid"]),
+    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["r:band"]),
     #         )
 
     #     img += """aladin.addCatalog(catnr_zg);"""
@@ -1667,3 +1671,138 @@ def clear_input(n_clicks):
     if n_clicks:
         return "", ""  # Clear the input field
     return no_update, no_update
+
+
+@app.callback(
+    Output("sso_astrometry", "children"),
+    [
+        Input("object-sso-ephem", "data"),
+        Input("color_scale", "value"),
+    ],
+    prevent_initial_call=False,
+)
+def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
+    """Draw SSO object astrometry, that is difference position wrt ephemerides from the miriade IMCCE service.
+
+    Returns
+    -------
+    figure: dict
+    """
+    pdf = pd.read_json(io.StringIO(object_sso_ephem))
+    # print(list(pdf.columns))
+    if pdf.empty:
+        msg = """
+        Object not referenced in the Minor Planet Center
+        """
+        return html.Div([html.Br(), dbc.Alert(msg, color="danger")])
+
+    if "RA" not in pdf.columns:
+        return dbc.Alert(
+            "No ephemerides available for {}".format(
+                pdf["r:mpcDesignation"].to_numpy()[0]
+            ),
+            color="danger",
+        )
+
+    layout = dict(
+        autosize=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        showlegend=True,
+        shapes=[],
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            x=0,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        xaxis={
+            "title": "&#916;RA cos(Dec) ('')",
+            "automargin": True,
+            "zeroline": False,
+        },
+        yaxis={
+            "title": "&#916;Dec ('')",
+            "automargin": True,
+            "zeroline": False,
+            "scaleanchor": "x",
+            "scaleratio": 1,
+        },
+    )
+
+    deltaRAcosDEC = (pdf["r:ra"] - pdf.RA) * np.cos(np.radians(pdf["r:dec"])) * 3600
+    deltaDEC = (pdf["r:dec"] - pdf.DEC) * 3600
+
+    hovertemplate = r"""
+    <b>%{yaxis.title.text}</b>: %{y:.2f}<br>
+    <b>%{xaxis.title.text}</b>: %{x:.2f}<br>
+    <b>Filter band</b>: %{customdata[0]}<br>
+    <b>Observation date</b>: %{customdata[1]}<br>
+    <b>SNR</b>: %{customdata[2]:.2f}<br>
+    <b>Reliability</b>: %{customdata[3]:.2f}
+    <extra></extra>
+    """
+    figure = go.Figure(layout=layout)
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+        idx = pdf["r:band"] == fname
+
+        trace = go.Scatter(
+            x=deltaRAcosDEC[idx],
+            y=deltaDEC[idx],
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:band"][idx],
+                    pdf["r:midpointMjdTai"][idx],
+                    pdf["r:snr"][idx],
+                    pdf["r:reliability"][idx],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={
+                "size": 12,
+                "color": color,
+                "symbol": "circle",
+            },
+            xaxis="x",
+            yaxis="y",
+        )
+        figure.add_trace(trace)
+
+    figure.add_hline(y=0, line_dash="dash", line_color="grey")
+    figure.add_vline(x=0, line_dash="dash", line_color="grey")
+
+    # 100mas circle
+    figure.add_shape(
+        type="circle",
+        xref="x",
+        yref="y",
+        x0=-0.1,
+        y0=-0.1,
+        x1=0.1,
+        y1=0.1,
+        line_color="LightSeaGreen",
+    )
+
+    graph = dcc.Graph(
+        figure=figure,
+        style={
+            "width": "100%",
+            "height": "30pc",
+        },
+        config=CONFIG_PLOT,
+    )
+    card = dmc.Paper(graph)
+    return card

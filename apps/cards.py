@@ -711,40 +711,38 @@ def card_lightcurve_summary(diaObjectId):
     #     },
     # )
 
-    card = html.Div(
-        [
-            dmc.Group([
-                dbc.Popover(
-                    "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
-                    target="indicator_lc",
-                    body=True,
-                    trigger="hover",
-                    placement="top",
-                ),
-                html.Div(id="indicator_lc", className="indicator"),
-                html.Div(id="flags_lc", className="indicator"),
-            ]),
-            dmc.Space(h=15),
-            loading(
-                dcc.Graph(
-                    id="lightcurve_object_page",
-                    style={
-                        "width": "100%",
-                        "height": "35pc",
-                    },
-                    config=CONFIG_PLOT,
-                    className="mb-2 rounded-5",
-                ),
+    card = html.Div([
+        dmc.Group([
+            dbc.Popover(
+                "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                target="indicator_lc",
+                body=True,
+                trigger="hover",
+                placement="top",
             ),
-            accordions,
-            # dmc.Grid(
-            #     children=[
-            #         dmc.GridCol(accordions, span=6),
-            #         dmc.GridCol(radar, span=6),
-            #     ]
-            # ),
-        ],
-    )
+            html.Div(id="indicator_lc", className="indicator"),
+            html.Div(id="flags_lc", className="indicator"),
+        ]),
+        dmc.Space(h=15),
+        loading(
+            dcc.Graph(
+                id="lightcurve_object_page",
+                style={
+                    "width": "100%",
+                    "height": "35pc",
+                },
+                config=CONFIG_PLOT,
+                className="mb-2 rounded-5",
+            ),
+        ),
+        accordions,
+        # dmc.Grid(
+        #     children=[
+        #         dmc.GridCol(accordions, span=6),
+        #         dmc.GridCol(radar, span=6),
+        #     ]
+        # ),
+    ])
     return card
 
 
