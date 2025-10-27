@@ -41,14 +41,21 @@ from astropy.coordinates import EarthLocation
 dcc.Location(id="url", refresh=False)
 
 
-def layout(name):
-    # even if there is one object ID, this returns several alerts
-    pdf = request_api(
-        "/api/v1/sources",
-        json={
-            "diaObjectId": name[1:],
-        },
-    )
+def layout(name, is_sso):
+    if not is_sso:
+        pdf = request_api(
+            "/api/v1/sources",
+            json={
+                "diaObjectId": name[1:],
+            },
+        )
+    else:
+        pdf = request_api(
+            "/api/v1/sso",
+            json={
+                "n_or_d": name[1:],
+            },
+        )
 
     if pdf.empty:
         inner = html.Div(
@@ -79,29 +86,33 @@ def layout(name):
             className="p-1",
         )
 
-        card_aladin = html.Div(
-            [
-                visdcc.Run_js(id="aladin-lite-runner"),
-                dmc.Center(
-                    html.Div(
-                        id="aladin-lite-div",
-                        style={
-                            "width": "280px",
-                            "height": "350px",
-                            "border-radius": "10px",
-                            "border": "2px solid rgba(255, 255, 255, 0.1)",
-                            "overflow": "hidden",
-                            "display": "flex",
-                            # "font-size": 10,
-                        },
+        if not is_sso:
+            # Aladin lite is only needed for static objects
+            card_aladin = html.Div(
+                [
+                    visdcc.Run_js(id="aladin-lite-runner"),
+                    dmc.Center(
+                        html.Div(
+                            id="aladin-lite-div",
+                            style={
+                                "width": "280px",
+                                "height": "350px",
+                                "border-radius": "10px",
+                                "border": "2px solid rgba(255, 255, 255, 0.1)",
+                                "overflow": "hidden",
+                                "display": "flex",
+                                # "font-size": 10,
+                            },
+                        ),
                     ),
-                ),
-            ],
-            className="card_id_left",
-            style={"height": "380px"},
-        )
+                ],
+                className="card_id_left",
+                style={"height": "380px"},
+            )
+        else:
+            card_aladin = html.Div()
 
-        col_right = tabs(pdf)
+        col_right = tabs(pdf, is_sso=is_sso)
 
         struct = dmc.Grid(
             [
@@ -126,19 +137,26 @@ def layout(name):
         )
 
 
-def tabs(pdf):
-    tabs_list = [
-        dmc.TabsTab("diaObject", value="diaObject"),
-    ]
-    tabs_panels = [
-        dmc.TabsPanel(children=[tab1_content(pdf)], value="diaObject"),
-    ]
+def tabs(pdf, is_sso):
+    tabs_list = []
+    tabs_panels = []
 
-    # if not is_tracklet(pdf):
-    tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
-    tabs_panels.append(
-        dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
-    )
+    if is_sso:
+        tabs_list.append(dmc.TabsTab("Solar System", value="Solar System"))
+        tabs_panels.append(
+            dmc.TabsPanel(children=[], id="tab_sso", value="Solar System")
+        )
+    else:
+        tabs_list.append(dmc.TabsTab("diaObject", value="diaObject"))
+        tabs_panels.append(
+            dmc.TabsPanel(children=[tab_diaobject(pdf)], value="diaObject")
+        )
+
+    if not is_sso:
+        tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
+        tabs_panels.append(
+            dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
+        )
 
     # if len(pdf.index) > 1:
     #     tabs_list.append(dmc.TabsTab("Supernovae", value="Supernovae"))
@@ -166,14 +184,11 @@ def tabs(pdf):
     #         dmc.TabsPanel(tab7_content(), id="tab_blazar", value="Blazars")
     #     )
 
-    default = "diaObject"
-    # # Default view
-    # if is_sso(pdf):
-    #     default = "Solar System"
-    # elif is_tracklet(pdf):
-    #     default = "Tracklets"
-    # else:
-    #     default = "diaObject"
+    # Default view
+    if is_sso:
+        default = "Solar System"
+    else:
+        default = "diaObject"
 
     tabs_ = dmc.Tabs(
         [
@@ -191,9 +206,9 @@ def tabs(pdf):
     return tabs_
 
 
-def tab1_content(pdf):
+def tab_diaobject(pdf):
     """diaObject tab"""
-    tab1_content_ = html.Div([
+    tab_diaobject_ = html.Div([
         dmc.Space(h=10),
         dbc.Row(
             [
@@ -212,7 +227,7 @@ def tab1_content(pdf):
         ),
     ])
 
-    return tab1_content_
+    return tab_diaobject_
 
 
 @app.callback(
@@ -226,7 +241,30 @@ def store_query(name):
 
     https://dash.plotly.com/sharing-data-between-callbacks
     """
-    oid = name[1:]
+    oid = str(name)[1:]
+    if oid.isdigit():
+        # diaObjectId
+        pdf = request_api(
+            "/api/v1/sources",
+            json={"diaObjectId": oid, "columns": "*"},
+            # output="json", # should inspect this possibility
+            dtype={
+                "r:diaObjectId": np.int64,
+                "r:diaSourceId": np.int64,
+            },
+        )
+    elif oid.startswith("K"):
+        # ssObjectId
+        pdf = request_api(
+            "/api/v1/sso",
+            json={"n_or_d": oid, "columns": "*"},
+            # output="json", # should inspect this possibility
+            dtype={
+                "r:ssObjectId": np.int64,
+                "r:diaSourceId": np.int64,
+            },
+        )
+
     # if not name[1:].isdigit():
     #     # check this is not a name generated by a user
     #     oid = retrieve_oid_from_metaname(name[1:])
@@ -234,16 +272,6 @@ def store_query(name):
     #         raise PreventUpdate
     # else:
     #     oid = name[1:]
-
-    pdf = request_api(
-        "/api/v1/sources",
-        json={"diaObjectId": oid, "columns": "*"},
-        # output="json", # should inspect this possibility
-        dtype={
-            "r:diaObjectId": np.int64,
-            "r:diaSourceId": np.int64,
-        },  # Force reading this field as string
-    )
 
     # pdf_ = pd.read_json(pdf.to_json())
     # pdfs = pdf[pdf["d:tag"] == "valid"]
@@ -968,7 +996,7 @@ def tab_observability(pdf):
 #         dmc.TabsTab("Summary", value="Summary"),
 #     ]
 #     tabs_panels = [
-#         dmc.TabsPanel(children=[tab1_content(pdf)], value="Summary"),
+#         dmc.TabsPanel(children=[tab_diaobject(pdf)], value="Summary"),
 #     ]
 
 #     if not is_tracklet(pdf):
@@ -984,11 +1012,11 @@ def tab_observability(pdf):
 #         tabs_list.append(dmc.TabsTab("Variable stars", value="Variable stars"))
 #         tabs_panels.append(dmc.TabsPanel(tab3_content(), value="Variable stars"))
 
-#     if is_sso(pdf):
-#         tabs_list.append(dmc.TabsTab("Solar System", value="Solar System"))
-#         tabs_panels.append(
-#             dmc.TabsPanel(children=[], id="tab_sso", value="Solar System")
-#         )
+# if is_sso(pdf):
+#     tabs_list.append(dmc.TabsTab("Solar System", value="Solar System"))
+#     tabs_panels.append(
+#         dmc.TabsPanel(children=[], id="tab_sso", value="Solar System")
+#     )
 
 #     if is_tracklet(pdf):
 #         tabs_list.append(dmc.TabsTab("Tracklets", value="Tracklets"))

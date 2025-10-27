@@ -589,10 +589,13 @@ def display_page(pathname, searchurl):
     )
 
     if pathname[1:]:
-        # Other pages
         if pathname[1:].isdigit():
-            # LSST object name
-            return summary.layout(pathname), "home"
+            # diaObject
+            is_sso = False
+        elif pathname[1:].startswith("K"):
+            # ssObject
+            is_sso = True
+        return summary.layout(pathname, is_sso=is_sso), "home"
     else:
         # Home page
         return layout, "home"
