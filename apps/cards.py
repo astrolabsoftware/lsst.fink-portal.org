@@ -713,6 +713,18 @@ def card_lightcurve_summary(diaObjectId):
 
     card = html.Div(
         [
+            dmc.Group([
+                dbc.Popover(
+                    "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                    target="indicator_lc",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                html.Div(id="indicator_lc", className="indicator"),
+                html.Div(id="flags_lc", className="indicator"),
+            ]),
+            dmc.Space(h=15),
             loading(
                 dcc.Graph(
                     id="lightcurve_object_page",
@@ -733,7 +745,7 @@ def card_lightcurve_summary(diaObjectId):
             # ),
         ],
     )
-    return card  # dmc.Paper([comp1, comp2, comp3]) #card
+    return card
 
 
 def card_id(pdf):

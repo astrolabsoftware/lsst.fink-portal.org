@@ -785,9 +785,10 @@ def draw_lightcurve_preview(
         hovertemplate = r"""
         <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
         <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-        <b>mjd</b>: %{customdata[0]}<br>
-        <b>SNR</b>: %{customdata[1]:.2f}<br>
-        <b>Reliability</b>: %{customdata[2]:.2f}
+        <b>Filter band</b>: %{customdata[0]}<br>
+        <b>MJD</b>: %{customdata[1]}<br>
+        <b>SNR</b>: %{customdata[2]:.2f}<br>
+        <b>Reliability</b>: %{customdata[3]:.2f}
         <extra></extra>
         """
         idx = pdf["r:band"] == fname
@@ -808,6 +809,7 @@ def draw_lightcurve_preview(
             name=f"{fname}",
             customdata=np.stack(
                 (
+                    pdf["r:band"][idx],
                     pdf["r:midpointMjdTai"][idx],
                     pdf["r:snr"][idx],
                     pdf["r:reliability"][idx],
@@ -991,7 +993,7 @@ def draw_lightcurve_preview(
                 ])
             )
 
-    return fig, indicators, flags
+    return fig, dmc.Group(indicators, gap="sm"), dmc.Group(flags, gap="sm")
 
 
 def make_sparkline(data):
@@ -1006,7 +1008,11 @@ def make_sparkline(data):
 
 
 @app.callback(
-    Output("lightcurve_object_page", "figure"),
+    [
+        Output("lightcurve_object_page", "figure"),
+        Output("indicator_lc", "children"),
+        Output("flags_lc", "children"),
+    ],
     [
         Input("select-lc-layout", "value"),
         Input("object-data", "data"),
@@ -1073,7 +1079,7 @@ def draw_lightcurve(
         switch_layout=switch_layout,
     )
 
-    return fig
+    return fig, indicator, flags
 
 
 @app.callback(

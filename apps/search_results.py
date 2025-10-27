@@ -1024,14 +1024,8 @@ def on_load_lightcurve(lc_id, color_scale, units, measurement):
                 style={"width": "100%", "height": "15pc"},
                 responsive=True,
             ),
-            dmc.Group(
-                indicator,
-                gap="sm",
-            ),
-            dmc.Group(
-                flags,
-                gap="sm",
-            ),
+            indicator,
+            flags,
         )
 
     return no_update, no_update
