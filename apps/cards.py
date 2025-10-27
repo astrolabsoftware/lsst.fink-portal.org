@@ -1228,7 +1228,7 @@ def card_id_left(object_data):
                                                 className="big-text",
                                             ),
                                             html.Span(
-                                                children="Last observation",
+                                                children="Last detection",
                                                 className="regular-text",
                                             ),
                                         ],

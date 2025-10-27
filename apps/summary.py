@@ -110,7 +110,7 @@ def layout(name):
                     span={"base": 12, "md": 2, "lg": 2},  # className="p-1"
                 ),
                 dmc.GridCol(
-                    col_right, span={"base": 12, "md": 9, "lg": 9}, className="p-1"
+                    col_right, span={"base": 12, "md": 10, "lg": 10}, className="p-1"
                 ),
                 dcc.Store(id="object-data"),
                 dcc.Store(id="object-release"),

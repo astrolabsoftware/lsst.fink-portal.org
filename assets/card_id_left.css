@@ -1,5 +1,5 @@
 .card_id_left {
-  width: 300px;
+  width: 250px;
   border-radius: 20px;
   background: #15284f;
   /* background: linear-gradient(215deg, #15284f 95%, rgb(228, 226, 226) 100%); */
@@ -22,7 +22,7 @@
 }
 
 .card_id_left .top-section {
-  height: 330px;
+  height: 300px;
   border-radius: 15px;
   padding: 0px;
   display: flex;
@@ -102,7 +102,7 @@
 .card_id_left .bottom-section .row {
   display: flex;
   justify-content: space-between;
-  margin-top: 10px;
+  margin-top: 5px;
 }
 
 .card_id_left .bottom-section .row .item {
@@ -113,7 +113,7 @@
 }
 
 .card_id_left .bottom-section .row .item .big-text {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   display: block;
 }
