@@ -128,10 +128,10 @@ def layout(name):
 
 def tabs(pdf):
     tabs_list = [
-        dmc.TabsTab("Summary", value="Summary"),
+        dmc.TabsTab("diaObject", value="diaObject"),
     ]
     tabs_panels = [
-        dmc.TabsPanel(children=[tab1_content(pdf)], value="Summary"),
+        dmc.TabsPanel(children=[tab1_content(pdf)], value="diaObject"),
     ]
 
     # if not is_tracklet(pdf):
@@ -166,14 +166,14 @@ def tabs(pdf):
     #         dmc.TabsPanel(tab7_content(), id="tab_blazar", value="Blazars")
     #     )
 
-    default = "Summary"
+    default = "diaObject"
     # # Default view
     # if is_sso(pdf):
     #     default = "Solar System"
     # elif is_tracklet(pdf):
     #     default = "Tracklets"
     # else:
-    #     default = "Summary"
+    #     default = "diaObject"
 
     tabs_ = dmc.Tabs(
         [
@@ -192,25 +192,9 @@ def tabs(pdf):
 
 
 def tab1_content(pdf):
-    """Summary tab"""
+    """diaObject tab"""
     tab1_content_ = html.Div([
         dmc.Space(h=10),
-        # dbc.Row(
-        #     [
-        #         dbc.Col(
-        #             dcc.Graph(
-        #                 style={
-        #                     "width": "100%",
-        #                     "height": "4pc",
-        #                 },
-        #                 config={"displayModeBar": False},
-        #                 id="classbar",
-        #             ),
-        #             width=12,
-        #         ),
-        #     ],
-        #     justify="around",
-        # ),
         dbc.Row(
             [
                 dbc.Col(
