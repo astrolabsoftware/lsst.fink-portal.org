@@ -14,12 +14,16 @@
 # limitations under the License.
 import io
 import requests
+
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
+from dash_iconify import DashIconify
+import visdcc
+
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
-import visdcc
 from dash import Input, Output, State, dcc, html, no_update, ALL
 from dash.exceptions import PreventUpdate
 
@@ -27,26 +31,12 @@ from app import app
 
 from apps.api import request_api
 from apps.cards import card_lightcurve_summary, card_id
+from apps.observability.cards import card_explanation_observability
+from apps.observability.utils import additional_observatories
+from apps.utils import loading
 
-# from apps.plotting import (
-#     draw_sso_astrometry,
-#     draw_sso_lightcurve,
-#     draw_tracklet_lightcurve,
-#     draw_tracklet_radec,
-# )
-# from apps.sso.cards import card_sso_left
-# from apps.supernovae.cards import card_sn_scores
-# from apps.utils import (
-#     generate_qr,
-#     loading,
-#     pil_to_b64,
-#     request_api,
-#     retrieve_oid_from_metaname,
-# )
-# from apps.varstars.cards import card_explanation_variable
-# from apps.blazars.cards import card_explanation_blazar
-# from apps.observability.cards import card_explanation_observability
-# from apps.observability.utils import additional_observatories
+from astropy.coordinates import EarthLocation
+
 
 dcc.Location(id="url", refresh=False)
 
@@ -83,78 +73,72 @@ def layout(name):
         )
         return layout_
     else:
-        col1 = dmc.GridCol(
-            dmc.Skeleton(style={"width": "100%", "height": "15pc"}),
+        col_left = html.Div(
+            dmc.Skeleton(style={"width": "100%", "height": "100%"}),
             id="card_id_left",
             className="p-1",
-            span=12,
-            # lg=12,
-            # md=6,
-            # sm=12,
         )
-        col2 = dmc.GridCol(
-            html.Div(
-                [
-                    visdcc.Run_js(id="aladin-lite-runner"),
-                    dmc.Skeleton(
+
+        card_aladin = html.Div(
+            [
+                visdcc.Run_js(id="aladin-lite-runner"),
+                dmc.Center(
+                    html.Div(
+                        id="aladin-lite-div",
                         style={
-                            "width": "100%",
-                            "height": "100%",
+                            "width": "280px",
+                            "height": "350px",
+                            "border-radius": "10px",
+                            "border": "2px solid rgba(255, 255, 255, 0.1)",
+                            "overflow": "hidden",
+                            "display": "flex",
+                            # "font-size": 10,
                         },
                     ),
-                    html.Div(
-                        id="aladin-lite-div", style={"width": "100%", "height": "27pc"}
-                    ),
-                ],
-                className="p-1",
-            ),
-            # lg=12,
-            # md=6,
-            # sm=12,
-            span=12,
+                ),
+            ],
+            className="card_id_left",
+            style={"height": "380px"},
         )
-        struct_left = dmc.Grid([col1, col2], gutter=0, className="g-0")
+
+        col_right = tabs(pdf)
+
         struct = dmc.Grid(
             [
                 dmc.GridCol(
-                    struct_left, span={"base": 12, "md": 3, "lg": 3}, className="p-1"
+                    dmc.Group([col_left, card_aladin]),
+                    span={"base": 12, "md": 2, "lg": 2},  # className="p-1"
                 ),
                 dmc.GridCol(
-                    [
-                        dmc.Space(h=10),
-                        tabs(pdf),
-                    ],
-                    span={"base": 12, "md": 9, "lg": 9},
-                    className="p-1",
+                    col_right, span={"base": 12, "md": 10, "lg": 10}, className="p-1"
                 ),
                 dcc.Store(id="object-data"),
-                # dcc.Store(id="object-upper"),
-                # dcc.Store(id="object-uppervalid"),
-                # dcc.Store(id="object-sso"),
-                # dcc.Store(id="object-tracklet"),
                 dcc.Store(id="object-release"),
+                # dcc.Store(id="object-sso"),
             ],
-            gutter="xl",
+            grow=True,
+            gutter="xs",
+            justify="center",
+            align="stretch",
         )
-        # I do not know why I have to pad here...
         return dmc.MantineProvider(
-            dmc.Container(struct, fluid="xxl", style={"padding-top": "20px"})
+            dmc.Container(struct, fluid="xxl", style={"padding-top": "40px"})
         )
 
 
 def tabs(pdf):
     tabs_list = [
-        dmc.TabsTab("Summary", value="Summary"),
+        dmc.TabsTab("diaObject", value="diaObject"),
     ]
     tabs_panels = [
-        dmc.TabsPanel(children=[tab1_content(pdf)], value="Summary"),
+        dmc.TabsPanel(children=[tab1_content(pdf)], value="diaObject"),
     ]
 
     # if not is_tracklet(pdf):
-    #     tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
-    #     tabs_panels.append(
-    #         dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
-    #     )
+    tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
+    tabs_panels.append(
+        dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
+    )
 
     # if len(pdf.index) > 1:
     #     tabs_list.append(dmc.TabsTab("Supernovae", value="Supernovae"))
@@ -182,14 +166,14 @@ def tabs(pdf):
     #         dmc.TabsPanel(tab7_content(), id="tab_blazar", value="Blazars")
     #     )
 
-    default = "Summary"
+    default = "diaObject"
     # # Default view
     # if is_sso(pdf):
     #     default = "Solar System"
     # elif is_tracklet(pdf):
     #     default = "Tracklets"
     # else:
-    #     default = "Summary"
+    #     default = "diaObject"
 
     tabs_ = dmc.Tabs(
         [
@@ -208,25 +192,9 @@ def tabs(pdf):
 
 
 def tab1_content(pdf):
-    """Summary tab"""
+    """diaObject tab"""
     tab1_content_ = html.Div([
         dmc.Space(h=10),
-        # dbc.Row(
-        #     [
-        #         dbc.Col(
-        #             dcc.Graph(
-        #                 style={
-        #                     "width": "100%",
-        #                     "height": "4pc",
-        #                 },
-        #                 config={"displayModeBar": False},
-        #                 id="classbar",
-        #             ),
-        #             width=12,
-        #         ),
-        #     ],
-        #     justify="around",
-        # ),
         dbc.Row(
             [
                 dbc.Col(
@@ -314,7 +282,7 @@ def store_query(name):
     [
         Output("object-release", "data"),
         Output({"type": "lightcurve_request_release", "name": ALL}, "children"),
-        Output("switch-mag-flux", "value"),
+        Output("select-measurement", "value"),
     ],
     [
         Input({"type": "lightcurve_request_release", "name": ALL}, "n_clicks"),
@@ -323,11 +291,6 @@ def store_query(name):
     prevent_initial_call=True,
     background=True,
     running=[
-        (
-            Output({"type": "lightcurve_request_release", "name": ALL}, "disabled"),
-            True,
-            True,
-        ),
         (
             Output({"type": "lightcurve_request_release", "name": ALL}, "loading"),
             True,
@@ -364,7 +327,7 @@ def store_release_photometry(n_clicks, object_data):
         return (
             pdf_release.to_json(),
             [f"DR photometry: {len(pdf_release.index)} points"] * len(n_clicks),
-            "DC magnitude",
+            "total",
         )
 
     return no_update, ["No DR photometry"] * len(n_clicks), no_update
@@ -733,189 +696,185 @@ def store_release_photometry(n_clicks, object_data):
 #     return tab6_content_
 
 
-# def tab_observability(pdf):
-#     """Displays the observation plot (altitude and airmass) of the source after selecting an observatory and a date.
+def tab_observability(pdf):
+    """Displays the observation plot (altitude and airmass) of the source after selecting an observatory and a date.
 
-#     Also displays the observation plot of the Moon as well as its illumination, and the various definition of night. Bottom axis shows UTC time and top axis shows Local time.
-#     """
-#     observatories = np.sort(
-#         np.concatenate(
-#             (
-#                 np.unique(EarthLocation.get_site_names()),
-#                 list(additional_observatories.keys()),
-#             )
-#         )
-#     )
-#     nterms_base = dmc.Container(
-#         [
-#             dmc.Divider(variant="solid", label="Follow-up"),
-#             dmc.Select(
-#                 label="Select your Observatory",
-#                 placeholder="Select an observatory from the list",
-#                 id="observatory",
-#                 data=[{"value": obs, "label": obs} for obs in observatories],
-#                 value="Palomar",
-#                 searchable=True,
-#                 clearable=True,
-#             ),
-#             dmc.DateInput(
-#                 id="dateobs",
-#                 label="Pick a date for the follow-up",
-#                 value=datetime.now().date(),
-#             ),
-#             dmc.Space(h=10),
-#             dmc.Switch(
-#                 id="moon_elevation", size="sm", radius="xl", label="Show moon elevation"
-#             ),
-#             dmc.Space(h=5),
-#             dmc.Switch(
-#                 id="moon_phase", size="sm", radius="xl", label="Show moon phase"
-#             ),
-#             dmc.Space(h=5),
-#             dmc.Switch(
-#                 id="moon_illumination",
-#                 size="sm",
-#                 radius="xl",
-#                 label="Show moon illumination",
-#             ),
-#         ],
-#         className="mb-3",  # , style={'width': '100%', 'display': 'inline-block'}
-#     )
+    Also displays the observation plot of the Moon as well as its illumination, and the various definition of night. Bottom axis shows UTC time and top axis shows Local time.
+    """
+    observatories = np.sort(
+        np.concatenate((
+            np.unique(EarthLocation.get_site_names()),
+            list(additional_observatories.keys()),
+        ))
+    )
+    nterms_base = dmc.Container(
+        [
+            dmc.Divider(variant="solid", label="Follow-up"),
+            dmc.Select(
+                label="Select your Observatory",
+                placeholder="Select an observatory from the list",
+                id="observatory",
+                data=[{"value": obs, "label": obs} for obs in observatories],
+                value="Rubin Observatory",
+                searchable=True,
+                clearable=True,
+            ),
+            dmc.DateInput(
+                id="dateobs",
+                label="Pick a date for the follow-up",
+                value=datetime.now().date(),
+            ),
+            dmc.Space(h=10),
+            dmc.Switch(
+                id="moon_elevation", size="sm", radius="xl", label="Show moon elevation"
+            ),
+            dmc.Space(h=5),
+            dmc.Switch(
+                id="moon_phase", size="sm", radius="xl", label="Show moon phase"
+            ),
+            dmc.Space(h=5),
+            dmc.Switch(
+                id="moon_illumination",
+                size="sm",
+                radius="xl",
+                label="Show moon illumination",
+            ),
+        ],
+        className="mb-3",  # , style={'width': '100%', 'display': 'inline-block'}
+    )
 
-#     card2 = dmc.Paper(
-#         [
-#             nterms_base,
-#         ],
-#         radius="sm",
-#         p="xs",
-#         shadow="sm",
-#         withBorder=True,
-#     )
+    card2 = dmc.Paper(
+        [
+            nterms_base,
+        ],
+        radius="sm",
+        p="xs",
+        shadow="sm",
+        withBorder=True,
+    )
 
-#     nterms_base_custom_observatory = dmc.Container(
-#         [
-#             dmc.Divider(variant="solid", label="Coordinates"),
-#             dmc.TextInput(
-#                 id="longitude",
-#                 label="Longitude",
-#                 placeholder="in decimal degrees",
-#                 size="sm",
-#                 radius="sm",
-#                 required=False,
-#                 persistence=True,
-#                 persistence_type="session",
-#             ),
-#             dmc.TextInput(
-#                 id="latitude",
-#                 label="Latitude",
-#                 placeholder="in decimal degrees",
-#                 size="sm",
-#                 radius="sm",
-#                 required=False,
-#                 persistence=True,
-#                 persistence_type="session",
-#             ),
-#             dmc.Space(h=5),
-#             html.Button(
-#                 "Clear",
-#                 id="clear_button",
-#                 style={
-#                     "border": "none",
-#                     "border-radius": "10px",
-#                     "font-size": "15px",
-#                     "float": "right",
-#                 },
-#             ),
-#         ],
-#         className="mb-3",  # , style={'width': '100%', 'display': 'inline-block'}
-#     )
+    nterms_base_custom_observatory = dmc.Container(
+        [
+            dmc.Divider(variant="solid", label="Coordinates"),
+            dmc.TextInput(
+                id="longitude",
+                label="Longitude",
+                placeholder="in decimal degrees",
+                size="sm",
+                radius="sm",
+                required=False,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.TextInput(
+                id="latitude",
+                label="Latitude",
+                placeholder="in decimal degrees",
+                size="sm",
+                radius="sm",
+                required=False,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.Space(h=5),
+            html.Button(
+                "Clear",
+                id="clear_button",
+                style={
+                    "border": "none",
+                    "border-radius": "10px",
+                    "font-size": "15px",
+                    "float": "right",
+                },
+            ),
+        ],
+        className="mb-3",  # , style={'width': '100%', 'display': 'inline-block'}
+    )
 
-#     card_custom_observatory = dmc.Paper(
-#         [
-#             nterms_base_custom_observatory,
-#         ],
-#         radius="sm",
-#         p="xs",
-#         shadow="sm",
-#         withBorder=True,
-#     )
+    card_custom_observatory = dmc.Paper(
+        [
+            nterms_base_custom_observatory,
+        ],
+        radius="sm",
+        p="xs",
+        shadow="sm",
+        withBorder=True,
+    )
 
-#     card3 = dmc.Accordion(
-#         disableChevronRotation=True,
-#         multiple=True,
-#         children=[
-#             dmc.AccordionItem(
-#                 [
-#                     dmc.AccordionControl(
-#                         "Custom Observatory",
-#                         icon=[
-#                             DashIconify(
-#                                 icon="tabler:atom-2",
-#                                 color=dmc.DEFAULT_THEME["colors"]["green"][6],
-#                                 width=20,
-#                             ),
-#                         ],
-#                     ),
-#                     dmc.AccordionPanel(
-#                         dmc.Stack(
-#                             card_custom_observatory,
-#                         ),
-#                     ),
-#                 ],
-#                 value="external",
-#             ),
-#         ],
-#         styles={"content": {"padding": "5px"}},
-#     )
+    card3 = dmc.Accordion(
+        disableChevronRotation=True,
+        multiple=True,
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Custom Observatory",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:atom-2",
+                                color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Stack(
+                            card_custom_observatory,
+                        ),
+                    ),
+                ],
+                value="external",
+            ),
+        ],
+        styles={"content": {"padding": "5px"}},
+    )
 
-#     submit_button = dmc.Button(
-#         "Update plot",
-#         id="submit_observability",
-#         color="dark",
-#         variant="outline",
-#         fullWidth=True,
-#         radius="xl",
-#     )
+    submit_button = dmc.Button(
+        "Update plot",
+        id="submit_observability",
+        color="dark",
+        variant="outline",
+        fullWidth=True,
+        radius="xl",
+    )
 
-#     tab_content_ = html.Div(
-#         [
-#             dmc.Space(h=10),
-#             dbc.Row(
-#                 [
-#                     dbc.Col(
-#                         loading(
-#                             dmc.Paper(
-#                                 [
-#                                     # dmc.Center(html.Img(id="observability_plot")),
-#                                     dmc.Space(h=10),
-#                                     dmc.Center(dcc.Markdown(id="observability_title")),
-#                                     html.Div(id="observability_plot"),
-#                                     dmc.Center(dcc.Markdown(id="moon_data")),
-#                                     dmc.Space(h=20),
-#                                     card_explanation_observability(),
-#                                 ],
-#                             ),
-#                         ),
-#                         md=8,
-#                     ),
-#                     dbc.Col(
-#                         [
-#                             html.Br(),
-#                             card2,
-#                             html.Br(),
-#                             dmc.Divider(variant="solid"),
-#                             card3,
-#                             html.Br(),
-#                             submit_button,
-#                         ],
-#                         md=4,
-#                     ),
-#                 ],
-#                 className="g-1",
-#             ),
-#         ]
-#     )
-#     return tab_content_
+    tab_content_ = html.Div([
+        dmc.Space(h=10),
+        dbc.Row(
+            [
+                dbc.Col(
+                    loading(
+                        dmc.Paper(
+                            [
+                                # dmc.Center(html.Img(id="observability_plot")),
+                                dmc.Space(h=10),
+                                dmc.Center(dcc.Markdown(id="observability_title")),
+                                html.Div(id="observability_plot"),
+                                dmc.Center(dcc.Markdown(id="moon_data")),
+                                dmc.Space(h=20),
+                                card_explanation_observability(),
+                            ],
+                        ),
+                    ),
+                    md=8,
+                ),
+                dbc.Col(
+                    [
+                        html.Br(),
+                        card2,
+                        html.Br(),
+                        dmc.Divider(variant="solid"),
+                        card3,
+                        html.Br(),
+                        submit_button,
+                    ],
+                    md=4,
+                ),
+            ],
+            className="g-1",
+        ),
+    ])
+    return tab_content_
 
 
 # def tab7_content():

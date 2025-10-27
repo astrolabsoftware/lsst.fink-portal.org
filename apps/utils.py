@@ -16,6 +16,7 @@
 
 from dash import html
 import dash_mantine_components as dmc
+import dash_bootstrap_components as dbc
 
 import numpy as np
 
@@ -189,3 +190,199 @@ def is_row_static_or_moving(row: dict):
         is_sso = False
 
     return main_id, is_sso
+
+
+def cats_type_converter():
+    """Class mapping for CATS
+
+    Returns
+    -------
+    out: dict
+        Mapping int -> name
+    """
+    mapping_cats_general = {
+        11: "SN-like",  # SN-like
+        12: "Fast",  # Fast: KN, ulens, Novae, ...
+        13: "Long",  # Long: SLSN, TDE, PISN, ...
+        21: "Periodic",  # Periodic: RRLyrae, EB, LPV, ...
+        22: "Non-periodic",  # Non-periodic: AGN
+    }
+
+    return mapping_cats_general
+
+
+def template_button_for_external_conesearch(
+    className="btn btn-default zoom btn-circle btn-lg btn-image",
+    style=None,
+    color="dark",
+    outline=True,
+    title="",
+    target="_blank",
+    href="",
+):
+    """Template button for external conesearch
+
+    Parameters
+    ----------
+    className: str, optional
+        Styling options. Default is `btn btn-default zoom btn-circle btn-lg btn-image`
+    style: dict, optional
+        Extra styling options. Default is {}
+    color: str, optional
+        Color of the button (default is `dark`)
+    outline: bool, optional
+    title: str, optional
+        Title of the object. Default is ''
+    target: str, optional
+        Open in the same window or in a new tab (default).
+    href: str, optional
+        targeted URL
+    """
+    if style is None:
+        style = {}
+
+    button = dbc.Button(
+        className=className,
+        style=style,
+        color=color,
+        outline=outline,
+        title=title,
+        target=target,
+        href=href,
+    )
+
+    return button
+
+
+def create_button_for_external_conesearch(
+    kind: str, ra0: float, dec0: float, radius=None, width=4
+):
+    """Create a button that triggers an external conesearch
+
+    The button is wrapped within a dbc.Col object.
+
+    Parameters
+    ----------
+    kind: str
+        External resource name. Currently available:
+        - asas-sn, snad, vsx, tns, simbad, datacentral, ned, sdss
+    ra0: float
+        RA for the conesearch center
+    dec0: float
+        DEC for the conesearch center
+    radius: int or float, optional
+        Radius for the conesearch. Each external resource has its
+        own default value (default), as well as its own units.
+    width: int, optional
+        dbc.Col width parameter. Default is 4.
+    """
+    if kind == "asas-sn-variable":
+        if radius is None:
+            radius = 0.5
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/buttons/assassin_logo.png)",
+                    "background-color": "black",
+                },
+                title="ASAS-SN",
+                href=f"https://asas-sn.osu.edu/variables?ra={ra0}&dec={dec0}&radius={radius}&vmag_min=&vmag_max=&amplitude_min=&amplitude_max=&period_min=&period_max=&lksl_min=&lksl_max=&class_prob_min=&class_prob_max=&parallax_over_err_min=&parallax_over_err_max=&name=&references[]=I&references[]=II&references[]=III&references[]=IV&references[]=V&references[]=VI&sort_by=raj2000&sort_order=asc&show_non_periodic=true&show_without_class=true&asassn_discov_only=false&",
+            ),
+            width=width,
+        )
+    elif kind == "asas-sn":
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/buttons/assassin_logo.png)",
+                    "background-color": "black",
+                },
+                title="ASAS-SN",
+                href=f"https://asas-sn.osu.edu/?ra={ra0}&dec={dec0}",
+            ),
+            width=width,
+        )
+    elif kind == "snad":
+        if radius is None:
+            radius = 5
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={"background-image": "url(/assets/buttons/snad.svg)"},
+                title="SNAD",
+                href=f"https://ztf.snad.space/search/{ra0} {dec0}/{radius}",
+            ),
+            width=width,
+        )
+    elif kind == "vsx":
+        if radius is None:
+            radius = 0.1
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={"background-image": "url(/assets/buttons/vsx.png)"},
+                title="AAVSO VSX",
+                href=f"https://www.aavso.org/vsx/index.php?view=results.get&coords={ra0}+{dec0}&format=d&size={radius}",
+            ),
+            width=width,
+        )
+    elif kind == "tns":
+        if radius is None:
+            radius = 5
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/buttons/tns_logo.png)",
+                    "background-size": "auto 100%",
+                    "background-position-x": "left",
+                },
+                title="TNS",
+                href=f"https://www.wis-tns.org/search?ra={ra0}&decl={dec0}&radius={radius}&coords_unit=arcsec",
+            ),
+            width=width,
+        )
+    elif kind == "simbad":
+        if radius is None:
+            radius = 0.08
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={"background-image": "url(/assets/buttons/simbad.png)"},
+                title="SIMBAD",
+                href=f"http://simbad.u-strasbg.fr/simbad/sim-coo?Coord={ra0}%20{dec0}&Radius={radius}",
+            ),
+            width=width,
+        )
+    elif kind == "datacentral":
+        if radius is None:
+            radius = 2.0
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={"background-image": "url(/assets/buttons/dclogo_small.png)"},
+                title="DataCentral Data Aggregation Service",
+                href=f"https://das.datacentral.org.au/open?RA={ra0}&DEC={dec0}&FOV={0.5}&ERR={radius}",
+            ),
+            width=width,
+        )
+    elif kind == "ned":
+        if radius is None:
+            radius = 1.0
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/buttons/NEDVectorLogo_WebBanner_100pxTall_2NoStars.png)",
+                    "background-color": "black",
+                },
+                title="NED",
+                href=f"http://ned.ipac.caltech.edu/cgi-bin/objsearch?search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0&ra={ra0}&dec={dec0}&radius={radius}&obj_sort=Distance+to+search+center&img_stamp=Yes",
+            ),
+            width=width,
+        )
+    elif kind == "sdss":
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={"background-image": "url(/assets/buttons/sdssIVlogo.png)"},
+                title="SDSS",
+                href=f"http://skyserver.sdss.org/dr13/en/tools/chart/navi.aspx?ra={ra0}&dec={dec0}",
+            ),
+            width=width,
+        )
+
+    return button

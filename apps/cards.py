@@ -20,6 +20,7 @@ from dash import html, dcc, Output, Input, dash_table, no_update
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 
+
 import numpy as np
 import pandas as pd
 
@@ -31,9 +32,11 @@ from apps.api import request_api
 from apps.utils import class_colors
 from apps.utils import convert_time
 from apps.utils import loading
+from apps.utils import cats_type_converter
 
 from apps.utils import get_first_value, is_row_static_or_moving
 from apps.utils import demarkdownify_objectid
+from apps.utils import create_button_for_external_conesearch
 from apps.plotting import make_modal_stamps
 from apps.helpers import help_popover, lc_help
 from dash_iconify import DashIconify
@@ -42,6 +45,7 @@ from dash_iconify import DashIconify
 from apps.plotting import draw_lightcurve  # noqa: F401
 from apps.plotting import draw_cutouts  # noqa: F401
 from apps.plotting import CONFIG_PLOT
+from apps.plotting import DEFAULT_FINK_COLORS
 
 from apps.configuration import extract_configuration
 
@@ -624,37 +628,11 @@ def card_lightcurve_summary(diaObjectId):
     accordions = dmc.Accordion(
         multiple=True,
         chevronPosition="left",
-        variant="contained",
+        # variant="contained",
         disableChevronRotation=False,
         radius="xl",
         chevronSize=20,
         children=[
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
-                        "Layout customisation",
-                    ),
-                    dmc.AccordionPanel(
-                        dmc.Group(
-                            [
-                                dmc.RadioGroup(
-                                    id="switch-lc-layout",
-                                    children=dmc.Group([
-                                        dmc.Radio(k, value=k, color="orange")
-                                        for k in ["Plain", "Split"]
-                                    ]),
-                                    value="Plain",
-                                    size="sm",
-                                    persistence=True,
-                                ),
-                            ],
-                            justify="center",
-                            align="center",
-                        ),
-                    ),
-                ],
-                value="layout",
-            ),
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
@@ -676,7 +654,7 @@ def card_lightcurve_summary(diaObjectId):
                                         size="xs",
                                     ),
                                     dmc.Button(
-                                        "Add ZTF DR photometry",
+                                        "ZTF DR photometry",
                                         id={
                                             "type": "lightcurve_request_release",
                                             "name": "main",
@@ -735,12 +713,24 @@ def card_lightcurve_summary(diaObjectId):
 
     card = html.Div(
         [
+            dmc.Group([
+                dbc.Popover(
+                    "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                    target="indicator_lc",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                html.Div(id="indicator_lc", className="indicator"),
+                html.Div(id="flags_lc", className="indicator"),
+            ]),
+            dmc.Space(h=15),
             loading(
                 dcc.Graph(
                     id="lightcurve_object_page",
                     style={
                         "width": "100%",
-                        "height": "30pc",
+                        "height": "35pc",
                     },
                     config=CONFIG_PLOT,
                     className="mb-2 rounded-5",
@@ -755,14 +745,14 @@ def card_lightcurve_summary(diaObjectId):
             # ),
         ],
     )
-    return card  # dmc.Paper([comp1, comp2, comp3]) #card
+    return card
 
 
 def card_id(pdf):
     """Add a card containing basic alert data"""
     diaObjectid = pdf["r:diaObjectId"].to_numpy()[0]
-    # ra0 = pdf["r:ra"].to_numpy()[0]
-    # dec0 = pdf["r:dec"].to_numpy()[0]
+    ra0 = pdf["r:ra"].to_numpy()[0]
+    dec0 = pdf["r:dec"].to_numpy()[0]
 
     python_download = f"""import requests
 import pandas as pd
@@ -818,7 +808,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:flare",
-                                color=dmc.DEFAULT_THEME["colors"]["dark"][6],
+                                color=DEFAULT_FINK_COLORS[0],
                                 width=20,
                             ),
                         ],
@@ -826,24 +816,16 @@ curl -H "Content-Type: application/json" -X POST \\
                     dmc.AccordionPanel(
                         [
                             loading(
-                                dmc.Paper(
-                                    [
-                                        dbc.Row(
-                                            dmc.Skeleton(
-                                                style={
-                                                    "width": "100%",
-                                                    "aspect-ratio": "3/1",
-                                                }
-                                            ),
-                                            id="stamps",
-                                            justify="around",
-                                            className="g-0",
-                                        ),
-                                    ],
-                                    radius="sm",
-                                    shadow="sm",
-                                    withBorder=True,
-                                    style={"padding": "0px"},
+                                dbc.Row(
+                                    dmc.Skeleton(
+                                        style={
+                                            "width": "100%",
+                                            "aspect-ratio": "3/1",
+                                        }
+                                    ),
+                                    id="stamps",
+                                    justify="around",
+                                    className="g-0",
                                 ),
                             ),
                             dmc.Space(h=10),
@@ -860,7 +842,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:file-description",
-                                color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                                color=DEFAULT_FINK_COLORS[1],
                                 width=20,
                             ),
                         ],
@@ -878,7 +860,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:target",
-                                color=dmc.DEFAULT_THEME["colors"]["orange"][6],
+                                color=DEFAULT_FINK_COLORS[2],
                                 width=20,
                             ),
                         ],
@@ -909,7 +891,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:database-export",
-                                color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                                color=DEFAULT_FINK_COLORS[3],
                                 width=20,
                             ),
                         ],
@@ -988,53 +970,53 @@ curl -H "Content-Type: application/json" -X POST \\
                 ],
                 value="api",
             ),
-            # dmc.AccordionItem(
-            #     [
-            #         dmc.AccordionControl(
-            #             "Neighbourhood",
-            #             icon=[
-            #                 DashIconify(
-            #                     icon="tabler:external-link",
-            #                     color="#15284F",
-            #                     width=20,
-            #                 ),
-            #             ],
-            #         ),
-            #         dmc.AccordionPanel(
-            #             dmc.Stack(
-            #                 [
-            #                     card_neighbourhood(pdf),
-            #                     *create_external_conesearches(ra0, dec0),
-            #                 ],
-            #                 align="center",
-            #             ),
-            #         ),
-            #     ],
-            #     value="external",
-            # ),
-            # dmc.AccordionItem(
-            #     [
-            #         dmc.AccordionControl(
-            #             "Other brokers",
-            #             icon=[
-            #                 DashIconify(
-            #                     icon="tabler:atom-2",
-            #                     color=dmc.DEFAULT_THEME["colors"]["green"][6],
-            #                     width=20,
-            #                 ),
-            #             ],
-            #         ),
-            #         dmc.AccordionPanel(
-            #             dmc.Stack(
-            #                 [
-            #                     create_external_links_brokers(objectid),
-            #                 ],
-            #                 align="center",
-            #             ),
-            #         ),
-            #     ],
-            #     value="external_brokers",
-            # ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Neighbourhood",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:external-link",
+                                color=DEFAULT_FINK_COLORS[4],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Stack(
+                            [
+                                # card_neighbourhood(pdf),
+                                *create_external_conesearches(ra0, dec0),
+                            ],
+                            align="center",
+                        ),
+                    ),
+                ],
+                value="external",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Other brokers",
+                        icon=[
+                            DashIconify(
+                                icon="tabler:atom-2",
+                                color=DEFAULT_FINK_COLORS[5],
+                                width=20,
+                            ),
+                        ],
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Stack(
+                            [
+                                create_external_links_brokers(diaObjectid),
+                            ],
+                            align="center",
+                        ),
+                    ),
+                ],
+                value="external_brokers",
+            ),
             # dmc.AccordionItem(
             #     [
             #         dmc.AccordionControl(
@@ -1088,6 +1070,7 @@ def alert_properties(object_data, clickData):
             return no_update
 
     pdf = pdf_.head(1)
+    print(pdf)
     pdf = pd.DataFrame({"Name": pdf.columns, "Value": pdf.to_numpy()[0]})
     columns = [
         {
@@ -1184,106 +1167,220 @@ def card_id_left(object_data):
     discovery_date = convert_time(
         pdf["r:midpointMjdTai"].to_numpy()[-1], format_in="mjd", format_out="iso"
     )
-    mjds = pdf["r:midpointMjdTai"].to_numpy()
-    ndet = len(pdf)
 
-    badges = []
-    # for c in np.unique(pdf["f:crossmatches_simbad_otype"]):
-    #     if c in BAD_VALUES:
-    #         continue
-    #     if c in simbad_types:
-    #         color = class_colors["Simbad"]
-    #     elif c in class_colors.keys():
-    #         color = class_colors[c]
-    #     else:
-    #         # Sometimes SIMBAD mess up names :-)
-    #         color = class_colors["Simbad"]
+    # FIXME: what to do with badges?
+    # badges = []
+    # cdsxmatches = np.unique(pdf["f:crossmatches_simbad_otype"])
+    # for cdsxmatch in cdsxmatches:
+    #     if cdsxmatch not in BAD_VALUES:
+    #         badges.append(
+    #             make_badge(
+    #                 f"SIMBAD: {cdsxmatch}",
+    #                 variant="dot",
+    #                 color=class_colors["Simbad"],
+    #                 tooltip="SIMBAD classification",
+    #             ),
+    #         )
 
-    #     badges.append(
-    #         make_badge(
-    #             c,
-    #             color=color,
-    #             tooltip="SIMBAD classification",
-    #         ),
-    #     )
-    cdsxmatches = np.unique(pdf["f:crossmatches_simbad_otype"])
-    for cdsxmatch in cdsxmatches:
-        if cdsxmatch not in BAD_VALUES:
-            badges.append(
-                make_badge(
-                    f"SIMBAD: {cdsxmatch}",
-                    variant="dot",
-                    color=class_colors["Simbad"],
-                    tooltip="SIMBAD classification",
-                ),
-            )
+    # tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
+    # if tns_badge is not None:
+    #     badges.append(tns_badge)
 
-    tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
-    if tns_badge is not None:
-        badges.append(tns_badge)
-
-    badges += generate_generic_badges(pdf, variant="dot")
-
-    meta_name = generate_metadata_name(get_first_value(pdf, "r:diaObjectId"))
-    if meta_name is not None:
-        extra_div = dbc.Row(
-            [
-                dbc.Col(
-                    dmc.Title(meta_name, order=4, style={"color": "#15284F"}), width=10
-                ),
-            ],
-            justify="start",
-            align="center",
-        )
-    else:
-        extra_div = html.Div()
+    # badges += generate_generic_badges(pdf, variant="dot")
 
     coords = SkyCoord(
         get_first_value(pdf, "r:ra"), get_first_value(pdf, "r:dec"), unit="deg"
     )
 
-    c1 = dmc.Avatar(src="/assets/Fink_SecondaryLogo_WEB.png", size="lg")
-    c2 = dmc.Title(
-        str(diaObjectid), order=1, style={"color": "#15284F", "wordWrap": "break-word"}
-    )
-    card = dmc.Paper(
-        [
-            dmc.Grid(
-                [dmc.GridCol(c1, span="content"), dmc.GridCol(c2, span="auto")],
-                gutter="xs",
-            ),
-            extra_div,
-            html.Div(badges),
-            dcc.Markdown(
-                """
-                Discovery date: `{}`
-                Last detection: `{}`
-                Last alert SNR: `{:.2f}`
-                Duration: `{:.2f}` days
-                Number of detections: `{}`
-                RA/Dec: `{} {}`
-                """.format(
-                    discovery_date[:19],
-                    date_end[:19],
-                    pdf["r:snr"].to_numpy()[0],
-                    mjds[0] - mjds[-1],
-                    # get_first_value(pdf, "i:last") # FIXME with first/last
-                    # - get_first_value(pdf, "i:first"),
-                    ndet,
-                    coords.ra.to_string(pad=True, unit="hour", precision=2, sep=" "),
-                    coords.dec.to_string(
-                        pad=True, unit="deg", alwayssign=True, precision=1, sep=" "
+    cats_mapping = cats_type_converter()
+    cats_class = cats_mapping[pdf["f:classifiers_cats_class"].to_numpy()[0]]
+    simbad_class = pdf["f:crossmatches_simbad_otype"].to_numpy()[0]
+    if pd.isnull(simbad_class) or simbad_class in BAD_VALUES:
+        simbad_class = "N/A"
+
+    tns_class = pdf["f:crossmatches_tns_type"].to_numpy()[0]
+    if pd.isnull(tns_class) or tns_class in BAD_VALUES:
+        tns_class = "N/A"
+
+    card = html.Div(
+        className="card_id_left",
+        children=[
+            # Top section
+            html.Div(
+                className="top-section",
+                children=[
+                    html.Div(
+                        html.Div(str(diaObjectid), className="title-card_id_left"),
+                        className="border2",
                     ),
-                ),
-                className="markdown markdown-pre ps-2 pe-2 mt-2",
+                    html.Div(
+                        className="bottom-section",
+                        children=[
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=discovery_date[:10],
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="Discovery",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=date_end[:10],
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="Last detection",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=len(pdf), className="big-text"
+                                            ),
+                                            html.Span(
+                                                children="Detections",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children="{:.2f}".format(
+                                                    pdf["r:snr"].to_numpy()[0]
+                                                ),
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="Last SNR",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=simbad_class,
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="SIMBAD",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=tns_class, className="big-text"
+                                            ),
+                                            html.Span(
+                                                children="TNS",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            html.Div(
+                                className="row row1",
+                                children=[
+                                    html.Div(
+                                        className="item",
+                                        children=[
+                                            html.Span(
+                                                children=cats_class,
+                                                className="big-text",
+                                            ),
+                                            html.Span(
+                                                children="CATS",
+                                                className="regular-text",
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            # Bottom section
+            html.Div(
+                className="bottom-section",
+                children=[
+                    html.Div(
+                        className="row",
+                        children=[
+                            # card_aladin,
+                            # dmc.Space(h=20),
+                            html.Div(
+                                className="item",
+                                children=[
+                                    html.Span(
+                                        children=[
+                                            html.Div(
+                                                "{} {}".format(
+                                                    coords.ra.to_string(
+                                                        pad=True,
+                                                        unit="hour",
+                                                        precision=2,
+                                                        sep=" ",
+                                                    ),
+                                                    coords.dec.to_string(
+                                                        pad=True,
+                                                        unit="deg",
+                                                        alwayssign=True,
+                                                        precision=1,
+                                                        sep=" ",
+                                                    ),
+                                                ),
+                                                id="coord_card",
+                                                className="big-text",
+                                                style={"color": "white"},
+                                            ),
+                                            dcc.Clipboard(
+                                                target_id="coord_card",
+                                                title="Copy to clipboard",
+                                                style={"color": "gray"},
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    )
+                ],
             ),
         ],
-        radius="xl",
-        p="md",
-        shadow="xl",
-        withBorder=True,
     )
-    return card
+    return html.Div(card, style={"padding-top": "10px"})
 
 
 def generate_tns_badge(oid):
@@ -1402,145 +1499,101 @@ def generate_metadata_name(oid):
 #     return card
 
 
-# def create_external_conesearches(ra0, dec0):
-#     """Create two rows of buttons to trigger external conesearch
+def create_external_conesearches(ra0, dec0):
+    """Create two rows of buttons to trigger external conesearch
 
-#     Parameters
-#     ----------
-#     ra0: float
-#         RA for the conesearch center
-#     dec0: float
-#         DEC for the conesearch center
-#     """
-#     width = 3
-#     buttons = [
-#         dbc.Row(
-#             [
-#                 create_button_for_external_conesearch(
-#                     kind="tns", ra0=ra0, dec0=dec0, radius=5, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="simbad", ra0=ra0, dec0=dec0, radius=0.08, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
-#                 ),
-#             ],
-#             justify="around",
-#         ),
-#         dbc.Row(
-#             [
-#                 create_button_for_external_conesearch(
-#                     kind="ned", ra0=ra0, dec0=dec0, radius=1.0, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="sdss", ra0=ra0, dec0=dec0, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="asas-sn", ra0=ra0, dec0=dec0, radius=0.5, width=width
-#                 ),
-#                 create_button_for_external_conesearch(
-#                     kind="vsx", ra0=ra0, dec0=dec0, radius=0.1, width=width
-#                 ),
-#             ],
-#             justify="around",
-#         ),
-#     ]
-#     return buttons
-
-
-# def create_external_links_brokers(objectId):
-#     """ """
-#     buttons = dbc.Row(
-#         [
-#             dbc.Col(
-#                 dbc.Button(
-#                     className="btn btn-default btn-circle btn-lg zoom btn-image",
-#                     style={"background-image": "url(/assets/buttons/logo_alerce.png)"},
-#                     color="dark",
-#                     outline=True,
-#                     id="alerce",
-#                     title="ALeRCE",
-#                     target="_blank",
-#                     href=f"https://alerce.online/object/{objectId}",
-#                 ),
-#             ),
-#             dbc.Col(
-#                 dbc.Button(
-#                     className="btn btn-default btn-circle btn-lg zoom btn-image",
-#                     style={"background-image": "url(/assets/buttons/logo_antares.png)"},
-#                     color="dark",
-#                     outline=True,
-#                     id="antares",
-#                     title="ANTARES",
-#                     target="_blank",
-#                     href=f"https://antares.noirlab.edu/loci?query=%7B%22currentPage%22%3A1,%22filters%22%3A%5B%7B%22type%22%3A%22query_string%22,%22field%22%3A%7B%22query%22%3A%22%2a{objectId}%2a%22,%22fields%22%3A%5B%22properties.ztf_object_id%22,%22locus_id%22%5D%7D,%22value%22%3Anull,%22text%22%3A%22ID%20Lookup%3A%20ZTF21abfmbix%22%7D%5D,%22sortBy%22%3A%22properties.newest_alert_observation_time%22,%22sortDesc%22%3Atrue,%22perPage%22%3A25%7D",
-#                 ),
-#             ),
-#             dbc.Col(
-#                 dbc.Button(
-#                     className="btn btn-default btn-circle btn-lg zoom btn-image",
-#                     style={"background-image": "url(/assets/buttons/logo_lasair.png)"},
-#                     color="dark",
-#                     outline=True,
-#                     id="lasair",
-#                     title="Lasair",
-#                     target="_blank",
-#                     href=f"https://lasair-ztf.lsst.ac.uk/objects/{objectId}",
-#                 ),
-#             ),
-#         ],
-#         justify="around",
-#     )
-#     return buttons
+    Parameters
+    ----------
+    ra0: float
+        RA for the conesearch center
+    dec0: float
+        DEC for the conesearch center
+    """
+    width = 3
+    buttons = [
+        dbc.Row(
+            [
+                create_button_for_external_conesearch(
+                    kind="tns", ra0=ra0, dec0=dec0, radius=5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="simbad", ra0=ra0, dec0=dec0, radius=0.08, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
+                ),
+            ],
+            justify="around",
+        ),
+        dbc.Row(
+            [
+                create_button_for_external_conesearch(
+                    kind="ned", ra0=ra0, dec0=dec0, radius=1.0, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="sdss", ra0=ra0, dec0=dec0, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="asas-sn", ra0=ra0, dec0=dec0, radius=0.5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="vsx", ra0=ra0, dec0=dec0, radius=0.1, width=width
+                ),
+            ],
+            justify="around",
+        ),
+    ]
+    return buttons
 
 
-# def card_neighbourhood(pdf):
-#     distnr = get_first_value(pdf, "i:distnr")
-#     ssnamenr = get_first_value(pdf, "i:ssnamenr")
-#     distpsnr1 = get_first_value(pdf, "i:distpsnr1")
-#     neargaia = get_first_value(pdf, "i:neargaia")
-#     constellation = get_first_value(pdf, "v:constellation")
-#     gaianame = get_multi_labels(pdf, "d:DR3Name", to_avoid=["nan"])
-#     cdsxmatch = get_multi_labels(pdf, "d:cdsxmatch", to_avoid=["nan"])
-#     vsx = get_multi_labels(pdf, "d:vsx", to_avoid=["nan"])
-#     gcvs = get_multi_labels(pdf, "d:gcvs", to_avoid=["nan"])
+def create_external_links_brokers(objectId):
+    """ """
+    buttons = dbc.Row(
+        [
+            dbc.Col(
+                dbc.Button(
+                    className="btn btn-default btn-circle btn-lg zoom btn-image",
+                    style={"background-image": "url(/assets/buttons/logo_alerce.png)"},
+                    color="dark",
+                    outline=True,
+                    id="alerce",
+                    title="ALeRCE",
+                    target="_blank",
+                    href=f"https://alerce.online/object/{objectId}",
+                ),
+            ),
+            # dbc.Col(
+            #     dbc.Button(
+            #         className="btn btn-default btn-circle btn-lg zoom btn-image",
+            #         style={"background-image": "url(/assets/buttons/logo_antares.png)"},
+            #         color="dark",
+            #         outline=True,
+            #         id="antares",
+            #         title="ANTARES",
+            #         target="_blank",
+            #         href=f"https://antares.noirlab.edu/loci?query=%7B%22currentPage%22%3A1,%22filters%22%3A%5B%7B%22type%22%3A%22query_string%22,%22field%22%3A%7B%22query%22%3A%22%2a{objectId}%2a%22,%22fields%22%3A%5B%22properties.ztf_object_id%22,%22locus_id%22%5D%7D,%22value%22%3Anull,%22text%22%3A%22ID%20Lookup%3A%20ZTF21abfmbix%22%7D%5D,%22sortBy%22%3A%22properties.newest_alert_observation_time%22,%22sortDesc%22%3Atrue,%22perPage%22%3A25%7D",
+            #     ),
+            # ),
+            dbc.Col(
+                dbc.Button(
+                    className="btn btn-default btn-circle btn-lg zoom btn-image",
+                    style={"background-image": "url(/assets/buttons/logo_lasair.png)"},
+                    color="dark",
+                    outline=True,
+                    id="lasair",
+                    title="Lasair",
+                    target="_blank",
+                    href=f"https://lasair-lsst.lsst.ac.uk/objects/{objectId}",
+                ),
+            ),
+        ],
+        justify="around",
+    )
+    return buttons
 
-#     # Sanitize empty values
-#     if ssnamenr == "null":
-#         ssnamenr = "N/A"
-
-#     if not vsx or vsx == "nan":
-#         vsx = "Unknown"
-
-#     card = dmc.Paper(
-#         [
-#             dcc.Markdown(
-#                 f"""
-#                 Constellation: `{constellation}`
-#                 Class (SIMBAD): `{cdsxmatch}`
-#                 Class (VSX): `{vsx}`
-#                 Class (GCVS): `{gcvs}`
-#                 Name (MPC): `{ssnamenr}`
-#                 Name (Gaia): `{gaianame}`
-#                 Distance (Gaia): `{float(neargaia):.2f}` arcsec
-#                 Distance (PS1): `{float(distpsnr1):.2f}` arcsec
-#                 Distance (ZTF): `{float(distnr):.2f}` arcsec
-#                 """,
-#                 className="markdown markdown-pre ps-2 pe-2",
-#             ),
-#         ],
-#         radius="sm",
-#         p="xs",
-#         shadow="sm",
-#         withBorder=True,
-#         style={"width": "100%"},
-#     )
-
-#     return card
 
 # Downloads handling. Requires CORS to be enabled on the server.
 # TODO: We are mostly using it like this until GET requests properly initiate

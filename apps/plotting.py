@@ -12,39 +12,43 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from dash import Output, Input, no_update, clientside_callback, State
+from dash import dcc, html, Output, Input, no_update, clientside_callback, State
 from dash.exceptions import PreventUpdate
 from dash_iconify import DashIconify
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.colors
+from plotly.subplots import make_subplots
 
 import io
 import gzip
-from astropy.io import fits
-
-from app import app
+import copy
 
 from astropy.visualization import AsymmetricPercentileInterval, simple_norm
 from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation
+from astropy.coordinates import Latitude, Longitude
+import astropy.units as u
+from astropy.time import Time
+from astropy.io import fits
 
 import numpy as np
 import pandas as pd
-from astropy.time import Time
-from dash import dcc, html
-import dash_bootstrap_components as dbc
-import dash_mantine_components as dmc
 
 import nifty_ls  # noqa: F401
 
 
 # from apps import __file__
+from app import app
 from apps.api import request_api
 from apps.utils import convert_time
 from apps.utils import flux_to_mag
 from apps.utils import loading
 from apps.utils import hex_to_rgba, rgb_to_rgba
+import apps.observability.utils as observability
+
 
 PIXEL_SIZE = 0.2  # arcsec/pixel
 
@@ -345,15 +349,67 @@ def draw_cutouts(clickData, object_data):
         except OSError:
             data = dcc.Markdown("Load fail, refresh the page")
 
-        figs.append(
-            dbc.Col(
-                data,
-                xs=4,
-                className="p-0",
-            ),
-        )
+        shape = cutout.shape
 
-    return figs
+        card = html.Div(
+            children=[
+                html.Div(
+                    className="first-content",
+                    children=[
+                        html.Div(
+                            className="container-small",
+                            children=[
+                                html.Div(
+                                    children=[
+                                        html.Div(
+                                            id="card",
+                                            children=[
+                                                html.Div(
+                                                    className="card-content",
+                                                    children=[
+                                                        dbc.Col(data),
+                                                        html.Div(
+                                                            className="title-small",
+                                                            children=[
+                                                                html.Span(
+                                                                    kind.capitalize()
+                                                                ),
+                                                            ],
+                                                        ),
+                                                        html.Div(
+                                                            className="subtitle-small",
+                                                            children=[
+                                                                html.Span(
+                                                                    "{}px / {:.1f}''".format(
+                                                                        shape[0],
+                                                                        shape[0]
+                                                                        * PIXEL_SIZE,
+                                                                    )
+                                                                ),
+                                                            ],
+                                                        ),
+                                                        html.Div(
+                                                            className="corner-elements",
+                                                            children=[
+                                                                html.Span(),
+                                                                html.Span(),
+                                                            ],
+                                                        ),
+                                                    ],
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
+        figs.append(card)
+
+    return dmc.Group(figs, justify="space-around")
 
 
 @app.callback(
@@ -383,10 +439,15 @@ def draw_cutouts_modal(object_data, date_modal_select, is_open):
         figs.append(
             dbc.Col(
                 [
-                    html.Div(kind.capitalize(), className="text-center"),
-                    data,
+                    dmc.Stack(
+                        [
+                            dmc.Text(kind.capitalize(), className="text-center"),
+                            data,
+                        ],
+                        gap="xs",
+                    ),
                 ],
-                xs=4,
+                xs=3,
                 className="p-0",
             ),
         )
@@ -450,7 +511,7 @@ def make_modal_stamps(pdf):
                 ),
             ],
             id="stamps_modal",
-            scrollable=True,
+            scrollable=False,
             centered=True,
             size="xl",
             # style={'max-width': '800px'}
@@ -630,40 +691,22 @@ def _data_stretch(
     return data  # .astype(np.uint8)
 
 
-def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> dict:
+def draw_lightcurve_preview(
+    pdf=None,
+    main_id=None,
+    is_sso=False,
+    color_scale="Fink",
+    units="magnitude",
+    measurement="total",
+    switch_layout="plain",
+    layout=None,
+) -> dict:
     """Draw object lightcurve with errorbars (SM view - DC mag fixed)
 
     Returns
     -------
     figure: dict
     """
-    # We should never modify global variables!!!
-    layout = dict(
-        automargin=True,
-        margin=dict(l=50, r=0, b=0, t=0),
-        hovermode="closest",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        hoverlabel={
-            "align": "left",
-        },
-        legend=dict(
-            font=dict(size=10),
-            orientation="h",
-            # xanchor="right",
-            x=0,
-            y=1.2,
-            bgcolor="rgba(218, 223, 225, 0.5)",
-        ),
-        xaxis={
-            "title": "Observation date",
-            "automargin": True,
-        },
-        yaxis={
-            "automargin": True,
-        },
-    )
-
     # shortcuts -- in milliJansky
     if measurement == "total":
         flux_name = "r:scienceFlux"
@@ -674,42 +717,53 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
         flux_err_name = "r:psfFluxErr"
         layout["yaxis"]["title"] = "Difference flux (milliJansky)"
 
-    cols = [
-        "r:midpointMjdTai",
-        flux_name,
-        flux_err_name,
-        "r:band",
-        "r:snr",
-        "r:reliability",
-        "r:pixelFlags_bad",
-        "r:pixelFlags_cr",
-        "r:pixelFlags_saturatedCenter",
-        "r:pixelFlags_streakCenter",
-    ]
-    if not is_sso:
-        pdf = request_api(
-            "/api/v1/sources",
-            json={
-                "diaObjectId": str(name),
-                "columns": ",".join(cols),
-                "output-format": "json",
-            },
-        )
-    else:
-        pdf = request_api(
-            "/api/v1/sso",
-            json={
-                "n_or_d": str(name),
-                "columns": ",".join(cols),
-                "output-format": "json",
-            },
-        )
+    # Get data if necessary
+    if pdf is None and isinstance(main_id, str):
+        cols = [
+            "r:midpointMjdTai",
+            flux_name,
+            flux_err_name,
+            "r:band",
+            "r:snr",
+            "r:reliability",
+            "r:pixelFlags_bad",
+            "r:pixelFlags_cr",
+            "r:pixelFlags_saturatedCenter",
+            "r:pixelFlags_streakCenter",
+        ]
+        if not is_sso:
+            pdf = request_api(
+                "/api/v1/sources",
+                json={
+                    "diaObjectId": main_id,
+                    "columns": ",".join(cols),
+                    "output-format": "json",
+                },
+            )
+        else:
+            pdf = request_api(
+                "/api/v1/sso",
+                json={
+                    "n_or_d": main_id,
+                    "columns": ",".join(cols),
+                    "output-format": "json",
+                },
+            )
 
-    # type conversion
+    # date type conversion
     dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
 
     flux = pdf[flux_name]
     flux_err = pdf[flux_err_name]
+
+    if units == "magnitude":
+        # Using same names as others despite being magnitudes
+        flux, flux_err = flux_to_mag(flux, flux_err)
+        layout["yaxis"]["autorange"] = "reversed"
+        if measurement == "differential":
+            layout["yaxis"]["title"] = "Difference magnitude"
+        else:
+            layout["yaxis"]["title"] = "Magnitude"
 
     if units == "flux":
         # milli-jansky
@@ -719,22 +773,82 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
     # integer nights
     pdf["id"] = pdf["r:midpointMjdTai"].apply(lambda x: int(x))
 
-    layout["showlegend"] = True
-    layout["shapes"] = []
+    fig = go.Figure(layout=layout)
+    if switch_layout == "split":
+        fig = make_subplots(
+            rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
+        )
 
-    hovertemplate = r"""
-    <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
-    <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-    <b>mjd</b>: %{customdata[0]}<br>
-    <b>SNR</b>: %{customdata[1]:.2f}<br>
-    <b>Reliability</b>: %{customdata[2]:.2f}
-    <extra></extra>
-    """
-    figure = {
-        "data": [],
-        "layout": layout,
-    }
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+        # High-quality measurements
+        hovertemplate = r"""
+        <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
+        <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
+        <b>Filter band</b>: %{customdata[0]}<br>
+        <b>MJD</b>: %{customdata[1]}<br>
+        <b>SNR</b>: %{customdata[2]:.2f}<br>
+        <b>Reliability</b>: %{customdata[3]:.2f}
+        <extra></extra>
+        """
+        idx = pdf["r:band"] == fname
 
+        trace = go.Scatter(
+            x=dates[idx],
+            y=flux[idx],
+            error_y={
+                "type": "data",
+                "array": flux_err[idx],
+                "visible": True,
+                "width": 0,
+                "color": hex_to_rgba(color, 0.5)
+                if color.startswith("#")
+                else rgb_to_rgba(color, 0.5),
+            },
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:band"][idx],
+                    pdf["r:midpointMjdTai"][idx],
+                    pdf["r:snr"][idx],
+                    pdf["r:reliability"][idx],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={
+                "size": 12,
+                "color": color,
+                "symbol": "circle",
+            },
+            xaxis="x",
+            yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
+        )
+
+        if switch_layout == "plain":
+            fig.add_trace(trace)
+        elif switch_layout == "split":
+            row = fid - 3 * (fid // 4)
+            col = (fid // 4) + 1
+            if len(flux[idx]) > 0:
+                fig.add_trace(trace, row=row, col=col)
+                fig.update_xaxes(
+                    row=row,
+                    col=col,
+                    title="Observation date",
+                )
+                fig.update_yaxes(
+                    row=row,
+                    col=col,
+                    title=layout["yaxis"]["title"],
+                )
+                if units == "magnitude":
+                    fig.update_yaxes(row=row, col=col, autorange="reversed")
+
+    # indicators
     indicators = []
     colors = generate_rgb_color_sequence(color_scale)
     for fid, fname, color in zip(range(1, 7), BANDS, colors):
@@ -781,52 +895,52 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
             ),
         )
 
-        if not np.sum(idx):
-            continue
+        # if not np.sum(idx):
+        #     continue
 
-        if units == "magnitude":
-            # Using same names as others despite being magnitudes
-            # Redefined within the loop each time
-            # FIXME: rewrite for better efficiency
-            flux, flux_err = flux_to_mag(pdf[flux_name], pdf[flux_err_name])
-            layout["yaxis"]["autorange"] = "reversed"
-            if measurement == "differential":
-                layout["yaxis"]["title"] = "Difference magnitude"
-            else:
-                layout["yaxis"]["title"] = "Magnitude"
+        # if units == "magnitude":
+        #     # Using same names as others despite being magnitudes
+        #     # Redefined within the loop each time
+        #     # FIXME: rewrite for better efficiency
+        #     flux, flux_err = flux_to_mag(pdf[flux_name], pdf[flux_err_name])
+        #     layout["yaxis"]["autorange"] = "reversed"
+        #     if measurement == "differential":
+        #         layout["yaxis"]["title"] = "Difference magnitude"
+        #     else:
+        #         layout["yaxis"]["title"] = "Magnitude"
 
-        figure["data"].append(
-            {
-                "x": dates[idx],
-                "y": flux[idx],
-                "error_y": {
-                    "type": "data",
-                    "array": flux_err[idx],
-                    "visible": True,
-                    "width": 0,
-                    "color": color,  # It does not support arrays of colors so let's use positive one for all points
-                    "opacity": 0.5,
-                },
-                "mode": "markers",
-                "name": f"{fname}",
-                "customdata": np.stack(
-                    (
-                        pdf["r:midpointMjdTai"][idx],
-                        pdf["r:snr"][idx],
-                        pdf["r:reliability"][idx],
-                    ),
-                    axis=-1,
-                ),
-                "hovertemplate": hovertemplate,
-                "marker": {
-                    "size": 12,
-                    "color": color,
-                    "symbol": "o",
-                    "line": {"width": 0},
-                    "opacity": 1,
-                },
-            },
-        )
+        # figure["data"].append(
+        #     {
+        #         "x": dates[idx],
+        #         "y": flux[idx],
+        #         "error_y": {
+        #             "type": "data",
+        #             "array": flux_err[idx],
+        #             "visible": True,
+        #             "width": 0,
+        #             "color": color,  # It does not support arrays of colors so let's use positive one for all points
+        #             "opacity": 0.5,
+        #         },
+        #         "mode": "markers",
+        #         "name": f"{fname}",
+        #         "customdata": np.stack(
+        #             (
+        #                 pdf["r:midpointMjdTai"][idx],
+        #                 pdf["r:snr"][idx],
+        #                 pdf["r:reliability"][idx],
+        #             ),
+        #             axis=-1,
+        #         ),
+        #         "hovertemplate": hovertemplate,
+        #         "marker": {
+        #             "size": 12,
+        #             "color": color,
+        #             "symbol": "o",
+        #             "line": {"width": 0},
+        #             "opacity": 1,
+        #         },
+        #     },
+        # )
 
     flags = []
     cols = [
@@ -847,7 +961,7 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                 html.Div([
                     dbc.Popover(
                         "{}".format(doc.capitalize()),
-                        target="{}_{}".format(name, col),
+                        target="{}_{}".format(main_id, col),
                         body=True,
                         trigger="hover",
                         placement="top",
@@ -856,7 +970,7 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                         icon="tabler:square-rounded-filled",
                         color=dmc.DEFAULT_THEME["colors"]["red"][6],
                         width=20,
-                        id="{}_{}".format(name, col),
+                        id="{}_{}".format(main_id, col),
                     ),
                 ])
             )
@@ -865,7 +979,7 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                 html.Div([
                     dbc.Popover(
                         "No {}".format(doc),
-                        target="{}_{}".format(name, col),
+                        target="{}_{}".format(main_id, col),
                         body=True,
                         trigger="hover",
                         placement="top",
@@ -874,12 +988,12 @@ def draw_lightcurve_preview(name, is_sso, color_scale, units, measurement) -> di
                         icon="tabler:square-rounded-filled",
                         color=dmc.DEFAULT_THEME["colors"]["green"][6],
                         width=20,
-                        id="{}_{}".format(name, col),
+                        id="{}_{}".format(main_id, col),
                     ),
                 ])
             )
 
-    return figure, indicators, flags
+    return fig, dmc.Group(indicators, gap="sm"), dmc.Group(flags, gap="sm")
 
 
 def make_sparkline(data):
@@ -894,9 +1008,13 @@ def make_sparkline(data):
 
 
 @app.callback(
-    Output("lightcurve_object_page", "figure"),
     [
-        Input("switch-lc-layout", "value"),
+        Output("lightcurve_object_page", "figure"),
+        Output("indicator_lc", "children"),
+        Output("flags_lc", "children"),
+    ],
+    [
+        Input("select-lc-layout", "value"),
         Input("object-data", "data"),
         Input("color_scale", "value"),
         Input("select-units", "value"),
@@ -907,7 +1025,7 @@ def make_sparkline(data):
 def draw_lightcurve(
     switch_layout: str, object_data, color_scale, units, measurement
 ) -> dict:
-    """Draw object lightcurve with errorbars
+    """Draw diaObject lightcurve with errorbars
 
     Parameters
     ----------
@@ -921,12 +1039,14 @@ def draw_lightcurve(
     -------
     figure: dict
     """
-    # We should never modify global variables!!!
     layout = dict(
         autosize=True,
-        # automargin=True,
         margin=dict(l=50, r=30, b=0, t=0),
         hovermode="closest",
+        showlegend=True,
+        shapes=[],
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
         hoverlabel={
             "align": "left",
         },
@@ -948,116 +1068,18 @@ def draw_lightcurve(
             "zeroline": False,
         },
     )
-
-    # shortcuts -- in milliJansky
-    if measurement == "total":
-        flux_name = "r:scienceFlux"
-        flux_err_name = "r:scienceFluxErr"
-        layout["yaxis"]["title"] = "Total flux (milliJansky)"
-    elif measurement == "differential":
-        flux_name = "r:psfFlux"
-        flux_err_name = "r:psfFluxErr"
-        layout["yaxis"]["title"] = "Difference flux (milliJansky)"
-
-    # Primary high-quality data points
     pdf = pd.read_json(io.StringIO(object_data))
+    fig, indicator, flags = draw_lightcurve_preview(
+        pdf=pdf,
+        is_sso=False,
+        color_scale=color_scale,
+        units=units,
+        measurement=measurement,
+        layout=layout,
+        switch_layout=switch_layout,
+    )
 
-    # date type conversion
-    dates = convert_time(pdf["r:midpointMjdTai"], format_in="mjd", format_out="iso")
-
-    flux = pdf[flux_name]
-    flux_err = pdf[flux_err_name]
-
-    if units == "magnitude":
-        # Using same names as others despite being magnitudes
-        flux, flux_err = flux_to_mag(flux, flux_err)
-        layout["yaxis"]["autorange"] = "reversed"
-        if measurement == "differential":
-            layout["yaxis"]["title"] = "Difference magnitude"
-        else:
-            layout["yaxis"]["title"] = "Magnitude"
-
-    if units == "flux":
-        # milli-jansky
-        flux = flux * 1e-3
-        flux_err = flux_err * 1e-3
-
-    layout["showlegend"] = True
-    layout["shapes"] = []
-
-    layout["paper_bgcolor"] = PAPER_BGCOLOR
-    layout["plot_bgcolor"] = PAPER_BGCOLOR
-
-    fig = go.Figure(layout=layout)
-    if switch_layout == "Split":
-        fig = make_subplots(
-            rows=3, cols=2, figure=fig, shared_xaxes=False, shared_yaxes=False
-        )
-
-    colors = generate_rgb_color_sequence(color_scale)
-    for fid, fname, color in zip(range(1, 7), BANDS, colors):
-        # High-quality measurements
-        hovertemplate = r"""
-        <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
-        <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
-        <b>mjd</b>: %{customdata[0]}<br>
-        <b>SNR</b>: %{customdata[1]:.2f}<br>
-        <b>Reliability</b>: %{customdata[2]:.2f}
-        <extra></extra>
-        """
-        idx = pdf["r:band"] == fname
-
-        trace = go.Scatter(
-            x=dates[idx],
-            y=flux[idx],
-            error_y={
-                "type": "data",
-                "array": flux_err[idx],
-                "visible": True,
-                "width": 0,
-                "color": hex_to_rgba(color, 0.5)
-                if color.startswith("#")
-                else rgb_to_rgba(color, 0.5),
-            },
-            mode="markers",
-            name=f"{fname}",
-            customdata=np.stack(
-                (
-                    pdf["r:midpointMjdTai"][idx],
-                    pdf["r:snr"][idx],
-                    pdf["r:reliability"][idx],
-                ),
-                axis=-1,
-            ),
-            hovertemplate=hovertemplate,
-            legendgroup=f"{fname} band",
-            legendrank=100 + 10 * fid,
-            marker={
-                "size": 12,
-                "color": color,
-                "symbol": "circle",
-            },
-            xaxis="x",
-            yaxis="y" if switch_layout == "Plain" else "y{}".format(fid),
-        )
-
-        if switch_layout == "Plain":
-            fig.add_trace(trace)
-        elif switch_layout == "Split":
-            if len(flux[idx]) > 0:
-                fig.add_trace(trace, row=fid - 3 * (fid // 4), col=(fid // 4) + 1)
-                fig.update_xaxes(
-                    row=fid - 3 * (fid // 4),
-                    col=(fid // 4) + 1,
-                    title="Observation date",
-                )
-                fig.update_yaxes(
-                    row=fid - 3 * (fid // 4),
-                    col=(fid // 4) + 1,
-                    title=layout["yaxis"]["title"],
-                )
-
-    return fig
+    return fig, indicator, flags
 
 
 @app.callback(
@@ -1267,10 +1289,17 @@ def integrate_aladin_lite(object_data):
                 survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
                 fov: 0.025,
                 target: '{ra0} {dec0}',
-                reticleColor: '#ff89ff',
+                reticleColor: '#e89070',
                 reticleSize: 32,
                 showContextMenu: true,
-                showCooGridControl: true,
+                showCooGridControl: false,
+                showShareControl: false,
+                showCooGrid: false,
+                showProjectionControl: false,
+                showFrame: true,
+                showFullscreenControl: true,
+                showCooGridControl: false,
+                showGotoControl: false
     }});
     var cat_simbad = 'https://axel.u-strasbg.fr/HiPSCatService/Simbad';
     var hips_simbad = A.catalogHiPS(cat_simbad, {{onClick: 'showTable', name: 'Simbad', sourceSize: 15}});
@@ -1312,3 +1341,329 @@ def integrate_aladin_lite(object_data):
     img_to_show = [i for i in img.split("\n") if "// " not in i]
 
     return " ".join(img_to_show)
+
+
+@app.callback(
+    Output("observability_plot", "children"),
+    [
+        Input("summary_tabs", "value"),
+        Input("submit_observability", "n_clicks"),
+        Input("object-data", "data"),
+    ],
+    [
+        State("observatory", "value"),
+        State("dateobs", "value"),
+        State("moon_elevation", "checked"),
+        State("moon_phase", "checked"),
+        State("moon_illumination", "checked"),
+        State("longitude", "value"),
+        State("latitude", "value"),
+    ],
+    prevent_initial_call=True,
+    background=True,
+    running=[
+        (Output("submit_observability", "disabled"), True, False),
+        (Output("submit_observability", "loading"), True, False),
+    ],
+)
+def plot_observability(
+    summary_tab,
+    nclick,
+    object_data,
+    observatory_name,
+    dateobs,
+    moon_elevation,
+    moon_phase,
+    moon_illumination,
+    longitude,
+    latitude,
+):
+    if summary_tab != "Observability":
+        raise PreventUpdate
+
+    layout_observability = dict(
+        automargin=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        hoverlabel={
+            "align": "left",
+            "namelength": -1,
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            xanchor="right",
+            x=1,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        yaxis={
+            "range": [0, 90],
+            "title": "Elevation (&deg;)",
+            "automargin": True,
+        },
+        yaxis2={
+            "title": "Relative airmass",
+            "overlaying": "y",
+            "side": "right",
+            "tickvals": 90 - np.degrees(np.arccos(1 / np.array([1, 2, 3]))),
+            "ticktext": [1, 2, 3],
+            "showgrid": False,
+            "showticklabels": True,
+            "matches": "y",
+            "anchor": "x",
+        },
+    )
+
+    pdf = pd.read_json(io.StringIO(object_data))
+    ra0 = np.mean(pdf["r:ra"].to_numpy())
+    dec0 = np.mean(pdf["r:dec"].to_numpy())
+
+    if longitude and latitude:
+        lat = Latitude(latitude, unit=u.deg).deg
+        lon = Longitude(longitude, unit=u.deg).deg
+        observatory = EarthLocation.from_geodetic(lon=lon, lat=lat)
+    elif observatory_name in observability.additional_observatories:
+        observatory = observability.additional_observatories[observatory_name]
+    else:
+        observatory = EarthLocation.of_site(observatory_name)
+
+    local_time = observability.observation_time(dateobs, delta_points=1 / 60)
+    UTC_time = (
+        local_time - observability.observation_time_to_utc_offset(observatory) * u.hour
+    )
+    UTC_axis = observability.from_time_to_axis(UTC_time)
+    local_axis = observability.from_time_to_axis(local_time)
+    mask_axis = [
+        True if t[-2:] == "00" and int(t[:2]) % 2 == 0 else False for t in UTC_axis
+    ]
+    idx_axis = np.where(mask_axis)[0]
+    target_coordinates = observability.target_coordinates(
+        ra0, dec0, observatory, UTC_time
+    )
+    airmass = observability.from_elevation_to_airmass(target_coordinates.alt.value)
+    twilights = observability.utc_night_hours(
+        observatory,
+        dateobs,
+        observability.observation_time_to_utc_offset(observatory),
+        UTC=True,
+    )
+    twilights_list = observability.from_time_to_axis(list(twilights.values()))
+
+    # Initialize figure
+    figure = {"data": [], "layout": copy.deepcopy(layout_observability)}
+
+    # Add UTC time in the layout
+    figure["layout"]["xaxis"] = {
+        "title": "UTC time",
+        "automargin": True,
+        "tickvals": UTC_axis[idx_axis],
+        "showgrid": True,
+    }
+
+    # Target plot
+    hovertemplate_elevation = r"""
+    <b>UTC time</b>:%{x}<br>
+    <b>Elevation</b>: %{y:.0f} &deg;<br>
+    <b>Azimut</b>: %{customdata[0]:.0f} &deg;<br>
+    <b>Relative airmass</b>: %{customdata[1]:.2f}
+    <extra></extra>
+    """
+
+    figure["data"].append({
+        "x": UTC_axis,
+        "y": target_coordinates.alt.value,
+        "mode": "lines",
+        "name": "Target elevation",
+        "legendgroup": "Elevation",
+        "customdata": np.stack(
+            [
+                target_coordinates.az.value,
+                airmass,
+            ],
+            axis=-1,
+        ),
+        "hovertemplate": hovertemplate_elevation,
+        "line": {"color": "black"},
+    })
+
+    # Moon target
+    if moon_elevation:
+        moon_coordinates = observability.moon_coordinates(observatory, UTC_time)
+        moon_airmass = observability.from_elevation_to_airmass(
+            moon_coordinates.alt.value
+        )
+
+        hovertemplate_moon = r"""
+        <b>UTC time</b>:%{x}<br>
+        <b>Elevation</b>: %{y:.0f} &deg;<br>
+        <b>Azimut</b>: %{customdata[0]:.0f} &deg;<br>
+        <b>Relative airmass</b>: %{customdata[1]:.2f}
+        <extra></extra>
+        """
+
+        figure["data"].append({
+            "x": UTC_axis,
+            "y": moon_coordinates.alt.value,
+            "mode": "lines",
+            "name": "Moon elevation",
+            "legendgroup": "Elevation",
+            "customdata": np.stack(
+                [
+                    moon_coordinates.az.value,
+                    moon_airmass,
+                ],
+                axis=-1,
+            ),
+            "hovertemplate": hovertemplate_moon,
+            "line": {"color": observability.moon_color},
+        })
+
+    # For relative airmass
+    figure["data"].append({
+        "x": ["00:00", "00:00", "00:00"],
+        "y": list(90 - np.degrees(np.arccos(1 / np.array([1, 2, 3])))),
+        "yaxis": "y2",
+        "mode": "markers",
+        "marker": {"opacity": 0},
+        "showlegend": False,
+        "hoverinfo": "skip",
+    })
+
+    # Layout modification for local time
+    figure["layout"]["xaxis2"] = {
+        "title": "Local time",
+        "overlaying": "x",
+        "side": "top",
+        "tickvals": UTC_axis[idx_axis],
+        "ticktext": local_axis[idx_axis],
+        "showgrid": False,
+        "showticklabels": True,
+        "matches": "x",
+        "anchor": "y",
+    }
+
+    # For local time
+    figure["data"].append({
+        "x": local_axis,
+        "y": 45 * np.ones(len(local_axis)),
+        "xaxis": "x2",
+        "mode": "markers",
+        "marker": {"opacity": 0},
+        "showlegend": False,
+        "hoverinfo": "skip",
+    })
+
+    # Twilights
+    figure["layout"]["shapes"] = []
+    for dummy in range(len(twilights_list) - 1):
+        figure["layout"]["shapes"].append({
+            "type": "rect",
+            "xref": "x",
+            "yref": "paper",
+            "x0": twilights_list[dummy],
+            "x1": twilights_list[dummy + 1],
+            "y0": 0,
+            "y1": 1,
+            "fillcolor": observability.night_colors[dummy],
+            "layer": "below",
+            "line_width": 0,
+            "line": dict(width=0),
+        })
+
+    # Graphs
+    graph = dcc.Graph(
+        figure=figure,
+        style={
+            "width": "90%",
+            "height": "25pc",
+            "marginLeft": "auto",
+            "marginRight": "auto",
+        },
+        config={"displayModeBar": False},
+        responsive=True,
+    )
+
+    return graph
+
+
+@app.callback(
+    Output("moon_data", "children"),
+    [
+        Input("summary_tabs", "value"),
+        Input("submit_observability", "n_clicks"),
+        Input("object-data", "data"),
+    ],
+    [
+        State("dateobs", "value"),
+        State("moon_phase", "checked"),
+        State("moon_illumination", "checked"),
+    ],
+    prevent_initial_call=True,
+    background=True,
+    running=[
+        (Output("submit_observability", "disabled"), True, False),
+        (Output("submit_observability", "loading"), True, False),
+    ],
+)
+def show_moon_data(
+    summary_tab, nclick, object_data, dateobs, moon_phase, moon_illumination
+):
+    if summary_tab != "Observability":
+        raise PreventUpdate
+
+    date_time = Time(dateobs, scale="utc")
+    msg = None
+    if moon_phase and not moon_illumination:
+        msg = f"Moon phase: {observability.get_moon_phase(date_time)}"
+    elif not moon_phase and moon_illumination:
+        msg = f"Moon illumination: {int(100 * observability.get_moon_illumination(date_time))}%"
+    elif moon_phase and moon_illumination:
+        msg = f"moon phase: `{observability.get_moon_phase(date_time)}`, moon illumination: `{int(100 * observability.get_moon_illumination(date_time))}%`"
+    return msg
+
+
+@app.callback(
+    Output("observability_title", "children"),
+    [
+        Input("summary_tabs", "value"),
+        Input("submit_observability", "n_clicks"),
+        Input("object-data", "data"),
+    ],
+    [
+        State("dateobs", "value"),
+    ],
+    prevent_initial_call=True,
+    background=True,
+    running=[
+        (Output("submit_observability", "disabled"), True, False),
+        (Output("submit_observability", "loading"), True, False),
+    ],
+)
+def show_observability_title(
+    summary_tab,
+    nclick,
+    object_data,
+    dateobs,
+):
+    if summary_tab != "Observability":
+        raise PreventUpdate
+
+    msg = "Observability for the night between "
+    msg += (Time(dateobs) - 1 * u.day).to_value("iso", subfmt="date")
+    msg += " and "
+    msg += Time(dateobs).to_value("iso", subfmt="date")
+    return msg
+
+
+@app.callback(
+    Output("latitude", "value"),
+    Output("longitude", "value"),
+    Input("clear_button", "n_clicks"),
+    prevent_initial_call=True,  # So callback only triggers on clicks
+)
+def clear_input(n_clicks):
+    if n_clicks:
+        return "", ""  # Clear the input field
+    return no_update, no_update
