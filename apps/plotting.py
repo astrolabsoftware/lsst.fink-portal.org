@@ -698,7 +698,7 @@ def _data_stretch(
 
 def draw_lightcurve_preview(
     pdf=None,
-    pdf_sso=None,
+    pdf_ztf=None,
     main_id=None,
     is_sso=False,
     color_scale="Fink",
@@ -854,13 +854,13 @@ def draw_lightcurve_preview(
                 if units == "magnitude":
                     fig.update_yaxes(row=row, col=col, autorange="reversed")
 
-    if pdf_sso is not None and not pdf_sso.empty:
+    if pdf_ztf is not None and not pdf_ztf.empty:
         # Add ztf data
         bands = {1: "g", 2: "r"}
         # date type conversion
-        dates_ztf = convert_time(pdf_sso["i:jd"], format_in="jd", format_out="iso")
-        mag_ztf = pdf_sso["i:magpsf"]
-        err_ztf = pdf_sso["i:sigmapsf"]
+        dates_ztf = convert_time(pdf_ztf["i:jd"], format_in="jd", format_out="iso")
+        mag_ztf = pdf_ztf["i:magpsf"]
+        err_ztf = pdf_ztf["i:sigmapsf"]
         for fid, color in zip(range(2, 4), [colors[1], colors[2]]):
             # High-quality measurements
             hovertemplate = r"""
@@ -870,7 +870,7 @@ def draw_lightcurve_preview(
             <b>JD</b>: %{customdata[1]}<br>
             <extra></extra>
             """
-            idx = pdf_sso["i:fid"] == fid - 1
+            idx = pdf_ztf["i:fid"] == fid - 1
 
             trace = go.Scatter(
                 x=dates_ztf[idx],
@@ -888,8 +888,8 @@ def draw_lightcurve_preview(
                 name=f"{bands[fid - 1]}",
                 customdata=np.stack(
                     (
-                        pdf_sso["i:fid"][idx].apply(lambda x: bands[x]),
-                        pdf_sso["i:jd"][idx],
+                        pdf_ztf["i:fid"][idx].apply(lambda x: bands[x]),
+                        pdf_ztf["i:jd"][idx],
                     ),
                     axis=-1,
                 ),
@@ -1046,7 +1046,7 @@ def make_sparkline(data):
     [
         Input("select-lc-layout", "value"),
         Input("object-data", "data"),
-        Input("object-sso-ztf", "data"),
+        Input("object-ztf", "data"),
         Input("color_scale", "value"),
         Input("select-units", "value"),
         Input("select-measurement", "value"),
@@ -1054,7 +1054,7 @@ def make_sparkline(data):
     prevent_initial_call=False,
 )
 def draw_lightcurve(
-    switch_layout: str, object_data, object_sso_ztf, color_scale, units, measurement
+    switch_layout: str, object_data, object_ztf, color_scale, units, measurement
 ) -> dict:
     """Draw diaObject lightcurve with errorbars
 
@@ -1105,14 +1105,14 @@ def draw_lightcurve(
     else:
         is_sso = False
 
-    if object_sso_ztf is not None:
-        pdf_sso = pd.read_json(io.StringIO(object_sso_ztf))
+    if object_ztf is not None:
+        pdf_ztf = pd.read_json(io.StringIO(object_ztf))
     else:
-        pdf_sso = None
+        pdf_ztf = None
 
     fig, indicator, flags = draw_lightcurve_preview(
         pdf=pdf,
-        pdf_sso=pdf_sso,
+        pdf_ztf=pdf_ztf,
         is_sso=is_sso,
         color_scale=color_scale,
         units=units,

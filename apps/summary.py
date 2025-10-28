@@ -135,7 +135,7 @@ def layout(name, is_sso):
                 dcc.Store(id="object-data"),
                 dcc.Store(id="object-release"),
                 dcc.Store(id="object-sso-ephem"),
-                dcc.Store(id="object-sso-ztf"),
+                dcc.Store(id="object-ztf"),
                 # dcc.Store(id="object-sso"),
             ],
             grow=True,
@@ -293,7 +293,7 @@ def tab_ssobject(pdf):
                     dmc.Center(
                         dmc.Button(
                             "Add Fink/ZTF alerts",
-                            id="request-sso-ztf-alert",
+                            id="request-ztf-alert",
                             variant="outline",
                             color=DEFAULT_FINK_COLORS[0],
                         )
@@ -589,24 +589,24 @@ def store_ephemerides(object_data):
 
 @app.callback(
     [
-        Output("object-sso-ztf", "data"),
-        Output("request-sso-ztf-alert", "children"),
+        Output("object-ztf", "data"),
+        Output("request-ztf-alert", "children"),
     ],
     [
-        Input("request-sso-ztf-alert", "n_clicks"),
+        Input("request-ztf-alert", "n_clicks"),
         Input("object-data", "data"),
     ],
     background=True,
     prevent_initial_call=True,
     running=[
         (
-            Output("request-sso-ztf-alert", "loading"),
+            Output("request-ztf-alert", "loading"),
             True,
             False,
         ),
     ],
 )
-def store_ztf_sso_data(n_clicks, object_data):
+def store_ztf_data(n_clicks, object_data):
     """Cache query results (data and upper limits) for easy re-use
 
     https://dash.plotly.com/sharing-data-between-callbacks
@@ -616,19 +616,36 @@ def store_ztf_sso_data(n_clicks, object_data):
 
     pdf = pd.read_json(io.StringIO(object_data))
 
-    # FIXME: take all names!
-    sso_name = pdf["f:sso_name"].to_numpy()[0]
+    # FIXME: refactor to have is_sso function everywhere instead of
+    # check columns each time
+    if "r:mpcDesignation" in pdf.columns:
+        # FIXME: take all names!
+        sso_name = pdf["f:sso_name"].to_numpy()[0]
 
-    # get data for 2021RZ105
-    r = requests.post(
-        "https://api.fink-portal.org/api/v1/sso",
-        json={
-            "n_or_d": sso_name,
-            "withEphem": False,
-            "withResiduals": False,
-            "output-format": "json",
-        },
-    )
+        # get data for 2021RZ105
+        r = requests.post(
+            "https://api.fink-portal.org/api/v1/sso",
+            json={
+                "n_or_d": sso_name,
+                "withEphem": False,
+                "withResiduals": False,
+                "output-format": "json",
+            },
+        )
+    else:
+        ra = pdf["r:ra"].mean()
+        dec = pdf["r:dec"].mean()
+
+        # get data for 2021RZ105
+        r = requests.post(
+            "https://api.fink-portal.org/api/v1/conesearch",
+            json={
+                "ra": ra,
+                "dec": dec,
+                "radius": 1.5,
+                "output-format": "json",
+            },
+        )
 
     if r.status_code != 200:
         return no_update, "No ZTF alerts (error {})".format(r.status_code)

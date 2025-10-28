@@ -735,6 +735,14 @@ def card_lightcurve_summary(diaObjectId):
                 className="mb-2 rounded-5",
             ),
         ),
+        dmc.Center(
+            dmc.Button(
+                "Add Fink/ZTF alerts",
+                id="request-ztf-alert",
+                variant="outline",
+                color=DEFAULT_FINK_COLORS[0],
+            )
+        ),
         accordions,
         # dmc.Grid(
         #     children=[
