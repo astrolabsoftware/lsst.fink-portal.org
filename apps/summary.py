@@ -576,19 +576,18 @@ def store_ephemerides(object_data):
         for ssnamenr in ssnamenrs:
             mask = pdf["f:sso_name"] == ssnamenr
             pdf_sub = pdf[mask]
+
             eph = query_miriade(
                 ssnamenr,
                 Time(
                     pdf_sub["r:midpointMjdTai"].to_numpy(), format="mjd", scale="tai"
-                ).jd,
+                ).utc.jd,
                 observer="X05",
                 rplane="1",
                 tcoor=5,
                 shift=0.0,
                 timeout=10,
             )
-
-        print(eph)
 
         if not eph.empty:
             sc = SkyCoord(eph["RA"], eph["DEC"], unit=(u.deg, u.deg))
@@ -607,9 +606,7 @@ def store_ephemerides(object_data):
             mag, info["r:psfMagErr_red"] = flux_to_mag(
                 info["r:psfFlux"], info["r:psfFluxErr"]
             )
-            info["r:psfMag_red"] = info["r:psfFlux"] - 5 * np.log10(
-                info["Dobs"] * info["Dhelio"]
-            )
+            info["r:psfMag_red"] = mag - 5 * np.log10(info["Dobs"] * info["Dhelio"])
             infos.append(info)
         else:
             infos.append(pdf_sub)
