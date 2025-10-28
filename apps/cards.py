@@ -803,6 +803,7 @@ curl -H "Content-Type: application/json" -X POST \\
                 [
                     dmc.AccordionControl(
                         "Alert cutouts",
+                        id="alert-cutout-title",
                         icon=[
                             DashIconify(
                                 icon="tabler:flare",

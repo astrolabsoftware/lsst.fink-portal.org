@@ -324,26 +324,31 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
 
 
 @app.callback(
-    Output("stamps", "children"),
+    [
+        Output("stamps", "children"),
+        Output("alert-cutout-title", "children"),
+    ],
     [
         Input("lightcurve_object_page", "clickData"),
         Input("object-data", "data"),
     ],
-    prevent_initial_call=True,
+    prevent_initial_call=False,
 )
 def draw_cutouts(clickData, object_data):
     """Draw cutouts data based on lightcurve data"""
     if clickData is not None:
         jd0 = clickData["points"][0]["x"]
+        title = "Alert cutouts ({})".format(jd0)
     else:
         jd0 = None
+        title = "Last alert cutouts"
 
     figs = []
     for kind in ["science", "template", "difference"]:
         try:
             cutout = extract_cutout(object_data, jd0, kind=kind)
             if cutout is None:
-                return no_update
+                return no_update, no_update
 
             data = draw_cutout(cutout, kind)
         except OSError:
@@ -409,7 +414,7 @@ def draw_cutouts(clickData, object_data):
         )
         figs.append(card)
 
-    return dmc.Group(figs, justify="space-around")
+    return dmc.Group(figs, justify="space-around"), title
 
 
 @app.callback(
@@ -1789,10 +1794,10 @@ def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
         type="circle",
         xref="x",
         yref="y",
-        x0=-0.1,
-        y0=-0.1,
-        x1=0.1,
-        y1=0.1,
+        x0=-0.05,
+        y0=-0.05,
+        x1=0.05,
+        y1=0.05,
         line_color="LightSeaGreen",
     )
 
@@ -1800,7 +1805,7 @@ def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
         figure=figure,
         style={
             "width": "100%",
-            "height": "30pc",
+            "height": "20pc",
         },
         config=CONFIG_PLOT,
     )

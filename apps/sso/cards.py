@@ -26,6 +26,8 @@ from astropy.time import Time
 
 from apps.configuration import extract_configuration
 from apps.plotting import DEFAULT_FINK_COLORS
+from apps.plotting import make_modal_stamps
+from apps.utils import loading
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
@@ -62,7 +64,7 @@ def get_sso_data(ssnamenr):
         return data, None
 
 
-def card_sso_left(mpcDesignation, sso_name):
+def card_sso_right(pdf, mpcDesignation, sso_name):
     """ """
     mpcDesignation = str(mpcDesignation)
 
@@ -127,7 +129,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:database-export",
-                                color=DEFAULT_FINK_COLORS[2],
+                                color=DEFAULT_FINK_COLORS[3],
                                 width=20,
                             ),
                         ],
@@ -210,7 +212,7 @@ curl -H "Content-Type: application/json" -X POST \\
                         icon=[
                             DashIconify(
                                 icon="tabler:external-link",
-                                color=DEFAULT_FINK_COLORS[3],
+                                color=DEFAULT_FINK_COLORS[4],
                                 width=20,
                             ),
                         ],
@@ -278,9 +280,44 @@ curl -H "Content-Type: application/json" -X POST \\
         ]
 
         card = dmc.Accordion(
-            disableChevronRotation=True,
+            # disableChevronRotation=True,
             multiple=True,
             children=[
+                dmc.AccordionItem(
+                    [
+                        dmc.AccordionControl(
+                            "Alert cutouts",
+                            id="alert-cutout-title",
+                            icon=[
+                                DashIconify(
+                                    icon="tabler:flare",
+                                    color=DEFAULT_FINK_COLORS[0],
+                                    width=20,
+                                ),
+                            ],
+                        ),
+                        dmc.AccordionPanel(
+                            [
+                                loading(
+                                    dbc.Row(
+                                        dmc.Skeleton(
+                                            style={
+                                                "width": "100%",
+                                                "aspect-ratio": "3/1",
+                                            }
+                                        ),
+                                        id="stamps",
+                                        justify="around",
+                                        className="g-0",
+                                    ),
+                                ),
+                                dmc.Space(h=10),
+                                *make_modal_stamps(pdf),
+                            ],
+                        ),
+                    ],
+                    value="stamps",
+                ),
                 dmc.AccordionItem(
                     [
                         dmc.AccordionControl(
@@ -288,14 +325,14 @@ curl -H "Content-Type: application/json" -X POST \\
                             icon=[
                                 DashIconify(
                                     icon="tabler:database-export",
-                                    color=DEFAULT_FINK_COLORS[0],
+                                    color=DEFAULT_FINK_COLORS[1],
                                     width=20,
                                 ),
                             ],
                         ),
                         dmc.AccordionPanel([
                             html.Div(
-                                dmc.Skeleton(height="30pc", mb="xl"),
+                                dmc.Skeleton(height="20pc", mb="xl"),
                                 id="sso_astrometry",
                             ),
                             dcc.Markdown(
@@ -312,7 +349,7 @@ curl -H "Content-Type: application/json" -X POST \\
                             icon=[
                                 DashIconify(
                                     icon="majesticons:comet",
-                                    color=DEFAULT_FINK_COLORS[1],
+                                    color=DEFAULT_FINK_COLORS[2],
                                     width=20,
                                 ),
                             ],
@@ -334,7 +371,7 @@ curl -H "Content-Type: application/json" -X POST \\
                 ),
                 *extra_items,
             ],
-            value="astrometry",
+            value=["stamps", "astrometry"],
             styles={"content": {"padding": "5px"}},
         )
     else:

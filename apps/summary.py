@@ -40,7 +40,7 @@ from apps.observability.cards import card_explanation_observability
 from apps.observability.utils import additional_observatories
 from apps.utils import loading
 from apps.plotting import CONFIG_PLOT
-from apps.sso.cards import card_sso_left
+from apps.sso.cards import card_sso_right
 from apps.utils import flux_to_mag
 from apps.plotting import DEFAULT_FINK_COLORS
 
@@ -258,9 +258,8 @@ def tab_ssobject(object_data):
         sso_name = pdf["f:sso_name"].to_numpy()[0]
 
     msg = """
-    Alert data from ZTF (filled circle) in g (blue) and r (orange) filters, with ephemerides provided by the
-    [Miriade ephemeride service](https://ssp.imcce.fr/webservices/miriade/api/ephemcc/) (shaded circle).
-    """
+    Alert data associated to ssObject {} from the LSST stream.
+    """.format(pdf["r:ssObjectId"].to_numpy()[0])
     CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(mpcdesignation)
     lc = html.Div(
         [
@@ -294,7 +293,6 @@ def tab_ssobject(object_data):
             dbc.Col(
                 [
                     dmc.Space(h=10),
-                    # draw_sso_lightcurve(pdf),
                     lc,
                     html.Br(),
                     dmc.Accordion(
@@ -321,41 +319,6 @@ def tab_ssobject(object_data):
             ),
         ],
     )
-
-    # tab2 = dbc.Row(
-    #     [
-    #         dbc.Col(
-    #             [
-    #                 dmc.Space(h=10),
-    #                 draw_sso_astrometry(pdf),
-    #                 dmc.Accordion(
-    #                     children=[
-    #                         dmc.AccordionItem(
-    #                             [
-    #                                 dmc.AccordionControl(
-    #                                     "How the residuals are computed?",
-    #                                     icon=[
-    #                                         DashIconify(
-    #                                             icon="tabler:help-hexagon",
-    #                                             color="#3C8DFF",
-    #                                             width=20,
-    #                                         ),
-    #                                     ],
-    #                                 ),
-    #                                 dmc.AccordionPanel(
-    #                                     dcc.Markdown(
-    #                                         "The residuals are the difference between the alert positions and the positions returned by the [Miriade ephemeride service](https://ssp.imcce.fr/webservices/miriade/api/ephemcc/)."
-    #                                     )
-    #                                 ),
-    #                             ],
-    #                             value="residuals",
-    #                         ),
-    #                     ],
-    #                 ),
-    #             ],
-    #         ),
-    #     ],
-    # )
 
     # msg_phase = r"""
     # We propose different phase curve modeling using the traditional `HG`, `HG12` and
@@ -441,12 +404,12 @@ def tab_ssobject(object_data):
                 dmc.TabsList(
                     [
                         dmc.TabsTab("Lightcurve", value="Lightcurve"),
-                        # dmc.TabsTab("Astrometry", value="Astrometry"),
+                        # dmc.TabsTab("Cutouts", value="Cutouts"),
                         # dmc.TabsTab("Phase curve", value="Phase curve"),
                     ],
                 ),
                 dmc.TabsPanel(tab1, value="Lightcurve"),
-                # dmc.TabsPanel(tab2, value="Astrometry"),
+                # dmc.TabsPanel(tab2, value="Cutouts"),
                 # dmc.TabsPanel(tab3, value="Phase curve"),
             ],
             value="Lightcurve",
@@ -469,7 +432,7 @@ def tab_ssobject(object_data):
             ),
             dbc.Col(
                 [
-                    card_sso_left(mpcdesignation, sso_name),
+                    card_sso_right(pdf, mpcdesignation, sso_name),
                 ],
                 md=4,
             ),
