@@ -323,83 +323,84 @@ def tab_ssobject(pdf):
         ],
     )
 
-    # msg_phase = r"""
-    # We propose different phase curve modeling using the traditional `HG`, `HG12` and
-    # `HG1G2` models. By default, the data is modeled after the three-parameter $H$,
-    # $G_1$, $G_2$ magnitude phase function for asteroids from
-    # [Muinonen et al. 2010](https://doi.org/10.1016/j.icarus.2010.04.003).
-    # We use the implementation in [sbpy](https://sbpy.readthedocs.io/en/latest/sbpy/photometry.html#disk-integrated-phase-function-models) to fit the data.
-    # In addition, two recent models are available: `SHG1G2` and `sfHG1G2` described below. The title displays the value for the reduced $\chi^2$ of the fit.
-    # Hit buttons to see the fitted values!
+    msg_phase = r"""
+    We propose different phase curve modeling using the traditional `HG`, `HG12` and
+    `HG1G2` models. By default, the data is modeled after the three-parameter $H$,
+    $G_1$, $G_2$ magnitude phase function for asteroids from
+    [Muinonen et al. 2010](https://doi.org/10.1016/j.icarus.2010.04.003).
+    We use the implementation in [sbpy](https://sbpy.readthedocs.io/en/latest/sbpy/photometry.html#disk-integrated-phase-function-models) to fit the data.
+    In addition, two recent models are available: `SHG1G2` and `sfHG1G2` described below. The title displays the value for the reduced $\chi^2$ of the fit.
+    Hit buttons to see the fitted values!
 
-    # **SHG1G2**: The model `SHG1G2` - spinned `HG1G2` - adds spin parameters on top of the `HG1G2` model ([Carry et al 2024](https://doi.org/10.1051/0004-6361/202449789)).
-    # Note that $H$, $G_1$, and $G_2$ are fitted per band, but the spin parameters
-    # (R, $\alpha_0$, $\beta_0$) are fitted on all bands simultaneously.
+    **SHG1G2**: The model `SHG1G2` - spinned `HG1G2` - adds spin parameters on top of the `HG1G2` model ([Carry et al 2024](https://doi.org/10.1051/0004-6361/202449789)).
+    Note that $H$, $G_1$, and $G_2$ are fitted per band, but the spin parameters
+    (R, $\alpha_0$, $\beta_0$) are fitted on all bands simultaneously.
 
-    # **sfHG1G2**: The model `sfHG1G2` - simultaneous fit `HG1G2` - is a single fit across all
-    # apparitions/oppositions using the `HG1G2` model, where the fitted $H$ values can vary for each opposition,
-    # but $G_1$ and $G_2$ remain the same for all ([Colazo et al 2025](https://arxiv.org/abs/2503.05412)).
-    # This means we fit $N+2$ parameters, where $N$ is the number of oppositions. Here we display the
-    # mean value for $H$ per band.
-    # """
+    **sfHG1G2**: The model `sfHG1G2` - simultaneous fit `HG1G2` - is a single fit across all
+    apparitions/oppositions using the `HG1G2` model, where the fitted $H$ values can vary for each opposition,
+    but $G_1$ and $G_2$ remain the same for all ([Colazo et al 2025](https://arxiv.org/abs/2503.05412)).
+    This means we fit $N+2$ parameters, where $N$ is the number of oppositions. Here we display the
+    mean value for $H$ per band.
+    """
 
-    # tab3 = dbc.Row(
-    #     [
-    #         dbc.Col(
-    #             [
-    #                 dmc.Space(h=10),
-    #                 html.Div(id="sso_phasecurve"),
-    #                 html.Br(),
-    #                 dmc.Stack(
-    #                     [
-    #                         dmc.RadioGroup(
-    #                             children=dmc.Group(
-    #                                 [
-    #                                     dmc.Radio(k, value=k, color="orange")
-    #                                     for k in [
-    #                                         "SHG1G2",
-    #                                         "sfHG1G2",
-    #                                         "HG1G2",
-    #                                         "HG12",
-    #                                         "HG",
-    #                                     ]
-    #                                 ]
-    #                             ),
-    #                             id="switch-phase-curve-func",
-    #                             value="HG1G2",
-    #                             size="sm",
-    #                         ),
-    #                     ],
-    #                     align="center",
-    #                     justify="center",
-    #                 ),
-    #                 dmc.Space(h=10),
-    #                 dmc.Accordion(
-    #                     children=[
-    #                         dmc.AccordionItem(
-    #                             [
-    #                                 dmc.AccordionControl(
-    #                                     "How the phase curve is modeled?",
-    #                                     icon=[
-    #                                         DashIconify(
-    #                                             icon="tabler:help-hexagon",
-    #                                             color="#3C8DFF",
-    #                                             width=20,
-    #                                         ),
-    #                                     ],
-    #                                 ),
-    #                                 dmc.AccordionPanel(
-    #                                     dcc.Markdown(msg_phase, mathjax=True)
-    #                                 ),
-    #                             ],
-    #                             value="phase_curve",
-    #                         ),
-    #                     ],
-    #                 ),
-    #             ],
-    #         ),
-    #     ],
-    # )
+    tab3 = dbc.Row(
+        [
+            dbc.Col(
+                [
+                    dmc.Space(h=10),
+                    html.Div(
+                        dmc.Skeleton(height="30pc", mb="xl"),
+                        id="sso_phasecurve",
+                    ),
+                    html.Br(),
+                    dmc.Stack(
+                        [
+                            dmc.RadioGroup(
+                                children=dmc.Group([
+                                    dmc.Radio(k, value=k, color="orange")
+                                    for k in [
+                                        "SHG1G2",
+                                        "sfHG1G2",
+                                        "HG1G2",
+                                        "HG12",
+                                        "HG",
+                                    ]
+                                ]),
+                                id="switch-phase-curve-func",
+                                value="HG1G2",
+                                size="sm",
+                            ),
+                        ],
+                        align="center",
+                        justify="center",
+                    ),
+                    dmc.Space(h=10),
+                    dmc.Accordion(
+                        children=[
+                            dmc.AccordionItem(
+                                [
+                                    dmc.AccordionControl(
+                                        "How the phase curve is modeled?",
+                                        icon=[
+                                            DashIconify(
+                                                icon="tabler:help-hexagon",
+                                                color="#3C8DFF",
+                                                width=20,
+                                            ),
+                                        ],
+                                    ),
+                                    dmc.AccordionPanel(
+                                        dcc.Markdown(msg_phase, mathjax=True)
+                                    ),
+                                ],
+                                value="phase_curve",
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
 
     if mpcdesignation != "null":
         left_side = dmc.Tabs(
@@ -408,12 +409,12 @@ def tab_ssobject(pdf):
                     [
                         dmc.TabsTab("Lightcurve", value="Lightcurve"),
                         # dmc.TabsTab("Cutouts", value="Cutouts"),
-                        # dmc.TabsTab("Phase curve", value="Phase curve"),
+                        dmc.TabsTab("Phase curve", value="Phase curve"),
                     ],
                 ),
                 dmc.TabsPanel(tab1, value="Lightcurve"),
                 # dmc.TabsPanel(tab2, value="Cutouts"),
-                # dmc.TabsPanel(tab3, value="Phase curve"),
+                dmc.TabsPanel(tab3, value="Phase curve"),
             ],
             value="Lightcurve",
         )

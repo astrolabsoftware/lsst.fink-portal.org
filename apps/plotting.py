@@ -12,7 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from dash import dcc, html, Output, Input, no_update, clientside_callback, State
+from dash import (
+    dcc,
+    html,
+    Output,
+    Input,
+    no_update,
+    clientside_callback,
+    State,
+    dash_table,
+)
 from dash.exceptions import PreventUpdate
 from dash_iconify import DashIconify
 import dash_bootstrap_components as dbc
@@ -38,7 +47,13 @@ import numpy as np
 import pandas as pd
 
 import nifty_ls  # noqa: F401
-
+from fink_utils.sso.spins import (
+    estimate_sso_params,
+    func_hg,
+    func_hg1g2,
+    func_hg1g2_with_spin,
+    func_hg12,
+)
 
 # from apps import __file__
 from app import app
@@ -1843,4 +1858,381 @@ def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
         config=CONFIG_PLOT,
     )
     card = dmc.Paper(graph)
+    return card
+
+
+@app.callback(
+    Output("sso_phasecurve", "children"),
+    [
+        Input("switch-phase-curve-func", "value"),
+        Input("object-sso-ephem", "data"),
+        Input("color_scale", "value"),
+    ],
+)
+def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
+    """Draw SSO object phase curve"""
+    if object_ephem is None:
+        raise PreventUpdate
+
+    pdf = pd.read_json(io.StringIO(object_ephem))
+    if pdf.empty:
+        msg = """
+        Object not referenced in the Minor Planet Center, or name not found in Fink.
+        It may be a SSO candidate.
+        """
+        return html.Div([html.Br(), dbc.Alert(msg, color="danger")])
+
+    if "r:psfMag_red" not in pdf.columns:
+        return dbc.Alert(
+            "No ephemerides available for {}".format(
+                pdf["f:mpcDesignation"].to_numpy()[0]
+            ),
+            color="danger",
+        )
+
+    pdf = pdf.sort_values("Phase")
+
+    layout = dict(
+        autosize=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        showlegend=True,
+        shapes=[],
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            x=0,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        xaxis={
+            "title": "Phase angle [degree]",
+            "automargin": True,
+        },
+        yaxis={
+            "autorange": "reversed",
+            "title": "Reduced magnitude [mag]",
+            "automargin": True,
+        },
+    )
+
+    if switch_func == "HG1G2":
+        fitfunc = func_hg1g2
+        params = ["H", "G1", "G2"]
+        bounds = (
+            [-3, 0, 0],
+            [30, 1, 1],
+        )
+        p0 = [15.0, 0.15, 0.15]
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+    elif switch_func == "HG12":
+        fitfunc = func_hg12
+        params = ["H", "G12"]
+        bounds = (
+            [-3, 0],
+            [30, 1],
+        )
+        p0 = [15.0, 0.15]
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+    elif switch_func == "HG":
+        fitfunc = func_hg
+        params = ["H", "G"]
+        bounds = (
+            [-3, 0],
+            [30, 1],
+        )
+        p0 = [15.0, 0.15]
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+    elif switch_func == "SHG1G2":
+        fitfunc = func_hg1g2_with_spin
+        params = ["H", "G1", "G2", "R", "alpha0", "delta0"]
+        bounds = (
+            [-3, 0, 0, 3e-1, 0, -np.pi / 2],
+            [30, 1, 1, 1, 2 * np.pi, np.pi / 2],
+        )
+        p0 = [15.0, 0.15, 0.15, 0.8, np.pi, 0.0]
+        x = [
+            np.deg2rad(pdf["Phase"].to_numpy()),
+            np.deg2rad(pdf["r:ra"].to_numpy()),
+            np.deg2rad(pdf["r:dec"].to_numpy()),
+        ]
+    elif switch_func == "sfHG1G2":
+        fitfunc = func_hg1g2
+        # Use HG1G2 under the hood, with H = mean(H)
+        params = ["<H>", "G1", "G2"]
+        bounds = None
+        p0 = None
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+
+    # Multi-band fit
+    outdic = estimate_sso_params(
+        magpsf_red=pdf["r:psfMag_red"].to_numpy(),
+        sigmapsf=pdf["r:psfMagErr_red"].to_numpy(),
+        phase=np.deg2rad(pdf["Phase"].to_numpy()),
+        filters=pdf["r:band"].to_numpy(),
+        ra=np.deg2rad(pdf["r:ra"].to_numpy()),
+        dec=np.deg2rad(pdf["r:dec"].to_numpy()),
+        jd=Time(pdf["r:midpointMjdTai"].to_numpy(), format="mjd").utc.jd,
+        p0=p0,
+        bounds=bounds,
+        model=switch_func,
+        normalise_to_V=False,
+        ssnamenr=pdf["r:mpcDesignation"].to_numpy()[0],
+    )
+    if outdic["fit"] != 0:
+        return dbc.Alert("The fitting procedure could not converge.", color="danger")
+
+    filts = np.unique(pdf["r:band"].to_numpy())
+
+    if switch_func == "sfHG1G2":
+        # H mean for each filter
+        for f in filts:
+            outdic["<H>_{}".format(f)] = np.mean([
+                outdic["H{}_{}".format(a, f)]
+                for a in range(outdic["n_app_{}".format(f)])
+            ])
+
+            # assuming uncorrelated and random, which is obviously wrong
+            outdic["err_<H>_{}".format(f)] = np.sqrt(
+                np.sum([
+                    outdic["err_H{}_{}".format(a, f)] ** 2
+                    for a in range(outdic["n_app_{}".format(f)])
+                ])
+            )
+
+    if switch_func == "sfHG1G2":
+        dd = {
+            "": [
+                f + " band ({} apparitions)".format(int(outdic["n_app_{}".format(f)]))
+                for f in filts
+            ]
+        }
+    else:
+        dd = {"": [f + " band" for f in filts]}
+    dd.update({i: [""] * len(filts) for i in params})
+    df_table = pd.DataFrame(
+        dd,
+        index=[f for f in filts],
+    )
+
+    hovertemplate = r"""
+    <b>%{yaxis.title.text}</b>: %{y:.2f}<br>
+    <b>%{xaxis.title.text}</b>: %{x:.2f}<br>
+    <b>Filter band</b>: %{customdata[0]}<br>
+    <b>Observation date</b>: %{customdata[1]}<br>
+    <b>SNR</b>: %{customdata[2]:.2f}<br>
+    <b>Reliability</b>: %{customdata[3]:.2f}
+    <extra></extra>
+    """
+    figure = go.Figure(layout=layout)
+    figure_residuals = go.Figure(layout=layout)
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+        if fname not in filts:
+            continue
+
+        cond = pdf["r:band"] == fname
+
+        popt = []
+        for pindex, param in enumerate(params):
+            # rad2deg
+            if pindex >= 3:
+                suffix = ""
+            else:
+                suffix = f"_{fname}"
+
+            loc = df_table[param].index == fname
+            df_table.loc[loc, param] = "{:.2f} &plusmn; {:.2f}".format(
+                outdic[param + suffix],
+                outdic["err_" + param + suffix],
+            )
+
+            if pindex <= 3:
+                popt.append(outdic[param + suffix])
+            else:
+                popt.append(np.deg2rad(outdic[param + suffix]))
+
+        ydata = pdf.loc[cond, "r:psfMag_red"]
+
+        trace = go.Scatter(
+            x=pdf.loc[cond, "Phase"].to_numpy(),
+            y=ydata.to_numpy(),
+            error_y={
+                "type": "data",
+                "array": pdf.loc[cond, "r:psfMagErr_red"].to_numpy(),
+                "visible": True,
+                "width": 0,
+                "color": hex_to_rgba(color, 0.5)
+                if color.startswith("#")
+                else rgb_to_rgba(color, 0.5),
+            },
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:band"][cond],
+                    pdf["r:midpointMjdTai"][cond],
+                    pdf["r:snr"][cond],
+                    pdf["r:reliability"][cond],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={
+                "size": 12,
+                "color": color,
+                "symbol": "circle",
+            },
+            xaxis="x",
+            yaxis="y",
+        )
+        figure.add_trace(trace)
+
+        if switch_func == "SHG1G2":
+            xx = np.array(x)[:, cond]
+        else:
+            xx = x[cond]
+
+        trace_fit = go.Scatter(
+            x=pdf.loc[cond, "Phase"].to_numpy(),
+            y=fitfunc(xx, *popt),
+            mode="markers",
+            name=f"fit {fname}",
+            hovertemplate=hovertemplate,
+            customdata=np.stack(
+                (
+                    pdf["r:band"][cond],
+                    pdf["r:midpointMjdTai"][cond],
+                    pdf["r:snr"][cond],
+                    pdf["r:reliability"][cond],
+                ),
+                axis=-1,
+            ),
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={"size": 12, "color": color, "symbol": "x", "opacity": 0.5},
+            xaxis="x",
+            yaxis="y",
+        )
+        figure.add_trace(trace_fit)
+
+        trace_residuals = go.Scatter(
+            x=pdf.loc[cond, "Phase"].to_numpy(),
+            y=ydata.to_numpy() - fitfunc(xx, *popt),
+            error_y={
+                "type": "data",
+                "array": pdf.loc[cond, "r:psfMagErr_red"].to_numpy(),
+                "visible": True,
+                "width": 0,
+                "color": hex_to_rgba(color, 0.5)
+                if color.startswith("#")
+                else rgb_to_rgba(color, 0.5),
+            },
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:band"][cond],
+                    pdf["r:midpointMjdTai"][cond],
+                    pdf["r:snr"][cond],
+                    pdf["r:reliability"][cond],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={"size": 12, "color": color, "symbol": "x", "opacity": 0.5},
+            xaxis="x",
+            yaxis="y",
+        )
+        figure_residuals.add_trace(trace_residuals)
+
+    figure_residuals.add_hline(y=0, line_dash="dash", line_color="grey")
+    figure_residuals.update_layout(yaxis={"title": "Residual [mag]"})
+
+    if switch_func == "sfHG1G2":
+        title = "Reduced &#967;<sup>2</sup>: "
+        for f in filts:
+            title += " {}:{:.2f} ".format(f, outdic["chi2red_{}".format(f)])
+    elif ~np.isnan(outdic["chi2red"]) and outdic["chi2red"] is not None:
+        title = "Reduced &#967;<sup>2</sup>: {:.2f}".format(outdic["chi2red"])
+    else:
+        title = "Reduced &#967;<sup>2</sup>: NaN"
+    figure.update_layout({
+        "title": {
+            "text": title,
+            "x": 0.5,
+            "xanchor": "center",
+            "yanchor": "top",
+            "font": {"size": 20},
+        }
+    })
+
+    columns = [
+        {
+            "id": c,
+            "name": c,
+            "type": "text",
+            # 'hideable': True,
+            "presentation": "markdown",
+        }
+        for c in df_table.columns
+    ]
+
+    table = dash_table.DataTable(
+        id="phasecurve_table",
+        columns=columns,
+        data=df_table.to_dict("records"),
+        style_as_list_view=True,
+        style_data={
+            "backgroundColor": "rgb(248, 248, 248, .7)",
+        },
+        style_table={"maxWidth": "100%"},
+        style_cell={
+            "padding": "5px",
+            "textAlign": "left",
+            "border": "0.5px solid grey",
+        },
+        style_filter={"backgroundColor": "rgb(238, 238, 238, .7)"},
+        style_header={
+            "backgroundColor": "rgb(230, 230, 230)",
+            "fontWeight": "bold",
+        },
+    )
+
+    graph1 = dcc.Graph(
+        figure=figure,
+        style={
+            "width": "100%",
+            "height": "25pc",
+        },
+        config=CONFIG_PLOT,
+    )
+
+    graph2 = dcc.Graph(
+        figure=figure_residuals,
+        style={
+            "width": "100%",
+            "height": "15pc",
+        },
+        config=CONFIG_PLOT,
+    )
+    card = dmc.Group(
+        [
+            graph1,
+            html.Br(),
+            graph2,
+            html.Br(),
+            table,
+        ],
+    )
     return card
