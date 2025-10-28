@@ -698,6 +698,7 @@ def _data_stretch(
 
 def draw_lightcurve_preview(
     pdf=None,
+    pdf_sso=None,
     main_id=None,
     is_sso=False,
     color_scale="Fink",
@@ -853,6 +854,77 @@ def draw_lightcurve_preview(
                 if units == "magnitude":
                     fig.update_yaxes(row=row, col=col, autorange="reversed")
 
+    if pdf_sso is not None and not pdf_sso.empty:
+        # Add ztf data
+        bands = {1: "g", 2: "r"}
+        # date type conversion
+        dates_ztf = convert_time(pdf_sso["i:jd"], format_in="jd", format_out="iso")
+        mag_ztf = pdf_sso["i:magpsf"]
+        err_ztf = pdf_sso["i:sigmapsf"]
+        for fid, color in zip(range(1, 3), [colors[1], colors[2]]):
+            # High-quality measurements
+            hovertemplate = r"""
+            <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
+            <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
+            <b>Filter band</b>: %{customdata[0]}<br>
+            <b>JD</b>: %{customdata[1]}<br>
+            <extra></extra>
+            """
+            idx = pdf_sso["i:fid"] == fid
+
+            trace = go.Scatter(
+                x=dates_ztf[idx],
+                y=mag_ztf[idx],
+                error_y={
+                    "type": "data",
+                    "array": err_ztf[idx],
+                    "visible": True,
+                    "width": 0,
+                    "color": hex_to_rgba(color, 0.5)
+                    if color.startswith("#")
+                    else rgb_to_rgba(color, 0.5),
+                },
+                mode="markers",
+                name=f"{bands[fid]}",
+                customdata=np.stack(
+                    (
+                        pdf_sso["i:fid"][idx].apply(lambda x: bands[x]),
+                        pdf_sso["i:jd"][idx],
+                    ),
+                    axis=-1,
+                ),
+                hovertemplate=hovertemplate,
+                legendgroup=f"{bands[fid]} band",
+                legendrank=100 + 10 * fid,
+                marker={
+                    "size": 8,
+                    "color": color,
+                    "symbol": "square",
+                },
+                xaxis="x",
+                yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
+            )
+
+            if switch_layout == "plain":
+                fig.add_trace(trace)
+            elif switch_layout == "split":
+                row = fid - 3 * (fid // 4)
+                col = (fid // 4) + 1
+                if len(flux[idx]) > 0:
+                    fig.add_trace(trace, row=row, col=col)
+                    fig.update_xaxes(
+                        row=row,
+                        col=col,
+                        title="Observation date",
+                    )
+                    fig.update_yaxes(
+                        row=row,
+                        col=col,
+                        title=layout["yaxis"]["title"],
+                    )
+                    if units == "magnitude":
+                        fig.update_yaxes(row=row, col=col, autorange="reversed")
+
     # indicators
     indicators = []
     colors = generate_rgb_color_sequence(color_scale)
@@ -899,53 +971,6 @@ def draw_lightcurve_preview(
                 # gap="sm"
             ),
         )
-
-        # if not np.sum(idx):
-        #     continue
-
-        # if units == "magnitude":
-        #     # Using same names as others despite being magnitudes
-        #     # Redefined within the loop each time
-        #     # FIXME: rewrite for better efficiency
-        #     flux, flux_err = flux_to_mag(pdf[flux_name], pdf[flux_err_name])
-        #     layout["yaxis"]["autorange"] = "reversed"
-        #     if measurement == "differential":
-        #         layout["yaxis"]["title"] = "Difference magnitude"
-        #     else:
-        #         layout["yaxis"]["title"] = "Magnitude"
-
-        # figure["data"].append(
-        #     {
-        #         "x": dates[idx],
-        #         "y": flux[idx],
-        #         "error_y": {
-        #             "type": "data",
-        #             "array": flux_err[idx],
-        #             "visible": True,
-        #             "width": 0,
-        #             "color": color,  # It does not support arrays of colors so let's use positive one for all points
-        #             "opacity": 0.5,
-        #         },
-        #         "mode": "markers",
-        #         "name": f"{fname}",
-        #         "customdata": np.stack(
-        #             (
-        #                 pdf["r:midpointMjdTai"][idx],
-        #                 pdf["r:snr"][idx],
-        #                 pdf["r:reliability"][idx],
-        #             ),
-        #             axis=-1,
-        #         ),
-        #         "hovertemplate": hovertemplate,
-        #         "marker": {
-        #             "size": 12,
-        #             "color": color,
-        #             "symbol": "o",
-        #             "line": {"width": 0},
-        #             "opacity": 1,
-        #         },
-        #     },
-        # )
 
     flags = []
     cols = [
@@ -1021,6 +1046,7 @@ def make_sparkline(data):
     [
         Input("select-lc-layout", "value"),
         Input("object-data", "data"),
+        Input("object-sso-ztf", "data"),
         Input("color_scale", "value"),
         Input("select-units", "value"),
         Input("select-measurement", "value"),
@@ -1028,7 +1054,7 @@ def make_sparkline(data):
     prevent_initial_call=False,
 )
 def draw_lightcurve(
-    switch_layout: str, object_data, color_scale, units, measurement
+    switch_layout: str, object_data, object_sso_ztf, color_scale, units, measurement
 ) -> dict:
     """Draw diaObject lightcurve with errorbars
 
@@ -1078,8 +1104,15 @@ def draw_lightcurve(
         is_sso = True
     else:
         is_sso = False
+
+    if object_sso_ztf is not None:
+        pdf_sso = pd.read_json(io.StringIO(object_sso_ztf))
+    else:
+        pdf_sso = None
+
     fig, indicator, flags = draw_lightcurve_preview(
         pdf=pdf,
+        pdf_sso=pdf_sso,
         is_sso=is_sso,
         color_scale=color_scale,
         units=units,

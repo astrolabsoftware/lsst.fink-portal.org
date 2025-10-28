@@ -135,6 +135,7 @@ def layout(name, is_sso):
                 dcc.Store(id="object-data"),
                 dcc.Store(id="object-release"),
                 dcc.Store(id="object-sso-ephem"),
+                dcc.Store(id="object-sso-ztf"),
                 # dcc.Store(id="object-sso"),
             ],
             grow=True,
@@ -154,7 +155,9 @@ def tabs(pdf, is_sso):
     if is_sso:
         tabs_list.append(dmc.TabsTab("Solar System", value="Solar System"))
         tabs_panels.append(
-            dmc.TabsPanel(children=[], id="tab_sso", value="Solar System")
+            dmc.TabsPanel(
+                children=[tab_ssobject(pdf)], id="tab_sso", value="Solar System"
+            )
         )
     else:
         tabs_list.append(dmc.TabsTab("diaObject", value="diaObject"))
@@ -240,16 +243,8 @@ def tab_diaobject(pdf):
     return tab_diaobject_
 
 
-@app.callback(
-    Output("tab_sso", "children"),
-    [
-        Input("object-data", "data"),
-    ],
-    prevent_initial_call=True,
-)
-def tab_ssobject(object_data):
+def tab_ssobject(pdf):
     """SSO tab"""
-    pdf = pd.read_json(io.StringIO(object_data))
     if pdf.empty:
         mpcdesignation = "null"
         sso_name = "null"
@@ -295,6 +290,14 @@ def tab_ssobject(object_data):
                     dmc.Space(h=10),
                     lc,
                     html.Br(),
+                    dmc.Center(
+                        dmc.Button(
+                            "Add Fink/ZTF alerts",
+                            id="request-sso-ztf-alert",
+                            variant="outline",
+                            color=DEFAULT_FINK_COLORS[0],
+                        )
+                    ),
                     dmc.Accordion(
                         children=[
                             dmc.AccordionItem(
@@ -582,6 +585,62 @@ def store_ephemerides(object_data):
         return info_out.to_json()
     else:
         return no_update
+
+
+@app.callback(
+    [
+        Output("object-sso-ztf", "data"),
+        Output("request-sso-ztf-alert", "children"),
+    ],
+    [
+        Input("request-sso-ztf-alert", "n_clicks"),
+        Input("object-data", "data"),
+    ],
+    background=True,
+    prevent_initial_call=True,
+    running=[
+        (
+            Output("request-sso-ztf-alert", "loading"),
+            True,
+            False,
+        ),
+    ],
+)
+def store_ztf_sso_data(n_clicks, object_data):
+    """Cache query results (data and upper limits) for easy re-use
+
+    https://dash.plotly.com/sharing-data-between-callbacks
+    """
+    if (not n_clicks) or not object_data:
+        raise PreventUpdate
+
+    pdf = pd.read_json(io.StringIO(object_data))
+
+    # FIXME: take all names!
+    sso_name = pdf["f:sso_name"].to_numpy()[0]
+
+    # get data for 2021RZ105
+    r = requests.post(
+        "https://api.fink-portal.org/api/v1/sso",
+        json={
+            "n_or_d": sso_name,
+            "withEphem": False,
+            "withResiduals": False,
+            "output-format": "json",
+        },
+    )
+
+    if r.status_code != 200:
+        return no_update, "No ZTF alerts (error {})".format(r.status_code)
+
+    # Format output in a DataFrame
+    pdf_ztf = pd.read_json(io.BytesIO(r.content))
+
+    if pdf_ztf.empty:
+        children = "No ZTF data"
+    else:
+        children = "Fink/ZTF: {} alerts".format(len(pdf_ztf))
+    return pdf_ztf.to_json(), children
 
 
 @app.callback(
