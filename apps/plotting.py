@@ -12,7 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from dash import dcc, html, Output, Input, no_update, clientside_callback, State
+from dash import (
+    dcc,
+    html,
+    Output,
+    Input,
+    no_update,
+    clientside_callback,
+    State,
+    dash_table,
+)
 from dash.exceptions import PreventUpdate
 from dash_iconify import DashIconify
 import dash_bootstrap_components as dbc
@@ -38,7 +47,13 @@ import numpy as np
 import pandas as pd
 
 import nifty_ls  # noqa: F401
-
+from fink_utils.sso.spins import (
+    estimate_sso_params,
+    func_hg,
+    func_hg1g2,
+    func_hg1g2_with_spin,
+    func_hg12,
+)
 
 # from apps import __file__
 from app import app
@@ -324,26 +339,31 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
 
 
 @app.callback(
-    Output("stamps", "children"),
+    [
+        Output("stamps", "children"),
+        Output("alert-cutout-title", "children"),
+    ],
     [
         Input("lightcurve_object_page", "clickData"),
         Input("object-data", "data"),
     ],
-    prevent_initial_call=True,
+    prevent_initial_call=False,
 )
 def draw_cutouts(clickData, object_data):
     """Draw cutouts data based on lightcurve data"""
     if clickData is not None:
         jd0 = clickData["points"][0]["x"]
+        title = "Alert cutouts ({})".format(jd0)
     else:
         jd0 = None
+        title = "Last alert cutouts"
 
     figs = []
     for kind in ["science", "template", "difference"]:
         try:
             cutout = extract_cutout(object_data, jd0, kind=kind)
             if cutout is None:
-                return no_update
+                return no_update, no_update
 
             data = draw_cutout(cutout, kind)
         except OSError:
@@ -409,7 +429,7 @@ def draw_cutouts(clickData, object_data):
         )
         figs.append(card)
 
-    return dmc.Group(figs, justify="space-around")
+    return dmc.Group(figs, justify="space-around"), title
 
 
 @app.callback(
@@ -693,6 +713,7 @@ def _data_stretch(
 
 def draw_lightcurve_preview(
     pdf=None,
+    pdf_ztf=None,
     main_id=None,
     is_sso=False,
     color_scale="Fink",
@@ -848,6 +869,77 @@ def draw_lightcurve_preview(
                 if units == "magnitude":
                     fig.update_yaxes(row=row, col=col, autorange="reversed")
 
+    if pdf_ztf is not None and not pdf_ztf.empty:
+        # Add ztf data
+        bands = {1: "g", 2: "r"}
+        # date type conversion
+        dates_ztf = convert_time(pdf_ztf["i:jd"], format_in="jd", format_out="iso")
+        mag_ztf = pdf_ztf["i:magpsf"]
+        err_ztf = pdf_ztf["i:sigmapsf"]
+        for fid, color in zip(range(2, 4), [colors[1], colors[2]]):
+            # High-quality measurements
+            hovertemplate = r"""
+            <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
+            <b>%{xaxis.title.text}</b>: %{x|%Y/%m/%d %H:%M:%S.%L}<br>
+            <b>Filter band</b>: %{customdata[0]}<br>
+            <b>JD</b>: %{customdata[1]}<br>
+            <extra></extra>
+            """
+            idx = pdf_ztf["i:fid"] == fid - 1
+
+            trace = go.Scatter(
+                x=dates_ztf[idx],
+                y=mag_ztf[idx],
+                error_y={
+                    "type": "data",
+                    "array": err_ztf[idx],
+                    "visible": True,
+                    "width": 0,
+                    "color": hex_to_rgba(color, 0.5)
+                    if color.startswith("#")
+                    else rgb_to_rgba(color, 0.5),
+                },
+                mode="markers",
+                name=f"{bands[fid - 1]}",
+                customdata=np.stack(
+                    (
+                        pdf_ztf["i:fid"][idx].apply(lambda x: bands[x]),
+                        pdf_ztf["i:jd"][idx],
+                    ),
+                    axis=-1,
+                ),
+                hovertemplate=hovertemplate,
+                legendgroup=f"{bands[fid - 1]} band",
+                legendrank=100 + 10 * fid,
+                marker={
+                    "size": 8,
+                    "color": color,
+                    "symbol": "square",
+                },
+                xaxis="x",
+                yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
+            )
+
+            if switch_layout == "plain":
+                fig.add_trace(trace)
+            elif switch_layout == "split":
+                row = fid - 3 * (fid // 4)
+                col = (fid // 4) + 1
+                if len(mag_ztf[idx]) > 0:
+                    fig.add_trace(trace, row=row, col=col)
+                    fig.update_xaxes(
+                        row=row,
+                        col=col,
+                        title="Observation date",
+                    )
+                    fig.update_yaxes(
+                        row=row,
+                        col=col,
+                        title=layout["yaxis"]["title"],
+                    )
+                    if units == "magnitude":
+                        fig.update_yaxes(row=row, col=col, autorange="reversed")
+
     # indicators
     indicators = []
     colors = generate_rgb_color_sequence(color_scale)
@@ -894,53 +986,6 @@ def draw_lightcurve_preview(
                 # gap="sm"
             ),
         )
-
-        # if not np.sum(idx):
-        #     continue
-
-        # if units == "magnitude":
-        #     # Using same names as others despite being magnitudes
-        #     # Redefined within the loop each time
-        #     # FIXME: rewrite for better efficiency
-        #     flux, flux_err = flux_to_mag(pdf[flux_name], pdf[flux_err_name])
-        #     layout["yaxis"]["autorange"] = "reversed"
-        #     if measurement == "differential":
-        #         layout["yaxis"]["title"] = "Difference magnitude"
-        #     else:
-        #         layout["yaxis"]["title"] = "Magnitude"
-
-        # figure["data"].append(
-        #     {
-        #         "x": dates[idx],
-        #         "y": flux[idx],
-        #         "error_y": {
-        #             "type": "data",
-        #             "array": flux_err[idx],
-        #             "visible": True,
-        #             "width": 0,
-        #             "color": color,  # It does not support arrays of colors so let's use positive one for all points
-        #             "opacity": 0.5,
-        #         },
-        #         "mode": "markers",
-        #         "name": f"{fname}",
-        #         "customdata": np.stack(
-        #             (
-        #                 pdf["r:midpointMjdTai"][idx],
-        #                 pdf["r:snr"][idx],
-        #                 pdf["r:reliability"][idx],
-        #             ),
-        #             axis=-1,
-        #         ),
-        #         "hovertemplate": hovertemplate,
-        #         "marker": {
-        #             "size": 12,
-        #             "color": color,
-        #             "symbol": "o",
-        #             "line": {"width": 0},
-        #             "opacity": 1,
-        #         },
-        #     },
-        # )
 
     flags = []
     cols = [
@@ -1016,14 +1061,15 @@ def make_sparkline(data):
     [
         Input("select-lc-layout", "value"),
         Input("object-data", "data"),
+        Input("object-ztf", "data"),
         Input("color_scale", "value"),
         Input("select-units", "value"),
         Input("select-measurement", "value"),
     ],
-    prevent_initial_call=True,
+    prevent_initial_call=False,
 )
 def draw_lightcurve(
-    switch_layout: str, object_data, color_scale, units, measurement
+    switch_layout: str, object_data, object_ztf, color_scale, units, measurement
 ) -> dict:
     """Draw diaObject lightcurve with errorbars
 
@@ -1069,9 +1115,20 @@ def draw_lightcurve(
         },
     )
     pdf = pd.read_json(io.StringIO(object_data))
+    if "r:mpcDesignation" in pdf.columns:
+        is_sso = True
+    else:
+        is_sso = False
+
+    if object_ztf is not None:
+        pdf_ztf = pd.read_json(io.StringIO(object_ztf))
+    else:
+        pdf_ztf = None
+
     fig, indicator, flags = draw_lightcurve_preview(
         pdf=pdf,
-        is_sso=False,
+        pdf_ztf=pdf_ztf,
+        is_sso=is_sso,
         color_scale=color_scale,
         units=units,
         measurement=measurement,
@@ -1311,7 +1368,7 @@ def integrate_aladin_lite(object_data):
     """
 
     # # Unique positions of nearest reference object
-    # pdfnr = pdf[["i:ranr", "i:decnr", "i:magnr", "i:sigmagnr", "i:fid"]][
+    # pdfnr = pdf[["i:ranr", "i:decnr", "i:magnr", "i:sigmagnr", "r:band"]][
     #     np.isfinite(pdf["i:magnr"])
     # ].drop_duplicates()
 
@@ -1325,12 +1382,12 @@ def integrate_aladin_lite(object_data):
     #         img += """
     #         catnr_{}.addSources([A.source({}, {}, {{ZTF: 'Reference', mag: {:.2f}, err: {:.2f}, filter: '{}'}})]);
     #         """.format(
-    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["i:fid"]),
+    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["r:band"]),
     #             row["i:ranr"],
     #             row["i:decnr"],
     #             row["i:magnr"],
     #             row["i:sigmagnr"],
-    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["i:fid"]),
+    #             {1: "zg", 2: "zr", 3: "zi"}.get(row["r:band"]),
     #         )
 
     #     img += """aladin.addCatalog(catnr_zg);"""
@@ -1667,3 +1724,515 @@ def clear_input(n_clicks):
     if n_clicks:
         return "", ""  # Clear the input field
     return no_update, no_update
+
+
+@app.callback(
+    Output("sso_astrometry", "children"),
+    [
+        Input("object-sso-ephem", "data"),
+        Input("color_scale", "value"),
+    ],
+    prevent_initial_call=False,
+)
+def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
+    """Draw SSO object astrometry, that is difference position wrt ephemerides from the miriade IMCCE service.
+
+    Returns
+    -------
+    figure: dict
+    """
+    pdf = pd.read_json(io.StringIO(object_sso_ephem))
+    # print(list(pdf.columns))
+    if pdf.empty:
+        msg = """
+        Object not referenced in the Minor Planet Center
+        """
+        return html.Div([html.Br(), dbc.Alert(msg, color="danger")])
+
+    if "RA" not in pdf.columns:
+        return dbc.Alert(
+            "No ephemerides available for {}".format(
+                pdf["r:mpcDesignation"].to_numpy()[0]
+            ),
+            color="danger",
+        )
+
+    layout = dict(
+        autosize=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        showlegend=True,
+        shapes=[],
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            x=0,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        xaxis={
+            "title": "&#916;RA cos(Dec) ('')",
+            "automargin": True,
+            "zeroline": False,
+        },
+        yaxis={
+            "title": "&#916;Dec ('')",
+            "automargin": True,
+            "zeroline": False,
+            "scaleanchor": "x",
+            "scaleratio": 1,
+        },
+    )
+
+    deltaRAcosDEC = (pdf["r:ra"] - pdf.RA) * np.cos(np.radians(pdf["r:dec"])) * 3600
+    deltaDEC = (pdf["r:dec"] - pdf.DEC) * 3600
+
+    hovertemplate = r"""
+    <b>%{yaxis.title.text}</b>: %{y:.2f}<br>
+    <b>%{xaxis.title.text}</b>: %{x:.2f}<br>
+    <b>Filter band</b>: %{customdata[0]}<br>
+    <b>Observation date</b>: %{customdata[1]}<br>
+    <b>SNR</b>: %{customdata[2]:.2f}<br>
+    <b>Reliability</b>: %{customdata[3]:.2f}
+    <extra></extra>
+    """
+    figure = go.Figure(layout=layout)
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+        idx = pdf["r:band"] == fname
+
+        trace = go.Scatter(
+            x=deltaRAcosDEC[idx],
+            y=deltaDEC[idx],
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:band"][idx],
+                    pdf["r:midpointMjdTai"][idx],
+                    pdf["r:snr"][idx],
+                    pdf["r:reliability"][idx],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={
+                "size": 12,
+                "color": color,
+                "symbol": "circle",
+            },
+            xaxis="x",
+            yaxis="y",
+        )
+        figure.add_trace(trace)
+
+    figure.add_hline(y=0, line_dash="dash", line_color="grey")
+    figure.add_vline(x=0, line_dash="dash", line_color="grey")
+
+    # 100mas circle
+    figure.add_shape(
+        type="circle",
+        xref="x",
+        yref="y",
+        x0=-0.05,
+        y0=-0.05,
+        x1=0.05,
+        y1=0.05,
+        line_color="LightSeaGreen",
+    )
+
+    graph = dcc.Graph(
+        figure=figure,
+        style={
+            "width": "100%",
+            "height": "20pc",
+        },
+        config=CONFIG_PLOT,
+    )
+    card = dmc.Paper(graph)
+    return card
+
+
+@app.callback(
+    Output("sso_phasecurve", "children"),
+    [
+        Input("switch-phase-curve-func", "value"),
+        Input("object-sso-ephem", "data"),
+        Input("color_scale", "value"),
+    ],
+)
+def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
+    """Draw SSO object phase curve"""
+    if object_ephem is None:
+        raise PreventUpdate
+
+    pdf = pd.read_json(io.StringIO(object_ephem))
+    if pdf.empty:
+        msg = """
+        Object not referenced in the Minor Planet Center, or name not found in Fink.
+        It may be a SSO candidate.
+        """
+        return html.Div([html.Br(), dbc.Alert(msg, color="danger")])
+
+    if "r:psfMag_red" not in pdf.columns:
+        return dbc.Alert(
+            "No ephemerides available for {}".format(
+                pdf["f:mpcDesignation"].to_numpy()[0]
+            ),
+            color="danger",
+        )
+
+    pdf = pdf.sort_values("Phase")
+
+    layout = dict(
+        autosize=True,
+        margin=dict(l=50, r=30, b=0, t=0),
+        hovermode="closest",
+        showlegend=True,
+        shapes=[],
+        paper_bgcolor=PAPER_BGCOLOR,
+        plot_bgcolor=PAPER_BGCOLOR,
+        hoverlabel={
+            "align": "left",
+        },
+        legend=dict(
+            font=dict(size=10),
+            orientation="h",
+            x=0,
+            yanchor="bottom",
+            y=1.02,
+            bgcolor="rgba(218, 223, 225, 0.3)",
+        ),
+        xaxis={
+            "title": "Phase angle [degree]",
+            "automargin": True,
+        },
+        yaxis={
+            "autorange": "reversed",
+            "title": "Reduced magnitude [mag]",
+            "automargin": True,
+        },
+    )
+
+    if switch_func == "HG1G2":
+        fitfunc = func_hg1g2
+        params = ["H", "G1", "G2"]
+        bounds = (
+            [-3, 0, 0],
+            [30, 1, 1],
+        )
+        p0 = [15.0, 0.15, 0.15]
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+    elif switch_func == "HG12":
+        fitfunc = func_hg12
+        params = ["H", "G12"]
+        bounds = (
+            [-3, 0],
+            [30, 1],
+        )
+        p0 = [15.0, 0.15]
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+    elif switch_func == "HG":
+        fitfunc = func_hg
+        params = ["H", "G"]
+        bounds = (
+            [-3, 0],
+            [30, 1],
+        )
+        p0 = [15.0, 0.15]
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+    elif switch_func == "SHG1G2":
+        fitfunc = func_hg1g2_with_spin
+        params = ["H", "G1", "G2", "R", "alpha0", "delta0"]
+        bounds = (
+            [-3, 0, 0, 3e-1, 0, -np.pi / 2],
+            [30, 1, 1, 1, 2 * np.pi, np.pi / 2],
+        )
+        p0 = [15.0, 0.15, 0.15, 0.8, np.pi, 0.0]
+        x = [
+            np.deg2rad(pdf["Phase"].to_numpy()),
+            np.deg2rad(pdf["r:ra"].to_numpy()),
+            np.deg2rad(pdf["r:dec"].to_numpy()),
+        ]
+    elif switch_func == "sfHG1G2":
+        fitfunc = func_hg1g2
+        # Use HG1G2 under the hood, with H = mean(H)
+        params = ["<H>", "G1", "G2"]
+        bounds = None
+        p0 = None
+        x = np.deg2rad(pdf["Phase"].to_numpy())
+
+    # Multi-band fit
+    outdic = estimate_sso_params(
+        magpsf_red=pdf["r:psfMag_red"].to_numpy(),
+        sigmapsf=pdf["r:psfMagErr_red"].to_numpy(),
+        phase=np.deg2rad(pdf["Phase"].to_numpy()),
+        filters=pdf["r:band"].to_numpy(),
+        ra=np.deg2rad(pdf["r:ra"].to_numpy()),
+        dec=np.deg2rad(pdf["r:dec"].to_numpy()),
+        jd=Time(pdf["r:midpointMjdTai"].to_numpy(), format="mjd").utc.jd,
+        p0=p0,
+        bounds=bounds,
+        model=switch_func,
+        normalise_to_V=False,
+        ssnamenr=pdf["r:mpcDesignation"].to_numpy()[0],
+    )
+    if outdic["fit"] != 0:
+        return dbc.Alert("The fitting procedure could not converge.", color="danger")
+
+    filts = np.unique(pdf["r:band"].to_numpy())
+
+    if switch_func == "sfHG1G2":
+        # H mean for each filter
+        for f in filts:
+            outdic["<H>_{}".format(f)] = np.mean([
+                outdic["H{}_{}".format(a, f)]
+                for a in range(outdic["n_app_{}".format(f)])
+            ])
+
+            # assuming uncorrelated and random, which is obviously wrong
+            outdic["err_<H>_{}".format(f)] = np.sqrt(
+                np.sum([
+                    outdic["err_H{}_{}".format(a, f)] ** 2
+                    for a in range(outdic["n_app_{}".format(f)])
+                ])
+            )
+
+    if switch_func == "sfHG1G2":
+        dd = {
+            "": [
+                f + " band ({} apparitions)".format(int(outdic["n_app_{}".format(f)]))
+                for f in filts
+            ]
+        }
+    else:
+        dd = {"": [f + " band" for f in filts]}
+    dd.update({i: [""] * len(filts) for i in params})
+    df_table = pd.DataFrame(
+        dd,
+        index=[f for f in filts],
+    )
+
+    hovertemplate = r"""
+    <b>%{yaxis.title.text}</b>: %{y:.2f}<br>
+    <b>%{xaxis.title.text}</b>: %{x:.2f}<br>
+    <b>Filter band</b>: %{customdata[0]}<br>
+    <b>Observation date</b>: %{customdata[1]}<br>
+    <b>SNR</b>: %{customdata[2]:.2f}<br>
+    <b>Reliability</b>: %{customdata[3]:.2f}
+    <extra></extra>
+    """
+    figure = go.Figure(layout=layout)
+    figure_residuals = go.Figure(layout=layout)
+    colors = generate_rgb_color_sequence(color_scale)
+    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+        if fname not in filts:
+            continue
+
+        cond = pdf["r:band"] == fname
+
+        popt = []
+        for pindex, param in enumerate(params):
+            # rad2deg
+            if pindex >= 3:
+                suffix = ""
+            else:
+                suffix = f"_{fname}"
+
+            loc = df_table[param].index == fname
+            df_table.loc[loc, param] = "{:.2f} &plusmn; {:.2f}".format(
+                outdic[param + suffix],
+                outdic["err_" + param + suffix],
+            )
+
+            if pindex <= 3:
+                popt.append(outdic[param + suffix])
+            else:
+                popt.append(np.deg2rad(outdic[param + suffix]))
+
+        ydata = pdf.loc[cond, "r:psfMag_red"]
+
+        trace = go.Scatter(
+            x=pdf.loc[cond, "Phase"].to_numpy(),
+            y=ydata.to_numpy(),
+            error_y={
+                "type": "data",
+                "array": pdf.loc[cond, "r:psfMagErr_red"].to_numpy(),
+                "visible": True,
+                "width": 0,
+                "color": hex_to_rgba(color, 0.5)
+                if color.startswith("#")
+                else rgb_to_rgba(color, 0.5),
+            },
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:band"][cond],
+                    pdf["r:midpointMjdTai"][cond],
+                    pdf["r:snr"][cond],
+                    pdf["r:reliability"][cond],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={
+                "size": 12,
+                "color": color,
+                "symbol": "circle",
+            },
+            xaxis="x",
+            yaxis="y",
+        )
+        figure.add_trace(trace)
+
+        if switch_func == "SHG1G2":
+            xx = np.array(x)[:, cond]
+        else:
+            xx = x[cond]
+
+        trace_fit = go.Scatter(
+            x=pdf.loc[cond, "Phase"].to_numpy(),
+            y=fitfunc(xx, *popt),
+            mode="markers",
+            name=f"fit {fname}",
+            hovertemplate=hovertemplate,
+            customdata=np.stack(
+                (
+                    pdf["r:band"][cond],
+                    pdf["r:midpointMjdTai"][cond],
+                    pdf["r:snr"][cond],
+                    pdf["r:reliability"][cond],
+                ),
+                axis=-1,
+            ),
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={"size": 12, "color": color, "symbol": "x", "opacity": 0.5},
+            xaxis="x",
+            yaxis="y",
+        )
+        figure.add_trace(trace_fit)
+
+        trace_residuals = go.Scatter(
+            x=pdf.loc[cond, "Phase"].to_numpy(),
+            y=ydata.to_numpy() - fitfunc(xx, *popt),
+            error_y={
+                "type": "data",
+                "array": pdf.loc[cond, "r:psfMagErr_red"].to_numpy(),
+                "visible": True,
+                "width": 0,
+                "color": hex_to_rgba(color, 0.5)
+                if color.startswith("#")
+                else rgb_to_rgba(color, 0.5),
+            },
+            mode="markers",
+            name=f"{fname}",
+            customdata=np.stack(
+                (
+                    pdf["r:band"][cond],
+                    pdf["r:midpointMjdTai"][cond],
+                    pdf["r:snr"][cond],
+                    pdf["r:reliability"][cond],
+                ),
+                axis=-1,
+            ),
+            hovertemplate=hovertemplate,
+            legendgroup=f"{fname} band",
+            legendrank=100 + 10 * fid,
+            marker={"size": 12, "color": color, "symbol": "x", "opacity": 0.5},
+            xaxis="x",
+            yaxis="y",
+        )
+        figure_residuals.add_trace(trace_residuals)
+
+    figure_residuals.add_hline(y=0, line_dash="dash", line_color="grey")
+    figure_residuals.update_layout(yaxis={"title": "Residual [mag]"})
+
+    if switch_func == "sfHG1G2":
+        title = "Reduced &#967;<sup>2</sup>: "
+        for f in filts:
+            title += " {}:{:.2f} ".format(f, outdic["chi2red_{}".format(f)])
+    elif ~np.isnan(outdic["chi2red"]) and outdic["chi2red"] is not None:
+        title = "Reduced &#967;<sup>2</sup>: {:.2f}".format(outdic["chi2red"])
+    else:
+        title = "Reduced &#967;<sup>2</sup>: NaN"
+    figure.update_layout({
+        "title": {
+            "text": title,
+            "x": 0.5,
+            "xanchor": "center",
+            "yanchor": "top",
+            "font": {"size": 20},
+        }
+    })
+
+    columns = [
+        {
+            "id": c,
+            "name": c,
+            "type": "text",
+            # 'hideable': True,
+            "presentation": "markdown",
+        }
+        for c in df_table.columns
+    ]
+
+    table = dash_table.DataTable(
+        id="phasecurve_table",
+        columns=columns,
+        data=df_table.to_dict("records"),
+        style_as_list_view=True,
+        style_data={
+            "backgroundColor": "rgb(248, 248, 248, .7)",
+        },
+        style_table={"maxWidth": "100%"},
+        style_cell={
+            "padding": "5px",
+            "textAlign": "left",
+            "border": "0.5px solid grey",
+        },
+        style_filter={"backgroundColor": "rgb(238, 238, 238, .7)"},
+        style_header={
+            "backgroundColor": "rgb(230, 230, 230)",
+            "fontWeight": "bold",
+        },
+    )
+
+    graph1 = dcc.Graph(
+        figure=figure,
+        style={
+            "width": "100%",
+            "height": "25pc",
+        },
+        config=CONFIG_PLOT,
+    )
+
+    graph2 = dcc.Graph(
+        figure=figure_residuals,
+        style={
+            "width": "100%",
+            "height": "15pc",
+        },
+        config=CONFIG_PLOT,
+    )
+    card = dmc.Group(
+        [
+            graph1,
+            html.Br(),
+            graph2,
+            html.Br(),
+            table,
+        ],
+    )
+    return card

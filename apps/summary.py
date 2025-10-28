@@ -23,9 +23,14 @@ import visdcc
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from astropy.time import Time
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 from dash import Input, Output, State, dcc, html, no_update, ALL
 from dash.exceptions import PreventUpdate
+
+from fink_utils.sso.miriade import query_miriade
 
 from app import app
 
@@ -34,6 +39,10 @@ from apps.cards import card_lightcurve_summary, card_id
 from apps.observability.cards import card_explanation_observability
 from apps.observability.utils import additional_observatories
 from apps.utils import loading
+from apps.plotting import CONFIG_PLOT
+from apps.sso.cards import card_sso_right
+from apps.utils import flux_to_mag
+from apps.plotting import DEFAULT_FINK_COLORS
 
 from astropy.coordinates import EarthLocation
 
@@ -41,14 +50,21 @@ from astropy.coordinates import EarthLocation
 dcc.Location(id="url", refresh=False)
 
 
-def layout(name):
-    # even if there is one object ID, this returns several alerts
-    pdf = request_api(
-        "/api/v1/sources",
-        json={
-            "diaObjectId": name[1:],
-        },
-    )
+def layout(name, is_sso):
+    if not is_sso:
+        pdf = request_api(
+            "/api/v1/sources",
+            json={
+                "diaObjectId": name[1:],
+            },
+        )
+    else:
+        pdf = request_api(
+            "/api/v1/sso",
+            json={
+                "n_or_d": name[1:],
+            },
+        )
 
     if pdf.empty:
         inner = html.Div(
@@ -79,29 +95,33 @@ def layout(name):
             className="p-1",
         )
 
-        card_aladin = html.Div(
-            [
-                visdcc.Run_js(id="aladin-lite-runner"),
-                dmc.Center(
-                    html.Div(
-                        id="aladin-lite-div",
-                        style={
-                            "width": "280px",
-                            "height": "350px",
-                            "border-radius": "10px",
-                            "border": "2px solid rgba(255, 255, 255, 0.1)",
-                            "overflow": "hidden",
-                            "display": "flex",
-                            # "font-size": 10,
-                        },
+        if not is_sso:
+            # Aladin lite is only needed for static objects
+            card_aladin = html.Div(
+                [
+                    visdcc.Run_js(id="aladin-lite-runner"),
+                    dmc.Center(
+                        html.Div(
+                            id="aladin-lite-div",
+                            style={
+                                "width": "280px",
+                                "height": "350px",
+                                "border-radius": "10px",
+                                "border": "2px solid rgba(255, 255, 255, 0.1)",
+                                "overflow": "hidden",
+                                "display": "flex",
+                                # "font-size": 10,
+                            },
+                        ),
                     ),
-                ),
-            ],
-            className="card_id_left",
-            style={"height": "380px"},
-        )
+                ],
+                className="card_id_left",
+                style={"height": "380px"},
+            )
+        else:
+            card_aladin = html.Div()
 
-        col_right = tabs(pdf)
+        col_right = tabs(pdf, is_sso=is_sso)
 
         struct = dmc.Grid(
             [
@@ -114,6 +134,8 @@ def layout(name):
                 ),
                 dcc.Store(id="object-data"),
                 dcc.Store(id="object-release"),
+                dcc.Store(id="object-sso-ephem"),
+                dcc.Store(id="object-ztf"),
                 # dcc.Store(id="object-sso"),
             ],
             grow=True,
@@ -126,19 +148,28 @@ def layout(name):
         )
 
 
-def tabs(pdf):
-    tabs_list = [
-        dmc.TabsTab("diaObject", value="diaObject"),
-    ]
-    tabs_panels = [
-        dmc.TabsPanel(children=[tab1_content(pdf)], value="diaObject"),
-    ]
+def tabs(pdf, is_sso):
+    tabs_list = []
+    tabs_panels = []
 
-    # if not is_tracklet(pdf):
-    tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
-    tabs_panels.append(
-        dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
-    )
+    if is_sso:
+        tabs_list.append(dmc.TabsTab("Solar System", value="Solar System"))
+        tabs_panels.append(
+            dmc.TabsPanel(
+                children=[tab_ssobject(pdf)], id="tab_sso", value="Solar System"
+            )
+        )
+    else:
+        tabs_list.append(dmc.TabsTab("diaObject", value="diaObject"))
+        tabs_panels.append(
+            dmc.TabsPanel(children=[tab_diaobject(pdf)], value="diaObject")
+        )
+
+    if not is_sso:
+        tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
+        tabs_panels.append(
+            dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
+        )
 
     # if len(pdf.index) > 1:
     #     tabs_list.append(dmc.TabsTab("Supernovae", value="Supernovae"))
@@ -166,14 +197,11 @@ def tabs(pdf):
     #         dmc.TabsPanel(tab7_content(), id="tab_blazar", value="Blazars")
     #     )
 
-    default = "diaObject"
-    # # Default view
-    # if is_sso(pdf):
-    #     default = "Solar System"
-    # elif is_tracklet(pdf):
-    #     default = "Tracklets"
-    # else:
-    #     default = "diaObject"
+    # Default view
+    if is_sso:
+        default = "Solar System"
+    else:
+        default = "diaObject"
 
     tabs_ = dmc.Tabs(
         [
@@ -191,9 +219,9 @@ def tabs(pdf):
     return tabs_
 
 
-def tab1_content(pdf):
+def tab_diaobject(pdf):
     """diaObject tab"""
-    tab1_content_ = html.Div([
+    tab_diaobject_ = html.Div([
         dmc.Space(h=10),
         dbc.Row(
             [
@@ -212,7 +240,210 @@ def tab1_content(pdf):
         ),
     ])
 
-    return tab1_content_
+    return tab_diaobject_
+
+
+def tab_ssobject(pdf):
+    """SSO tab"""
+    if pdf.empty:
+        mpcdesignation = "null"
+        sso_name = "null"
+    else:
+        mpcdesignation = pdf["r:mpcDesignation"].to_numpy()[0]
+        sso_name = pdf["f:sso_name"].to_numpy()[0]
+
+    msg = """
+    Alert data associated to ssObject {} from the LSST stream.
+    """.format(pdf["r:ssObjectId"].to_numpy()[0])
+    CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(mpcdesignation)
+    lc = html.Div(
+        [
+            dmc.Group([
+                dbc.Popover(
+                    "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                    target="indicator_lc",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                html.Div(id="indicator_lc", className="indicator"),
+                html.Div(id="flags_lc", className="indicator"),
+            ]),
+            dmc.Space(h=15),
+            loading(
+                dcc.Graph(
+                    id="lightcurve_object_page",
+                    style={
+                        "width": "100%",
+                        "height": "35pc",
+                    },
+                    config=CONFIG_PLOT,
+                    className="mb-2 rounded-5",
+                ),
+            ),
+        ],
+    )
+    tab1 = dbc.Row(
+        [
+            dbc.Col(
+                [
+                    dmc.Space(h=10),
+                    lc,
+                    html.Br(),
+                    dmc.Center(
+                        dmc.Button(
+                            "Add Fink/ZTF alerts",
+                            id="request-ztf-alert",
+                            variant="outline",
+                            color=DEFAULT_FINK_COLORS[0],
+                        )
+                    ),
+                    dmc.Accordion(
+                        children=[
+                            dmc.AccordionItem(
+                                [
+                                    dmc.AccordionControl(
+                                        "Information",
+                                        icon=[
+                                            DashIconify(
+                                                icon="tabler:help-hexagon",
+                                                color=DEFAULT_FINK_COLORS[0],
+                                                width=20,
+                                            ),
+                                        ],
+                                    ),
+                                    dmc.AccordionPanel(dcc.Markdown(msg)),
+                                ],
+                                value="info",
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    msg_phase = r"""
+    We propose different phase curve modeling using the traditional `HG`, `HG12` and
+    `HG1G2` models. By default, the data is modeled after the three-parameter $H$,
+    $G_1$, $G_2$ magnitude phase function for asteroids from
+    [Muinonen et al. 2010](https://doi.org/10.1016/j.icarus.2010.04.003).
+    We use the implementation in [sbpy](https://sbpy.readthedocs.io/en/latest/sbpy/photometry.html#disk-integrated-phase-function-models) to fit the data.
+    In addition, two recent models are available: `SHG1G2` and `sfHG1G2` described below. The title displays the value for the reduced $\chi^2$ of the fit.
+    Hit buttons to see the fitted values!
+
+    **SHG1G2**: The model `SHG1G2` - spinned `HG1G2` - adds spin parameters on top of the `HG1G2` model ([Carry et al 2024](https://doi.org/10.1051/0004-6361/202449789)).
+    Note that $H$, $G_1$, and $G_2$ are fitted per band, but the spin parameters
+    (R, $\alpha_0$, $\beta_0$) are fitted on all bands simultaneously.
+
+    **sfHG1G2**: The model `sfHG1G2` - simultaneous fit `HG1G2` - is a single fit across all
+    apparitions/oppositions using the `HG1G2` model, where the fitted $H$ values can vary for each opposition,
+    but $G_1$ and $G_2$ remain the same for all ([Colazo et al 2025](https://arxiv.org/abs/2503.05412)).
+    This means we fit $N+2$ parameters, where $N$ is the number of oppositions. Here we display the
+    mean value for $H$ per band.
+    """
+
+    tab3 = dbc.Row(
+        [
+            dbc.Col(
+                [
+                    dmc.Space(h=10),
+                    html.Div(
+                        dmc.Skeleton(height="30pc", mb="xl"),
+                        id="sso_phasecurve",
+                    ),
+                    html.Br(),
+                    dmc.Stack(
+                        [
+                            dmc.RadioGroup(
+                                children=dmc.Group([
+                                    dmc.Radio(k, value=k, color="orange")
+                                    for k in [
+                                        "SHG1G2",
+                                        "sfHG1G2",
+                                        "HG1G2",
+                                        "HG12",
+                                        "HG",
+                                    ]
+                                ]),
+                                id="switch-phase-curve-func",
+                                value="HG1G2",
+                                size="sm",
+                            ),
+                        ],
+                        align="center",
+                        justify="center",
+                    ),
+                    dmc.Space(h=10),
+                    dmc.Accordion(
+                        children=[
+                            dmc.AccordionItem(
+                                [
+                                    dmc.AccordionControl(
+                                        "How the phase curve is modeled?",
+                                        icon=[
+                                            DashIconify(
+                                                icon="tabler:help-hexagon",
+                                                color="#3C8DFF",
+                                                width=20,
+                                            ),
+                                        ],
+                                    ),
+                                    dmc.AccordionPanel(
+                                        dcc.Markdown(msg_phase, mathjax=True)
+                                    ),
+                                ],
+                                value="phase_curve",
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    if mpcdesignation != "null":
+        left_side = dmc.Tabs(
+            [
+                dmc.TabsList(
+                    [
+                        dmc.TabsTab("Lightcurve", value="Lightcurve"),
+                        # dmc.TabsTab("Cutouts", value="Cutouts"),
+                        dmc.TabsTab("Phase curve", value="Phase curve"),
+                    ],
+                ),
+                dmc.TabsPanel(tab1, value="Lightcurve"),
+                # dmc.TabsPanel(tab2, value="Cutouts"),
+                dmc.TabsPanel(tab3, value="Phase curve"),
+            ],
+            value="Lightcurve",
+        )
+    else:
+        msg = """
+        Object not referenced in the Minor Planet Center
+        """
+        left_side = [
+            html.Br(),
+            dmc.Alert(children="", title=msg, radius="md", color="red"),
+        ]
+
+    tab_ssobject_ = dbc.Row(
+        [
+            dmc.Space(h=10),
+            dbc.Col(
+                left_side,
+                md=8,
+            ),
+            dbc.Col(
+                [
+                    card_sso_right(pdf, mpcdesignation, sso_name),
+                ],
+                md=4,
+            ),
+        ],
+        className="g-1",
+    )
+    return tab_ssobject_
 
 
 @app.callback(
@@ -226,7 +457,30 @@ def store_query(name):
 
     https://dash.plotly.com/sharing-data-between-callbacks
     """
-    oid = name[1:]
+    oid = str(name)[1:]
+    if oid.isdigit():
+        # diaObjectId
+        pdf = request_api(
+            "/api/v1/sources",
+            json={"diaObjectId": oid, "columns": "*"},
+            # output="json", # should inspect this possibility
+            dtype={
+                "r:diaObjectId": np.int64,
+                "r:diaSourceId": np.int64,
+            },
+        )
+    elif oid.startswith("K"):
+        # ssObjectId
+        pdf = request_api(
+            "/api/v1/sso",
+            json={"n_or_d": oid, "columns": "*"},
+            # output="json", # should inspect this possibility
+            dtype={
+                "r:ssObjectId": np.int64,
+                "r:diaSourceId": np.int64,
+            },
+        )
+
     # if not name[1:].isdigit():
     #     # check this is not a name generated by a user
     #     oid = retrieve_oid_from_metaname(name[1:])
@@ -234,16 +488,6 @@ def store_query(name):
     #         raise PreventUpdate
     # else:
     #     oid = name[1:]
-
-    pdf = request_api(
-        "/api/v1/sources",
-        json={"diaObjectId": oid, "columns": "*"},
-        # output="json", # should inspect this possibility
-        dtype={
-            "r:diaObjectId": np.int64,
-            "r:diaSourceId": np.int64,
-        },  # Force reading this field as string
-    )
 
     # pdf_ = pd.read_json(pdf.to_json())
     # pdfs = pdf[pdf["d:tag"] == "valid"]
@@ -276,6 +520,145 @@ def store_query(name):
 
     # pdf.to_json()
     return pdf.to_json()
+
+
+@app.callback(
+    Output("object-sso-ephem", "data"),
+    [
+        Input("object-data", "data"),
+    ],
+    background=True,
+    prevent_initial_call=False,
+)
+def store_ephemerides(object_data):
+    """Cache query results (data and upper limits) for easy re-use
+
+    https://dash.plotly.com/sharing-data-between-callbacks
+    """
+    pdf = pd.read_json(io.StringIO(object_data))
+    if "r:mpcDesignation" in pdf.columns:
+        # get ephemerides
+        ssnamenrs = np.unique(pdf["f:sso_name"].to_numpy())
+        infos = []
+        for ssnamenr in ssnamenrs:
+            mask = pdf["f:sso_name"] == ssnamenr
+            pdf_sub = pdf[mask]
+
+            eph = query_miriade(
+                ssnamenr,
+                Time(
+                    pdf_sub["r:midpointMjdTai"].to_numpy(), format="mjd", scale="tai"
+                ).utc.jd,
+                observer="X05",
+                rplane="1",
+                tcoor=5,
+                shift=0.0,
+                timeout=10,
+            )
+
+        if not eph.empty:
+            sc = SkyCoord(eph["RA"], eph["DEC"], unit=(u.deg, u.deg))
+
+            eph = eph.drop(columns=["RA", "DEC"])
+            eph["RA"] = sc.ra.value * 15
+            eph["DEC"] = sc.dec.value
+
+            # Merge fink & Eph
+            info = pd.concat([eph.reset_index(), pdf_sub.reset_index()], axis=1)
+
+            # index has been duplicated obviously
+            info = info.loc[:, ~info.columns.duplicated()]
+
+            # Compute magnitude reduced to unit distance
+            mag, info["r:psfMagErr_red"] = flux_to_mag(
+                info["r:psfFlux"], info["r:psfFluxErr"]
+            )
+            info["r:psfMag_red"] = mag - 5 * np.log10(info["Dobs"] * info["Dhelio"])
+            infos.append(info)
+        else:
+            infos.append(pdf_sub)
+
+        if len(infos) > 1:
+            info_out = pd.concat(infos)
+        else:
+            info_out = infos[0]
+
+        return info_out.to_json()
+    else:
+        return no_update
+
+
+@app.callback(
+    [
+        Output("object-ztf", "data"),
+        Output("request-ztf-alert", "children"),
+    ],
+    [
+        Input("request-ztf-alert", "n_clicks"),
+        Input("object-data", "data"),
+    ],
+    background=True,
+    prevent_initial_call=True,
+    running=[
+        (
+            Output("request-ztf-alert", "loading"),
+            True,
+            False,
+        ),
+    ],
+)
+def store_ztf_data(n_clicks, object_data):
+    """Cache query results (data and upper limits) for easy re-use
+
+    https://dash.plotly.com/sharing-data-between-callbacks
+    """
+    if (not n_clicks) or not object_data:
+        raise PreventUpdate
+
+    pdf = pd.read_json(io.StringIO(object_data))
+
+    # FIXME: refactor to have is_sso function everywhere instead of
+    # check columns each time
+    if "r:mpcDesignation" in pdf.columns:
+        # FIXME: take all names!
+        sso_name = pdf["f:sso_name"].to_numpy()[0]
+
+        # get data for 2021RZ105
+        r = requests.post(
+            "https://api.fink-portal.org/api/v1/sso",
+            json={
+                "n_or_d": sso_name,
+                "withEphem": False,
+                "withResiduals": False,
+                "output-format": "json",
+            },
+        )
+    else:
+        ra = pdf["r:ra"].mean()
+        dec = pdf["r:dec"].mean()
+
+        # get data for 2021RZ105
+        r = requests.post(
+            "https://api.fink-portal.org/api/v1/conesearch",
+            json={
+                "ra": ra,
+                "dec": dec,
+                "radius": 1.5,
+                "output-format": "json",
+            },
+        )
+
+    if r.status_code != 200:
+        return no_update, "No ZTF alerts (error {})".format(r.status_code)
+
+    # Format output in a DataFrame
+    pdf_ztf = pd.read_json(io.BytesIO(r.content))
+
+    if pdf_ztf.empty:
+        children = "No ZTF data"
+    else:
+        children = "Fink/ZTF: {} alerts".format(len(pdf_ztf))
+    return pdf_ztf.to_json(), children
 
 
 @app.callback(
@@ -455,216 +838,6 @@ def store_release_photometry(n_clicks, object_data):
 #         ]
 #     )
 #     return [tab3_content_]
-
-
-# @app.callback(
-#     Output("tab_sso", "children"),
-#     [
-#         Input("object-sso", "data"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def tab5_content(object_soo):
-#     """SSO tab"""
-#     pdf = pd.read_json(io.StringIO(object_soo))
-#     if pdf.empty:
-#         ssnamenr = "null"
-#         sso_name = "null"
-#     else:
-#         ssnamenr = pdf["i:ssnamenr"].to_numpy()[0]
-#         sso_name = pdf["sso_name"].to_numpy()[0]
-
-#     msg = """
-#     Alert data from ZTF (filled circle) in g (blue) and r (orange) filters, with ephemerides provided by the
-#     [Miriade ephemeride service](https://ssp.imcce.fr/webservices/miriade/api/ephemcc/) (shaded circle).
-#     """
-#     tab1 = dbc.Row(
-#         [
-#             dbc.Col(
-#                 [
-#                     dmc.Space(h=10),
-#                     draw_sso_lightcurve(pdf),
-#                     html.Br(),
-#                     dmc.Accordion(
-#                         children=[
-#                             dmc.AccordionItem(
-#                                 [
-#                                     dmc.AccordionControl(
-#                                         "Information",
-#                                         icon=[
-#                                             DashIconify(
-#                                                 icon="tabler:help-hexagon",
-#                                                 color="#3C8DFF",
-#                                                 width=20,
-#                                             ),
-#                                         ],
-#                                     ),
-#                                     dmc.AccordionPanel(dcc.Markdown(msg)),
-#                                 ],
-#                                 value="info",
-#                             ),
-#                         ],
-#                     ),
-#                 ],
-#             ),
-#         ],
-#     )
-
-#     tab2 = dbc.Row(
-#         [
-#             dbc.Col(
-#                 [
-#                     dmc.Space(h=10),
-#                     draw_sso_astrometry(pdf),
-#                     dmc.Accordion(
-#                         children=[
-#                             dmc.AccordionItem(
-#                                 [
-#                                     dmc.AccordionControl(
-#                                         "How the residuals are computed?",
-#                                         icon=[
-#                                             DashIconify(
-#                                                 icon="tabler:help-hexagon",
-#                                                 color="#3C8DFF",
-#                                                 width=20,
-#                                             ),
-#                                         ],
-#                                     ),
-#                                     dmc.AccordionPanel(
-#                                         dcc.Markdown(
-#                                             "The residuals are the difference between the alert positions and the positions returned by the [Miriade ephemeride service](https://ssp.imcce.fr/webservices/miriade/api/ephemcc/)."
-#                                         )
-#                                     ),
-#                                 ],
-#                                 value="residuals",
-#                             ),
-#                         ],
-#                     ),
-#                 ],
-#             ),
-#         ],
-#     )
-
-#     msg_phase = r"""
-#     We propose different phase curve modeling using the traditional `HG`, `HG12` and
-#     `HG1G2` models. By default, the data is modeled after the three-parameter $H$,
-#     $G_1$, $G_2$ magnitude phase function for asteroids from
-#     [Muinonen et al. 2010](https://doi.org/10.1016/j.icarus.2010.04.003).
-#     We use the implementation in [sbpy](https://sbpy.readthedocs.io/en/latest/sbpy/photometry.html#disk-integrated-phase-function-models) to fit the data.
-#     In addition, two recent models are available: `SHG1G2` and `sfHG1G2` described below. The title displays the value for the reduced $\chi^2$ of the fit.
-#     Hit buttons to see the fitted values!
-
-#     **SHG1G2**: The model `SHG1G2` - spinned `HG1G2` - adds spin parameters on top of the `HG1G2` model ([Carry et al 2024](https://doi.org/10.1051/0004-6361/202449789)).
-#     Note that $H$, $G_1$, and $G_2$ are fitted per band, but the spin parameters
-#     (R, $\alpha_0$, $\beta_0$) are fitted on all bands simultaneously.
-
-#     **sfHG1G2**: The model `sfHG1G2` - simultaneous fit `HG1G2` - is a single fit across all
-#     apparitions/oppositions using the `HG1G2` model, where the fitted $H$ values can vary for each opposition,
-#     but $G_1$ and $G_2$ remain the same for all ([Colazo et al 2025](https://arxiv.org/abs/2503.05412)).
-#     This means we fit $N+2$ parameters, where $N$ is the number of oppositions. Here we display the
-#     mean value for $H$ per band.
-#     """
-
-#     tab3 = dbc.Row(
-#         [
-#             dbc.Col(
-#                 [
-#                     dmc.Space(h=10),
-#                     html.Div(id="sso_phasecurve"),
-#                     html.Br(),
-#                     dmc.Stack(
-#                         [
-#                             dmc.RadioGroup(
-#                                 children=dmc.Group(
-#                                     [
-#                                         dmc.Radio(k, value=k, color="orange")
-#                                         for k in [
-#                                             "SHG1G2",
-#                                             "sfHG1G2",
-#                                             "HG1G2",
-#                                             "HG12",
-#                                             "HG",
-#                                         ]
-#                                     ]
-#                                 ),
-#                                 id="switch-phase-curve-func",
-#                                 value="HG1G2",
-#                                 size="sm",
-#                             ),
-#                         ],
-#                         align="center",
-#                         justify="center",
-#                     ),
-#                     dmc.Space(h=10),
-#                     dmc.Accordion(
-#                         children=[
-#                             dmc.AccordionItem(
-#                                 [
-#                                     dmc.AccordionControl(
-#                                         "How the phase curve is modeled?",
-#                                         icon=[
-#                                             DashIconify(
-#                                                 icon="tabler:help-hexagon",
-#                                                 color="#3C8DFF",
-#                                                 width=20,
-#                                             ),
-#                                         ],
-#                                     ),
-#                                     dmc.AccordionPanel(
-#                                         dcc.Markdown(msg_phase, mathjax=True)
-#                                     ),
-#                                 ],
-#                                 value="phase_curve",
-#                             ),
-#                         ],
-#                     ),
-#                 ],
-#             ),
-#         ],
-#     )
-
-#     if ssnamenr != "null":
-#         left_side = dmc.Tabs(
-#             [
-#                 dmc.TabsList(
-#                     [
-#                         dmc.TabsTab("Lightcurve", value="Lightcurve"),
-#                         dmc.TabsTab("Astrometry", value="Astrometry"),
-#                         dmc.TabsTab("Phase curve", value="Phase curve"),
-#                     ],
-#                 ),
-#                 dmc.TabsPanel(tab1, value="Lightcurve"),
-#                 dmc.TabsPanel(tab2, value="Astrometry"),
-#                 dmc.TabsPanel(tab3, value="Phase curve"),
-#             ],
-#             value="Lightcurve",
-#         )
-#     else:
-#         msg = """
-#         Object not referenced in the Minor Planet Center
-#         """
-#         left_side = [
-#             html.Br(),
-#             dmc.Alert(children="", title=msg, radius="md", color="red"),
-#         ]
-
-#     tab5_content_ = dbc.Row(
-#         [
-#             dmc.Space(h=10),
-#             dbc.Col(
-#                 left_side,
-#                 md=8,
-#             ),
-#             dbc.Col(
-#                 [
-#                     card_sso_left(ssnamenr, sso_name),
-#                 ],
-#                 md=4,
-#             ),
-#         ],
-#         className="g-1",
-#     )
-#     return tab5_content_
 
 
 # @app.callback(
@@ -968,7 +1141,7 @@ def tab_observability(pdf):
 #         dmc.TabsTab("Summary", value="Summary"),
 #     ]
 #     tabs_panels = [
-#         dmc.TabsPanel(children=[tab1_content(pdf)], value="Summary"),
+#         dmc.TabsPanel(children=[tab_diaobject(pdf)], value="Summary"),
 #     ]
 
 #     if not is_tracklet(pdf):
@@ -984,11 +1157,11 @@ def tab_observability(pdf):
 #         tabs_list.append(dmc.TabsTab("Variable stars", value="Variable stars"))
 #         tabs_panels.append(dmc.TabsPanel(tab3_content(), value="Variable stars"))
 
-#     if is_sso(pdf):
-#         tabs_list.append(dmc.TabsTab("Solar System", value="Solar System"))
-#         tabs_panels.append(
-#             dmc.TabsPanel(children=[], id="tab_sso", value="Solar System")
-#         )
+# if is_sso(pdf):
+#     tabs_list.append(dmc.TabsTab("Solar System", value="Solar System"))
+#     tabs_panels.append(
+#         dmc.TabsPanel(children=[], id="tab_sso", value="Solar System")
+#     )
 
 #     if is_tracklet(pdf):
 #         tabs_list.append(dmc.TabsTab("Tracklets", value="Tracklets"))

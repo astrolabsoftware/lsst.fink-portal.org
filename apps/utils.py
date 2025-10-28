@@ -19,8 +19,11 @@ import dash_mantine_components as dmc
 import dash_bootstrap_components as dbc
 
 import numpy as np
+import pandas as pd
 
 from astropy.time import Time
+from astroquery.mpc import MPC
+
 
 # Colors for the Sky map & badges
 class_colors = {
@@ -386,3 +389,84 @@ def create_button_for_external_conesearch(
         )
 
     return button
+
+
+def query_mpc(number, kind="asteroid"):
+    """Query MPC for information about object 'designation'.
+
+    Parameters
+    ----------
+    designation: str
+        A name for the object that the MPC will understand.
+        This can be a number, proper name, or the packed designation.
+    kind: str
+        asteroid or comet
+
+    Returns
+    -------
+    pd.Series
+        Series containing orbit and select physical information.
+    """
+    try:
+        mpc = MPC.query_object(target_type=kind, number=number)
+        mpc = mpc[0]
+    except IndexError:
+        try:
+            mpc = MPC.query_object(target_type=kind, designation=number)
+            mpc = mpc[0]
+        except IndexError:
+            return pd.Series({})
+    except RuntimeError:
+        return pd.Series({})
+    orbit = pd.Series(mpc)
+    return orbit
+
+
+def convert_mpc_type(index):
+    dic = {
+        0: "Unclassified (mostly Main Belters)",
+        1: "Atiras",
+        2: "Atens",
+        3: "Apollos",
+        4: "Amors",
+        5: "Mars Crossers",
+        6: "Hungarias",
+        7: "Phocaeas",
+        8: "Hildas",
+        9: "Jupiter Trojans",
+        10: "Distant Objects",
+    }
+    return dic[index]
+
+
+def help_popover(text, id, trigger=None, className=None):
+    """Make clickable help icon with popover at the bottom right corner of current element"""
+    if trigger is None:
+        trigger = html.I(
+            className="fa fa-question-circle fa-1x",
+            id=id,
+        )
+        if className is None:
+            className = "d-flex align-items-end justify-content-end"
+
+    return html.Div(
+        [
+            trigger,
+            dbc.Popover(
+                dbc.PopoverBody(
+                    text,
+                    style={
+                        "overflow-y": "auto",
+                        "white-space": "pre-wrap",
+                        "max-height": "80vh",
+                    },
+                ),
+                target=id,
+                trigger="legacy",
+                placement="auto",
+                style={"width": "80vw", "max-width": "800px"},
+                className="shadow-lg",
+            ),
+        ],
+        className=className,
+    )
