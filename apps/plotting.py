@@ -861,7 +861,7 @@ def draw_lightcurve_preview(
         dates_ztf = convert_time(pdf_sso["i:jd"], format_in="jd", format_out="iso")
         mag_ztf = pdf_sso["i:magpsf"]
         err_ztf = pdf_sso["i:sigmapsf"]
-        for fid, color in zip(range(1, 3), [colors[1], colors[2]]):
+        for fid, color in zip(range(2, 4), [colors[1], colors[2]]):
             # High-quality measurements
             hovertemplate = r"""
             <b>%{yaxis.title.text}</b>: %{y:.2f} &plusmn; %{error_y.array:.2f}<br>
@@ -870,7 +870,7 @@ def draw_lightcurve_preview(
             <b>JD</b>: %{customdata[1]}<br>
             <extra></extra>
             """
-            idx = pdf_sso["i:fid"] == fid
+            idx = pdf_sso["i:fid"] == fid - 1
 
             trace = go.Scatter(
                 x=dates_ztf[idx],
@@ -885,7 +885,7 @@ def draw_lightcurve_preview(
                     else rgb_to_rgba(color, 0.5),
                 },
                 mode="markers",
-                name=f"{bands[fid]}",
+                name=f"{bands[fid - 1]}",
                 customdata=np.stack(
                     (
                         pdf_sso["i:fid"][idx].apply(lambda x: bands[x]),
@@ -894,7 +894,7 @@ def draw_lightcurve_preview(
                     axis=-1,
                 ),
                 hovertemplate=hovertemplate,
-                legendgroup=f"{bands[fid]} band",
+                legendgroup=f"{bands[fid - 1]} band",
                 legendrank=100 + 10 * fid,
                 marker={
                     "size": 8,
@@ -910,7 +910,7 @@ def draw_lightcurve_preview(
             elif switch_layout == "split":
                 row = fid - 3 * (fid // 4)
                 col = (fid // 4) + 1
-                if len(flux[idx]) > 0:
+                if len(mag_ztf[idx]) > 0:
                     fig.add_trace(trace, row=row, col=col)
                     fig.update_xaxes(
                         row=row,
