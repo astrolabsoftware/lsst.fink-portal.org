@@ -66,7 +66,7 @@ def card_search_result(row, i):
     main_id, is_sso = is_row_static_or_moving(row)
     diasourceid = row["r:diaSourceId"]
 
-    cdsxmatch = row.get("f:crossmatches_simbad_otype")
+    cdsxmatch = row.get("f:xm_simbad_otype")
     if cdsxmatch not in BAD_VALUES:
         badges.append(
             make_badge(
@@ -454,12 +454,12 @@ def generate_generic_badges(row, variant="dot"):
         # for VSX, aggregate values
         vsx_label = get_multi_labels(
             row,
-            "f:crossmatches_vizier:B/vsx/vsx_Type",
+            "f:xm_vizier:B/vsx/vsx_Type",
             default=None,
             to_avoid=BAD_VALUES,
         )
-        if vsx_label != row.loc[0].get("f:crossmatches_vizier:B/vsx/vsx_Type"):
-            row["f:crossmatches_vizier:B/vsx/vsx_Type"] = vsx_label
+        if vsx_label != row.loc[0].get("f:xm_vizier:B/vsx/vsx_Type"):
+            row["f:xm_vizier:B/vsx/vsx_Type"] = vsx_label
 
         # Get first row from DataFrame
         row = row.loc[0]
@@ -510,7 +510,7 @@ def generate_generic_badges(row, variant="dot"):
             ),
         )
 
-    gcvs = row.get("f:crossmatches_gcvs_type")
+    gcvs = row.get("f:xm_gcvs_type")
     if gcvs not in BAD_VALUES:
         if ~np.isnan(gcvs):
             badges.append(
@@ -522,7 +522,7 @@ def generate_generic_badges(row, variant="dot"):
                 ),
             )
 
-    vsx = row.get("f:crossmatches_vizier:B/vsx/vsx_Type")
+    vsx = row.get("f:xm_vizier:B/vsx/vsx_Type")
     if vsx not in BAD_VALUES:
         if ~np.isnan(vsx):
             badges.append(
@@ -534,7 +534,7 @@ def generate_generic_badges(row, variant="dot"):
                 ),
             )
 
-    hsp = row.get("f:crossmatches_x3hsp_type")
+    hsp = row.get("f:xm_x3hsp_type")
     if hsp not in BAD_VALUES:
         if ~np.isnan(hsp):
             badges.append(
@@ -546,7 +546,7 @@ def generate_generic_badges(row, variant="dot"):
                 ),
             )
 
-    lac = row.get("f:crossmatches_x4lac_type")
+    lac = row.get("f:xm_x4lac_type")
     if lac not in BAD_VALUES:
         if ~np.isnan(lac):
             badges.append(
@@ -558,7 +558,7 @@ def generate_generic_badges(row, variant="dot"):
                 ),
             )
 
-    gaianame = row.get("f:crossmatches_vizier:I/355/gaiadr3_DR3Name")
+    gaianame = row.get("f:xm_vizier:I/355/gaiadr3_DR3Name")
     if gaianame not in BAD_VALUES and not pd.isnull(gaianame):
         badges.append(
             make_badge(
@@ -1216,7 +1216,7 @@ def card_id_left(object_data):
 
     # FIXME: what to do with badges?
     # badges = []
-    # cdsxmatches = np.unique(pdf["f:crossmatches_simbad_otype"])
+    # cdsxmatches = np.unique(pdf["f:xm_simbad_otype"])
     # for cdsxmatch in cdsxmatches:
     #     if cdsxmatch not in BAD_VALUES:
     #         badges.append(
@@ -1323,12 +1323,12 @@ def card_id_left(object_data):
 
     if not is_sso:
         cats_mapping = cats_type_converter()
-        cats_class = cats_mapping[pdf["f:classifiers_cats_class"].to_numpy()[0]]
-        simbad_class = pdf["f:crossmatches_simbad_otype"].to_numpy()[0]
+        cats_class = cats_mapping[pdf["f:clf_cats_class"].to_numpy()[0]]
+        simbad_class = pdf["f:xm_simbad_otype"].to_numpy()[0]
         if pd.isnull(simbad_class) or simbad_class in BAD_VALUES:
             simbad_class = "N/A"
 
-        tns_class = pdf["f:crossmatches_tns_type"].to_numpy()[0]
+        tns_class = pdf["f:xm_tns_type"].to_numpy()[0]
         if pd.isnull(tns_class) or tns_class in BAD_VALUES:
             tns_class = "N/A"
 
