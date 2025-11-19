@@ -219,6 +219,7 @@ def display_skymap(data, columns, is_open):
         data = data[:1000]
 
     pdf = pd.DataFrame(data)
+    pdf["f:xm_simbad_otype"] = pdf["f:xm_simbad_otype"].replace("*", "Star")
 
     link = '<a target="_blank" href="{}/{}">{}</a>'
     config_args = extract_configuration("config.yaml")
@@ -254,11 +255,9 @@ def display_skymap(data, columns, is_open):
             )
             for i in pdf["r:diaObjectId"].to_numpy()
         ]
-        classes = pdf["f:crossmatches_simbad_otype"].to_numpy()
+        classes = pdf["f:xm_simbad_otype"].to_numpy()
         n_alert_per_class = (
-            pdf.groupby("f:crossmatches_simbad_otype")
-            .count()
-            .to_dict()["r:diaObjectId"]
+            pdf.groupby("f:xm_simbad_otype").count().to_dict()["r:diaObjectId"]
         )
 
     # Coordinate
