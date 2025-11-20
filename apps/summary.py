@@ -24,8 +24,6 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from astropy.time import Time
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 
 from dash import Input, Output, State, dcc, html, no_update, ALL
 from dash.exceptions import PreventUpdate
@@ -557,12 +555,6 @@ def store_ephemerides(object_data):
             )
 
         if not eph.empty:
-            sc = SkyCoord(eph["RA"], eph["DEC"], unit=(u.deg, u.deg))
-
-            eph = eph.drop(columns=["RA", "DEC"])
-            eph["RA"] = sc.ra.value * 15
-            eph["DEC"] = sc.dec.value
-
             # Merge fink & Eph
             info = pd.concat([eph.reset_index(), pdf_sub.reset_index()], axis=1)
 
