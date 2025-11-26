@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import numpy as np
 from dash import (
     html,
     dcc,
@@ -28,6 +28,7 @@ from dash_iconify import DashIconify
 
 from app import server
 from app import app
+from apps import gw
 from apps import __version__
 
 from apps.configuration import extract_configuration
@@ -49,6 +50,34 @@ from apps import summary
 # from apps.plotting import draw_cutouts_quickview, draw_lightcurve_preview
 # from apps.cards import card_search_result
 
+
+def make_navlink(label, icon, href, target="_self"):
+    return dmc.NavLink(
+        label=label,
+        leftSection=dmc.ThemeIcon(
+            DashIconify(
+                icon=icon,
+                width=22,
+            ),
+            radius=30,
+            size=30,
+            variant="outline",
+            color="gray",
+            id="navbar_button_{}".format(href),
+        ),
+        variant="subtle",
+        active="exact",
+        href=href,
+        target=target,
+        style={
+            "color": "gray",
+            "padding": "0px",
+            "padding-bottom": "5px",
+            "background-color": "#15284F",
+        },
+    )
+
+
 navbar = html.Div(
     children=[
         # dmc.Space(h=10),
@@ -58,8 +87,9 @@ navbar = html.Div(
             children=[
                 # Right menu
                 dmc.Stack(
-                    align="start",
+                    align="flex-start",
                     justify="flex-start",
+                    gap="xs",
                     children=[
                         dmc.Space(h=20),
                         html.Img(
@@ -71,181 +101,59 @@ navbar = html.Div(
                             className="small-logo",
                         ),
                         dmc.Space(h=30),
-                        dmc.Anchor(
-                            dmc.Group(
-                                [
-                                    dmc.ThemeIcon(
-                                        DashIconify(
-                                            icon="ion:search-outline",
-                                            width=22,
-                                        ),
-                                        radius=30,
-                                        size=30,
-                                        variant="outline",
-                                        color="#F5622E",
-                                        id={
-                                            "type": "themeicon",
-                                            "name": "search",
-                                        },
-                                    ),
-                                    # dmc.Text(
-                                    #     "Search",
-                                    #     visibleFrom="md",
-                                    #     style={"color": "gray"},
-                                    # ),
-                                ],
-                                gap="xs",
-                            ),
-                            href="/",
-                            variant="text",
-                            style={
-                                "textTransform": "capitalize",
-                                "textDecoration": "none",
-                            },
+                        make_navlink("Search", "ion:search-outline", "/"),
+                        make_navlink(
+                            "Transfer", "ion:cloud-download-outline", "/download"
                         ),
-                        dmc.Anchor(
-                            dmc.Group(
-                                [
-                                    dmc.ThemeIcon(
-                                        DashIconify(
-                                            icon="ion:cloud-download-outline",
-                                            width=22,
-                                        ),
-                                        radius=30,
-                                        size=30,
-                                        variant="outline",
-                                        color="gray",
-                                        id={
-                                            "type": "themeicon",
-                                            "name": "download",
-                                        },
-                                    ),
-                                    # dmc.Text(
-                                    #     "Data Transfer",
-                                    #     visibleFrom="md",
-                                    #     style={"color": "gray"},
-                                    # ),
-                                ],
-                                gap="xs",
-                            ),
-                            href="/download",
-                            variant="text",
-                            style={
-                                "textTransform": "capitalize",
-                                "textDecoration": "none",
-                            },
+                        make_navlink(
+                            "Xmatch", "material-symbols:join-right", "/xmatch"
                         ),
-                        dmc.Anchor(
-                            dmc.Group(
-                                [
-                                    dmc.ThemeIcon(
-                                        DashIconify(
-                                            icon="material-symbols:join-right",
-                                            width=22,
-                                        ),
-                                        radius=30,
-                                        size=30,
-                                        variant="outline",
-                                        color="gray",
-                                        id={
-                                            "type": "themeicon",
-                                            "name": "xmatch",
-                                        },
-                                    ),
-                                    # dmc.Text(
-                                    #     "Xmatch",
-                                    #     visibleFrom="md",
-                                    #     style={"color": "gray"},
-                                    # ),
-                                ],
-                                gap="xs",
-                            ),
-                            href="/xmatch",
-                            variant="text",
-                            style={
-                                "textTransform": "capitalize",
-                                "textDecoration": "none",
-                            },
-                        ),
-                        dmc.Anchor(
-                            dmc.Group(
-                                [
-                                    dmc.ThemeIcon(
-                                        DashIconify(
-                                            icon="ion:infinite-outline",
-                                            width=22,
-                                        ),
-                                        radius=30,
-                                        size=30,
-                                        variant="outline",
-                                        color="gray",
-                                        id={
-                                            "type": "themeicon",
-                                            "name": "gw",
-                                        },
-                                    ),
-                                    # dmc.Text(
-                                    #     "Gravitational Waves",
-                                    #     visibleFrom="md",
-                                    #     style={"color": "gray"},
-                                    # ),
-                                ],
-                                gap="xs",
-                            ),
-                            href="/gw",
-                            variant="text",
-                            style={
-                                "textTransform": "capitalize",
-                                "textDecoration": "none",
-                            },
-                        ),
-                        dmc.Anchor(
-                            dmc.Group(
-                                [
-                                    dmc.ThemeIcon(
-                                        DashIconify(
-                                            icon="ion:stats-chart-outline",
-                                            width=22,
-                                        ),
-                                        radius=30,
-                                        size=30,
-                                        variant="outline",
-                                        color="gray",
-                                        id={
-                                            "type": "themeicon",
-                                            "name": "stats",
-                                        },
-                                    ),
-                                    # dmc.Text(
-                                    #     "Statistics",
-                                    #     visibleFrom="md",
-                                    #     style={"color": "gray"},
-                                    # ),
-                                ],
-                                gap="xs",
-                            ),
-                            href="/stats",
-                            variant="text",
-                            style={
-                                "textTransform": "capitalize",
-                                "textDecoration": "none",
-                            },
-                        ),
+                        make_navlink("MMA", "ion:infinite-outline", "/gw"),
+                        make_navlink("Statistics", "ion:stats-chart-outline", "/stats"),
                     ],
                 ),
             ],
         ),
-        dmc.Text(
-            __version__,
-            style={
-                "position": "absolute",
-                "bottom": 10,
-                "left": 15,
-                "color": "rgb(255, 255, 255)",
-            },
+        dmc.Stack(
+            # align="stretch",
+            justify="space-between",
+            children=dmc.Stack(
+                make_navlink(
+                    "v{}".format(__version__),
+                    "tabler:tag",
+                    "https://github.com/astrolabsoftware/lsst.fink-portal.org",
+                    target="_blank",
+                ),
+                align="flex-start",
+                justify="flex-start",
+                gap="xs",
+                style={
+                    "position": "absolute",
+                    "bottom": 10,
+                },
+            ),
         ),
     ],
 )
+
+
+@app.callback(
+    [
+        Output("navbar_button_/", "color"),
+        Output("navbar_button_/download", "color"),
+        Output("navbar_button_/xmatch", "color"),
+        Output("navbar_button_/gw", "color"),
+        Output("navbar_button_/stats", "color"),
+    ],
+    Input("url", "pathname"),
+)
+def change_color(pathname):
+    buttons = ["/", "/download", "/xmatch", "/gw", "/stats"]
+    colors = ["#F5622E" if i == pathname else "gray" for i in buttons]
+
+    if np.all([i == "gray" for i in colors]):
+        colors[0] = "#F5622E"
+    return colors
 
 
 @app.callback(Output("color_palette", "children"), Input("color_scale", "value"))
@@ -473,10 +381,10 @@ app.layout = dmc.MantineProvider(
                 dmc.AppShellNavbar(
                     id="navbar",
                     children=navbar,
+                    withBorder=False,
                     p="md",
                     style={"background-color": "#15284F"},
                     className="banner",
-                    # style={"background-color": "linear-gradient(to bottom, #15284F 90%, rgba(255, 255, 255, 0) 100%);"}
                 ),
                 dmc.AppShellMain(
                     children=[],
@@ -595,6 +503,9 @@ def display_page(pathname, searchurl):
         elif pathname[1:].startswith("K"):
             # ssObject
             is_sso = True
+        elif pathname == "/gw":
+            # GW
+            return gw.layout(), "home"
         return summary.layout(pathname, is_sso=is_sso), "home"
     else:
         # Home page
