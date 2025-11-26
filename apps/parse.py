@@ -303,7 +303,7 @@ def parse_query(string, timeout=None):
 
                     break
 
-        if "ra" not in query["params"] and query["object"][0].isalpha():
+        if "ra" not in query["params"] and query["object"][1].isalpha():
             # Simbad
             res = call_resolver(query["object"], "simbad", timeout=timeout)
             print(res)
