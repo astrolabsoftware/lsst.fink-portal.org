@@ -37,6 +37,7 @@ import apps.search_results  # noqa: F401
 from apps.plotting import generate_rgb_color_sequence
 
 from apps import summary
+from apps import datatransfer
 
 # from apps import summary, about, statistics, query_cluster, gw, xmatch
 
@@ -506,6 +507,8 @@ def display_page(pathname, searchurl):
         elif pathname == "/gw":
             # GW
             return gw.layout(), "home"
+        elif pathname == "/download":
+            return datatransfer.layout(), "home"
         return summary.layout(pathname, is_sso=is_sso), "home"
     else:
         # Home page
