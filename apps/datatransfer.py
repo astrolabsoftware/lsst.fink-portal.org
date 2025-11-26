@@ -37,7 +37,7 @@ from apps.utils import create_datatransfer_schema_table
 
 # from apps.utils import create_datatransfer_livestream_table
 # from apps.utils import query_and_order_statistics
-from apps.plotting import COLORS_ZTF
+from apps.plotting import DEFAULT_FINK_COLORS
 
 import datetime
 
@@ -325,7 +325,7 @@ def gauge_meter(
             dmc.Text("No dates", ta="center"),
         )
     else:
-        if field_select is None:
+        if field_select is None or field_select == []:
             field_select = ["Full packet"]
 
         total, count = estimate_alert_number_lsst(
@@ -360,7 +360,9 @@ def gauge_meter(
             align="center",
             children=[
                 dmc.Text(
-                    "{:,} alerts".format(int(count)), c=COLORS_ZTF[0], ta="center"
+                    "{:,} alerts".format(int(count)),
+                    c=DEFAULT_FINK_COLORS[0],
+                    ta="center",
                 ),
                 dmc.Tooltip(
                     dmc.ActionIcon(
@@ -394,7 +396,9 @@ def gauge_meter(
             align="center",
             children=[
                 dmc.Text(
-                    "{:.2f}GB".format(count * sizeGb), c=COLORS_ZTF[0], ta="center"
+                    "{:.2f}GB".format(count * sizeGb),
+                    c=DEFAULT_FINK_COLORS[0],
+                    ta="center",
                 ),
                 dmc.Tooltip(
                     dmc.ActionIcon(
@@ -777,7 +781,7 @@ def layout():
                                                                             "Submit job",
                                                                             id="submit_datatransfer",
                                                                             variant="outline",
-                                                                            color=COLORS_ZTF[
+                                                                            color=DEFAULT_FINK_COLORS[
                                                                                 0
                                                                             ],
                                                                             leftSection=DashIconify(

@@ -14,10 +14,9 @@
 # limitations under the License.
 import json
 import requests
-import pandas as pd
 
-coeffs_per_class = pd.read_parquet("assets/fclass_2022_060708_coeffs.parquet")
-coeffs_per_filters = pd.read_parquet("assets/ffilters_2025_01_to_06_coeffs.parquet")
+# coeffs_per_class = pd.read_parquet("assets/fclass_2022_060708_coeffs.parquet")
+# coeffs_per_filters = pd.read_parquet("assets/ffilters_2025_01_to_06_coeffs.parquet")
 
 CONV = {
     "float": 4,
