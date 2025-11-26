@@ -24,6 +24,8 @@ import pandas as pd
 from astropy.time import Time
 from astroquery.mpc import MPC
 
+from fink_utils.xmatch.simbad import get_simbad_labels
+
 
 # Colors for the Sky map & badges
 class_colors = {
@@ -40,6 +42,9 @@ class_colors = {
     "nan": "gray",
     "Fail": "gray",
 }
+
+simbad_types = get_simbad_labels("old_and_new")
+simbad_types = sorted(simbad_types, key=lambda s: s.lower())
 
 
 def markdownify_objectid(diaObjectid):
@@ -470,3 +475,54 @@ def help_popover(text, id, trigger=None, className=None):
         ],
         className=className,
     )
+
+
+def extract_parameter_value_from_url(param_dic, key, default):
+    """ """
+    if key in param_dic:
+        val = param_dic[key]
+    else:
+        val = default
+    return val
+
+
+def is_float(s: str) -> bool:
+    """Check if s can be transformed as a float"""
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def extract_bayestar_query_url(search: str):
+    """Try to infer the query from an URL (GW search)
+
+    Parameters
+    ----------
+    search: str
+        String returned by `dcc.Location.search` property.
+        Typically starts with ?
+
+    Returns
+    -------
+    credible_level: float
+        The credible level (0-1)
+    event_name: str
+        Event name (O3 or O4)
+    """
+    # remove trailing ?
+    search = search[1:]
+
+    # split parameters
+    parameters = search.split("&")
+
+    # Make a dictionary with the parameter keys and values
+    param_dic = {s.split("=")[0]: s.split("=")[1] for s in parameters}
+
+    credible_level = extract_parameter_value_from_url(param_dic, "credible_level", "")
+    event_name = extract_parameter_value_from_url(param_dic, "event_name", "")
+    if is_float(credible_level):
+        credible_level = float(credible_level)
+
+    return credible_level, event_name
