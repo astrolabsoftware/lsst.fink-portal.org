@@ -213,7 +213,7 @@ def show_table(nclick, gw_data, superevent_name, searchurl):
             withCloseButton=True,
         ), "info"
 
-    pdf = pd.read_json(gw_data)
+    pdf = pd.read_json(io.StringIO(gw_data))
     if pdf.empty:
         return dmc.Alert(
             f"No counterparts found in Fink for the event named {superevent_name}",
@@ -375,6 +375,7 @@ def display_skymap_gw_callback(
             {{
                 target: '{ra0} {dec0}',
                 survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
+                projection: 'AIT',
                 showReticle: true,
                 allowFullZoomout: true,
                 showContextMenu: true,
