@@ -15,17 +15,11 @@
 import dash
 import dash_mantine_components as dmc
 from dash import DiskcacheManager
-# import dash_auth
 
 import dash_bootstrap_components as dbc
 
 import os
 import diskcache
-
-USER_PWD = {
-    "username": "password",
-    "user2": "useSomethingMoreSecurePlease",
-}
 
 cache = diskcache.Cache("./cache")
 background_callback_manager = DiskcacheManager(cache)
@@ -61,8 +55,6 @@ app = factory(
     title="Fink/Rubin Science Portal",
     compress=True,
 )
-
-# auth = dash_auth.BasicAuth(app, USER_PWD, secret_key="toto")
 
 app.server.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
 server = app.server
