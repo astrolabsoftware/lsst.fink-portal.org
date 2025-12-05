@@ -15,7 +15,7 @@
 import io
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
-from dash import Input, Output, dcc, html
+from dash import Input, Output, dcc, html, no_update
 
 import numpy as np
 import pandas as pd
@@ -23,9 +23,9 @@ import datetime
 from astropy.time import Time
 
 from app import app
-from apps.utils import loading, query_and_order_statistics
+from apps.utils import query_and_order_statistics
 from apps.api import request_api
-from apps.plotting import PAPER_BGCOLOR, CONFIG_PLOT
+from apps.plotting import CONFIG_PLOT
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -115,6 +115,7 @@ def make_date_dash(indate):
         indate = str(indate)
     return indate[0:4] + "-" + indate[4:6] + "-" + indate[6:]
 
+
 @app.callback(
     Output("object-stats", "data"),
     Input("url", "pathname"),
@@ -125,7 +126,6 @@ def store_stat_query(name):
     https://dash.plotly.com/sharing-data-between-callbacks
     """
     pdf = query_and_order_statistics(
-        columns="f:night,f:alerts,f:visits,f:is_cataloged,f:is_sso",
         drop=False,
     )
 
@@ -181,54 +181,6 @@ def create_stat_row(object_stats):
     ]
 
 
-@app.callback(
-    Output("stat_row_mobile", "children"),
-    Input("object-stats", "data"),
-    prevent_initial_call=True,
-)
-def create_stat_row_callback(object_stats):
-    """Show basic stats. Used in the mobile app."""
-    pdf = pd.read_json(io.StringIO(object_stats))
-    c0_, c1_, c2_, c3_, c4_, c5_ = create_stat_generic(pdf)
-
-    def rowify(column):
-        """Create a row for a column"""
-        return dbc.Row(
-            children=[dbc.Col(children=column, width=10)],
-            justify="center",
-            style={
-                "text-align": "center",
-            },
-        )
-
-    row = [
-        html.Br(),
-        html.Br(),
-        rowify(c0_),
-        html.Br(),
-        rowify(c1_),
-        html.Br(),
-        rowify(c2_),
-        html.Br(),
-        rowify(c3_),
-        html.Br(),
-        rowify(c4_),
-        html.Br(),
-        rowify(c5_),
-        html.Br(),
-        html.Br(),
-        dbc.Card(
-            dbc.CardBody(
-                dcc.Markdown(
-                    "_Connect with a bigger screen to explore more statistics_"
-                ),
-            ),
-        ),
-    ]
-
-    return row
-
-
 def create_stat_generic(pdf):
     """Show basic stats. Used in the mobile app."""
     n_ = str(pdf["f:night"].to_numpy()[-1])
@@ -281,52 +233,51 @@ def heatmap_content():
     # FIXME: this changes the display
     switch = dmc.Switch(label="All years", id="switch_years", style={"display": "none"})
 
-    layout_ = dmc.Card([dmc.Group([generate_year_list(), switch]), html.Div(id="heatmap_stat")], className="stat_card")
+    layout_ = dmc.Card(
+        [dmc.Group([generate_year_list(), switch]), html.Div(id="heatmap_stat")],
+        className="stat_card",
+    )
 
     return layout_
 
 
 def timelines():
     """ """
-    switch = dmc.Group(
-        [
-            dmc.Switch("Cumulative", id="switch-cumulative"), 
-            dmc.Switch("Percentage", id="switch-percentage")
-        ]
+    switch = dmc.Group([
+        dmc.Switch("Cumulative", id="switch-cumulative"),
+        dmc.Switch("Percentage", id="switch-percentage"),
+    ])
+
+    layout_ = dmc.Card(
+        [dmc.Group([generate_col_list(), switch]), html.Div(id="timeline_stat")],
+        className="stat_card",
     )
-    
-    layout_ = dmc.Card([dmc.Group([generate_col_list(), switch]), html.Div(id="evolution")], className="stat_card")
 
     return layout_
 
 
 @app.callback(
-    Output("evolution", "children"),
+    Output("timeline_stat", "children"),
     [
+        Input("object-stats", "data"),
         Input("dropdown_params", "value"),
         Input("switch-cumulative", "checked"),
         Input("switch-percentage", "checked"),
     ],
 )
-def plot_stat_evolution(param_name, switch_cumulative, switch_percentage):
-    """Plot evolution of parameters as a function of time
-
-    TODO: connect the callback to a dropdown button to choose the parameter
-    """
-    if param_name is None or param_name == "":
+def plot_stat_evolution(data, param_name, switch_cumulative, switch_percentage):
+    """Plot evolution of parameters as a function of time"""
+    if param_name is None:
         param_name = "f:alerts"
+    if param_name == "":
+        return no_update
 
-    if param_name != "f:alerts":
-        param_name_ = param_name + ",f:alerts"
-    else:
-        param_name_ = param_name
-
-    pdf = query_and_order_statistics(columns=param_name_)
+    # pdf = query_and_order_statistics(columns=param_name_)
+    pdf = pd.read_json(io.StringIO(data))
     pdf = pdf.fillna(0)
 
     pdf["date"] = [
-        Time(make_date_dash(x)).datetime
-        for x in pdf.index.astype(str).to_numpy()
+        Time(make_date_dash(x)).datetime for x in pdf.index.astype(str).to_numpy()
     ]
 
     if param_name in dic_names:
@@ -340,7 +291,7 @@ def plot_stat_evolution(param_name, switch_cumulative, switch_percentage):
             pdf["f:alerts"] = pdf["f:alerts"].astype(int).cumsum()
     if switch_percentage:
         pdf[param_name] = (
-                pdf[param_name].astype(int) / pdf["f:alerts"].astype(int) * 100
+            pdf[param_name].astype(int) / pdf["f:alerts"].astype(int) * 100
         )
 
     pdf = pdf.rename(columns={param_name: newcol})
@@ -366,8 +317,8 @@ def plot_stat_evolution(param_name, switch_cumulative, switch_percentage):
         hovermode="closest",
         showlegend=True,
         shapes=[],
-        paper_bgcolor="white", #PAPER_BGCOLOR,
-        plot_bgcolor="white", #PAPER_BGCOLOR,
+        paper_bgcolor="white",  # PAPER_BGCOLOR,
+        plot_bgcolor="white",  # PAPER_BGCOLOR,
         hoverlabel={
             "align": "left",
         },
@@ -403,70 +354,13 @@ def plot_stat_evolution(param_name, switch_cumulative, switch_percentage):
     return graph
 
 
-def daily_stats():
-    """ """
-    layout_ = html.Div(
-        [
-            html.Br(),
-            dbc.Row(dbc.Col(generate_night_list())),
-            loading(
-                dbc.Row(
-                    [
-                        dbc.Col(id="hist_sci_raw", md=3),
-                        dbc.Col(id="hist_classified", md=3),
-                        dbc.Col(id="hist_catalogued", md=3),
-                        dbc.Col(id="hist_candidates", md=3),
-                    ],
-                    justify="around",
-                )
-            ),
-            loading(
-                dbc.Row(
-                    [
-                        dbc.Col(id="daily_classification"),
-                    ],
-                    justify="around",
-                )
-            ),
-        ],
-    )
-
-    return layout_
-
-
-def generate_night_list():
-    """Generate the list of available nights (last night first)"""
-    pdf = query_and_order_statistics(columns="f:night", drop=False)
-
-    labels = list(
-        pdf["f:night"].astype(str).apply(lambda x: make_date_dash(x))
-    )
-
-    dropdown = dmc.Select(
-        data=[
-            *[
-                {"label": label, "value": value}
-                for label, value in zip(labels[::-1], pdf["f:night"].to_numpy()[::-1])
-            ],
-        ],
-        id="dropdown_days",
-        searchable=True,
-        clearable=True,
-        placeholder=labels[-1],
-    )
-
-    return dropdown
-
 def generate_year_list():
     """Generate list of years from 2025 to now"""
     year_now = datetime.datetime.today().year
-    year_list = range(2025, year_now+1)
+    year_list = range(2025, year_now + 1)
     dropdown = dmc.Select(
         data=[
-            *[
-                {"label": str(year), "value": str(year)}
-                for year in year_list
-            ],
+            *[{"label": str(year), "value": str(year)} for year in year_list],
         ],
         id="dropdown_years",
         clearable=False,
@@ -475,6 +369,7 @@ def generate_year_list():
         placeholder="Choose a year",
     )
     return dropdown
+
 
 def generate_col_list():
     """Generate the list of available columns"""
@@ -504,25 +399,13 @@ def generate_col_list():
         ],
         id="dropdown_params",
         searchable=True,
-        clearable=True,
+        clearable=False,
+        # value="f:alerts",
+        w=300,
         placeholder="Choose a columns",
     )
 
     return dropdown
-
-
-def get_data_one_night(night):
-    """Get the statistics for one night"""
-    pdf = request_api(
-        "/api/v1/statistics",
-        json={
-            "date": night,
-            "output-format": "json",
-            "columns": "",
-        },
-    )
-
-    return pdf
 
 
 @app.callback(
@@ -538,8 +421,7 @@ def plot_heatmap(object_stats, switch, year):
     """Plot heatmap"""
     pdf = pd.read_json(io.StringIO(object_stats))
     pdf["date"] = [
-        Time(make_date_dash(x)).datetime
-        for x in pdf.index.astype(str).to_numpy()
+        Time(make_date_dash(x)).datetime for x in pdf.index.astype(str).to_numpy()
     ]
     if not switch:
         # restrict to one year
@@ -754,10 +636,10 @@ def display_year(
                     ]
 
     layout = go.Layout(
-        #title="Fink activity chart: number of LSST alerts processed per night",
+        # title="Fink activity chart: number of LSST alerts processed per night",
         height=150,
-        #paper_bgcolor=PAPER_BGCOLOR,
-        #plot_bgcolor=PAPER_BGCOLOR,
+        # paper_bgcolor=PAPER_BGCOLOR,
+        # plot_bgcolor=PAPER_BGCOLOR,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         yaxis=dict(
@@ -803,44 +685,12 @@ def display_year(
 
 def layout():
     """ """
-    label_style = {"color": "#000"} #, "background-color": PAPER_BGCOLOR}
-
-    inner = dmc.Stack(
-        [
-            dmc.Space(h=10),
-            heatmap_content(),
-            dmc.Space(h=10),
-            timelines(),
-        ]
-    )
-    # tabs_ = dmc.Tabs(
-    #     [
-    #         dmc.TabsList(
-    #             dmc.TabsTab("Statistics", value="gallery"),
-    #             dmc.TabsTab("Gallery", value="gallery"),
-    #         )
-    #         dbc.TabsList(
-    #             [
-    #                 dmc.Space(h=10),
-    #                 heatmap_content(),
-    #                 dmc.Space(h=10),
-    #                 timelines(),
-    #             ], 
-    #             label="Heatmap", label_style=label_style),
-    #         # dbc.Tab(daily_stats(), label="Daily statistics", label_style=label_style),
-    #         # dbc.Tab(timelines(), label="Timelines", label_style=label_style),
-    #         # dbc.Tab(label="TNS", disabled=True),
-    #         dbc.Tab(
-    #             dbc.Card(
-    #                 dbc.CardBody(
-    #                     dcc.Markdown(stat_doc),
-    #                 ),
-    #             ),
-    #             label="Help",
-    #             label_style=label_style,
-    #         ),
-    #     ],
-    # )
+    inner = dmc.Stack([
+        dmc.Space(h=10),
+        heatmap_content(),
+        dmc.Space(h=10),
+        timelines(),
+    ])
 
     layout_ = dbc.Container(
         [
