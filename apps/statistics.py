@@ -351,7 +351,7 @@ def plot_stat_evolution(data, param_name, switch_cumulative, switch_percentage):
         },
         config=CONFIG_PLOT,
     )
-    return graph
+    return html.Div(graph)
 
 
 def generate_year_list():
