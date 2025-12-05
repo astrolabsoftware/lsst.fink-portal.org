@@ -21,7 +21,6 @@ import dash_bootstrap_components as dbc
 import os
 import diskcache
 
-
 cache = diskcache.Cache("./cache")
 background_callback_manager = DiskcacheManager(cache)
 
