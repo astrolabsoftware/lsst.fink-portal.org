@@ -24,6 +24,8 @@ import pandas as pd
 from astropy.time import Time
 from astroquery.mpc import MPC
 
+from apps.api import request_api
+
 from fink_utils.xmatch.simbad import get_simbad_labels
 
 
@@ -692,3 +694,42 @@ def create_datatransfer_schema_table(cutouts_allowed=True):
         ),
         table_candidate,
     ])
+
+def query_and_order_statistics(date="20", columns="*", index_by="f:night", drop=True):
+    """Query /statistics, and order the resulting dataframe
+
+    Parameters
+    ----------
+    date: str, optional
+        Date (default is '')
+    columns: str
+        Column names (default is '*')
+    index_by: str, optional
+        Column name on which to index on (default is key:key)
+    drop: bool
+        If True, drop original column used to index the dataframe.
+        Default is False.
+
+    Returns
+    -------
+    pdf: Pandas DataFrame
+        DataFrame with statistics data, ordered from
+        oldest (top) to most recent (bottom)
+    """
+    pdf = request_api(
+        "/api/v1/statistics",
+        json={
+            "date": date,
+            "columns": columns,
+            "output-format": "json",
+        },
+    )
+
+    pdf = pdf.sort_values(index_by)
+    pdf = pdf.set_index(index_by, drop=drop)
+
+    # Remove hbase specific fields
+    if "key:time" in pdf.columns:
+        pdf = pdf.drop(columns=["key:time"])
+
+    return pdf

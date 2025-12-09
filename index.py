@@ -29,6 +29,7 @@ from dash_iconify import DashIconify
 from app import server
 from app import app
 from apps import gw
+from apps import statistics
 from apps import __version__
 
 from apps.configuration import extract_configuration
@@ -429,10 +430,10 @@ def drawer_demo(n_clicks):
     ],
     [
         Input("url", "pathname"),
-        Input("url", "search"),
     ],
+    prevent_initial_call=True,
 )
-def display_page(pathname, searchurl):
+def display_page(pathname):
     layout = html.Div(
         [
             dbc.Container(
@@ -509,6 +510,9 @@ def display_page(pathname, searchurl):
             return gw.layout(), "home"
         elif pathname == "/download":
             return datatransfer.layout(), "home"
+        elif pathname == "/stats":
+            # statistics
+            return statistics.layout(), "home"
         return summary.layout(pathname, is_sso=is_sso), "home"
     else:
         # Home page
