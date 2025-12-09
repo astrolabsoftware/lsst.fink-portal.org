@@ -695,6 +695,7 @@ def create_datatransfer_schema_table(cutouts_allowed=True):
         table_candidate,
     ])
 
+
 def query_and_order_statistics(date="20", columns="*", index_by="f:night", drop=True):
     """Query /statistics, and order the resulting dataframe
 
