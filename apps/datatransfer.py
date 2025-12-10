@@ -120,12 +120,6 @@ def filter_number_tab():
                 placeholder="start typing...",
                 id="class_select",
                 data=[
-                    {"label": "Unknown", "value": "Unknown"},
-                    {"label": "(Fink) Solar System (MPC)", "value": "Solar System MPC"},
-                    {
-                        "label": "(Fink) Solar System (candidates)",
-                        "value": "Solar System candidate",
-                    },
                     *[
                         {"label": "(TNS) " + simtype, "value": "(TNS) " + simtype}
                         for simtype in tns_types
