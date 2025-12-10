@@ -23,7 +23,6 @@ from pyspark.sql.types import StringType
 
 # from fink_filters.ztf.classification import extract_fink_classification
 from fink_utils.spark import schema_converter
-from fink_utils.spark.utils import concat_col
 # from fink_utils.spark.utils import apply_user_defined_filter
 
 # from fink_science.ztf.ad_features.processor import extract_features_ad
@@ -83,6 +82,11 @@ def get_fink_logger(name: str = "test", log_level: str = "INFO") -> Logger:
 def add_classification(spark, df, path_to_tns):
     """Add classification from Fink & TNS
 
+    Notes
+    -----
+    We recompute TNS column because crossmatch has
+    probably evolved since the moment we processed the alert
+
     Parameters
     ----------
     spark:
@@ -107,11 +111,11 @@ def add_classification(spark, df, path_to_tns):
     #         df["snn_snia_vs_nonia"],
     #         df["snn_sn_vs_all"],
     #         df["rf_snia_vs_nonia"],
-    #         df["candidate.ndethist"],
-    #         df["candidate.drb"],
-    #         df["candidate.classtar"],
-    #         df["candidate.jd"],
-    #         df["candidate.jdstarthist"],
+    #         df["diaSource.ndethist"],
+    #         df["diaSource.drb"],
+    #         df["diaSource.classtar"],
+    #         df["diaSource.jd"],
+    #         df["diaSource.jdstarthist"],
     #         df["rf_kn_vs_nonkn"],
     #         df["tracklet"],
     #     ),
@@ -121,13 +125,13 @@ def add_classification(spark, df, path_to_tns):
     pdf_tns_filt_b = spark.sparkContext.broadcast(pdf_tns_filt)
 
     @pandas_udf(StringType(), PandasUDFType.SCALAR)
-    def crossmatch_with_tns(objectid, ra, dec):
+    def crossmatch_with_tns(diaobjectid, ra, dec):
         # TNS
         pdf = pdf_tns_filt_b.value
         ra2, dec2, type2 = pdf["ra"], pdf["declination"], pdf["type"]
 
         # create catalogs
-        catalog_ztf = SkyCoord(
+        catalog_lsst = SkyCoord(
             ra=np.array(ra, dtype=np.float) * u.degree,
             dec=np.array(dec, dtype=np.float) * u.degree,
         )
@@ -137,18 +141,16 @@ def add_classification(spark, df, path_to_tns):
         )
 
         # cross-match
-        idx, d2d, d3d = catalog_tns.match_to_catalog_sky(catalog_ztf)
+        idx, d2d, d3d = catalog_tns.match_to_catalog_sky(catalog_lsst)
 
-        sub_pdf = pd.DataFrame(
-            {
-                "objectId": objectid.to_numpy(),
-                "ra": ra.to_numpy(),
-                "dec": dec.to_numpy(),
-            }
-        )
+        sub_pdf = pd.DataFrame({
+            "diaobjectId": diaobjectid.to_numpy(),
+            "ra": ra.to_numpy(),
+            "dec": dec.to_numpy(),
+        })
 
         # cross-match
-        idx2, d2d2, d3d2 = catalog_ztf.match_to_catalog_sky(catalog_tns)
+        idx2, d2d2, d3d2 = catalog_lsst.match_to_catalog_sky(catalog_tns)
 
         # set separation length
         sep_constraint2 = d2d2.degree < 1.5 / 3600
@@ -156,9 +158,9 @@ def add_classification(spark, df, path_to_tns):
         sub_pdf["TNS"] = ["Unknown"] * len(sub_pdf)
         sub_pdf["TNS"][sep_constraint2] = type2.to_numpy()[idx2[sep_constraint2]]
 
-        to_return = objectid.apply(
+        to_return = diaobjectid.apply(
             lambda x: "Unknown"
-            if x not in sub_pdf["objectId"].to_numpy()
+            if x not in sub_pdf["diaobjectId"].to_numpy()
             else sub_pdf["TNS"][sub_pdf["objectId"] == x].to_numpy()[0]
         )
 
@@ -166,7 +168,9 @@ def add_classification(spark, df, path_to_tns):
 
     df = df.withColumn(
         "tnsclass",
-        crossmatch_with_tns(df["objectId"], df["candidate.ra"], df["candidate.dec"]),
+        crossmatch_with_tns(
+            df["diaObject.diaObjectId"], df["diaSource.ra"], df["diaSource.dec"]
+        ),
     )
 
     return df
@@ -329,6 +333,10 @@ def generate_spark_paths(startDate, stopDate, basePath):
 def sanitize_fields(cnames):
     """Apply proper serialization before sending to Kafka
 
+    Notes
+    -----
+    Timestamps are casted to strings
+
     Parameters
     ----------
     cnames: list
@@ -339,23 +347,19 @@ def sanitize_fields(cnames):
     cnames: list
         List of fields, sanitized.
     """
-    for cutout in ["cutoutScience", "cutoutTemplate", "cutoutDifference"]:
-        if cutout in cnames:
-            cnames[cnames.index(cutout)] = "struct({}.*) as {}".format(cutout, cutout)
+    # if "prv_diaSource." in cnames:
+    #     cnames[cnames.index("prv_diaSource.")] = (
+    #         "explode(array(prv_diaSource.)) as prv_diaSource."
+    #     )
 
-    if "prv_candidates" in cnames:
-        cnames[cnames.index("prv_candidates")] = (
-            "explode(array(prv_candidates)) as prv_candidates"
-        )
+    # if "diaSource. in cnames:
+    #     cnames[cnames.index("diaSource.)] = "struct(diaSource.*) as diaSource.
 
-    if "candidate" in cnames:
-        cnames[cnames.index("candidate")] = "struct(candidate.*) as candidate"
-
-    for lc_features in ["lc_features_g", "lc_features_r"]:
-        if lc_features in cnames:
-            cnames[cnames.index(lc_features)] = "struct({}.*) as {}".format(
-                lc_features, lc_features
-            )
+    # for lc_features in ["lc_features_g", "lc_features_r"]:
+    #     if lc_features in cnames:
+    #         cnames[cnames.index(lc_features)] = "struct({}.*) as {}".format(
+    #             lc_features, lc_features
+    #         )
 
     for ts in [
         "timestamp",
@@ -389,7 +393,12 @@ def main(args):
         spark.stop()
         sys.exit(1)
 
-    df = spark.read.format("parquet").option("basePath", args.basePath).load(paths)
+    df = (
+        spark.read.format("parquet")
+        .option("mergeSchema", "true")
+        .option("basePath", args.basePath)
+        .load(paths)
+    )
 
     df = add_classification(spark, df, args.path_to_tns)
 
@@ -424,85 +433,56 @@ def main(args):
     if args.ffilter is not None and isinstance(args.ffilter, str):
         if args.ffilter != "":
             log.info("Applying user-defined filter {}...".format(args.ffilter))
-            to_expand = [
-                "jd",
-                "fid",
-                "magpsf",
-                "sigmapsf",
-                "magnr",
-                "sigmagnr",
-                "magzpsci",
-                "isdiffpos",
-                "diffmaglim",
-            ]
-
-            prefix = "c"
-            for colname in to_expand:
-                df = concat_col(df, colname, prefix=prefix)
-
-            # quick fix for https://github.com/astrolabsoftware/fink-broker/issues/457
-            for colname in to_expand:
-                df = df.withColumnRenamed("c" + colname, "c" + colname + "c")
-
-            # For SN
-            df = df.withColumn("cstampDatac", df["cutoutScience.stampData"])
-
-            # apply filter
-            df = apply_user_defined_filter(df, args.ffilter, log)
-
-            # Drop temp columns
-            what_prefix = ["c" + colname + "c" for colname in to_expand]
-            df = df.drop(*what_prefix)
-            df = df.drop("cstampDatac")
+            pass
 
     # Features
-    if "lc_features_g" not in df.columns:
-        what = [
-            "jd",
-            "fid",
-            "magpsf",
-            "sigmapsf",
-            "magnr",
-            "sigmagnr",
-            "isdiffpos",
-            "distnr",
-        ]
-        prefix = "c"
-        what_prefix = [prefix + i for i in what]
-        for colname in what:
-            df = concat_col(df, colname, prefix=prefix)
+    # if "lc_features_g" not in df.columns:
+    #     what = [
+    #         "jd",
+    #         "fid",
+    #         "magpsf",
+    #         "sigmapsf",
+    #         "magnr",
+    #         "sigmagnr",
+    #         "isdiffpos",
+    #         "distnr",
+    #     ]
+    #     prefix = "c"
+    #     what_prefix = [prefix + i for i in what]
+    #     for colname in what:
+    #         df = concat_col(df, colname, prefix=prefix)
 
-        ad_args = [
-            "cmagpsf",
-            "cjd",
-            "csigmapsf",
-            "cfid",
-            "objectId",
-            "cdistnr",
-            "cmagnr",
-            "csigmagnr",
-            "cisdiffpos",
-        ]
+    #     ad_args = [
+    #         "cmagpsf",
+    #         "cjd",
+    #         "csigmapsf",
+    #         "cfid",
+    #         "objectId",
+    #         "cdistnr",
+    #         "cmagnr",
+    #         "csigmagnr",
+    #         "cisdiffpos",
+    #     ]
 
-        # Temporary fix -- add 100 do distnr to pretend
-        # extra-galactic and skip dcmag
-        df = (
-            df.withColumn("tmp", F.expr("TRANSFORM(cdistnr, el -> el + 100)"))
-            .drop("cdistnr")
-            .withColumnRenamed("tmp", "cdistnr")
-        )
+    #     # Temporary fix -- add 100 do distnr to pretend
+    #     # extra-galactic and skip dcmag
+    #     df = (
+    #         df.withColumn("tmp", F.expr("TRANSFORM(cdistnr, el -> el + 100)"))
+    #         .drop("cdistnr")
+    #         .withColumnRenamed("tmp", "cdistnr")
+    #     )
 
-        df = df.withColumn("lc_features", extract_features_ad(*ad_args))
+    #     df = df.withColumn("lc_features", extract_features_ad(*ad_args))
 
-        # split features
-        df = (
-            df.withColumn("lc_features_g", df["lc_features"].getItem("1"))
-            .withColumn("lc_features_r", df["lc_features"].getItem("2"))
-            .drop("lc_features")
-        )
+    #     # split features
+    #     df = (
+    #         df.withColumn("lc_features_g", df["lc_features"].getItem("1"))
+    #         .withColumn("lc_features_r", df["lc_features"].getItem("2"))
+    #         .drop("lc_features")
+    #     )
 
-        # Drop temp columns
-        df = df.drop(*what_prefix)
+    #     # Drop temp columns
+    #     df = df.drop(*what_prefix)
 
     # Define content
     if args.ffield is None:
@@ -523,24 +503,33 @@ def main(args):
     elif "Medium packet" in content:
         cnames = [col for col in df.columns if not col.startswith("cutout")]
     elif "Light packet" in content:
-        # Wanted content from candidates
+        # Wanted content from diaSource.
         cnames = [
-            "candidate.magpsf",
-            "candidate.sigmapsf",
-            "candidate.fid",
-            "candidate.jd",
-            "candidate.ra",
-            "candidate.dec",
-            "candidate.ssnamenr",
+            "diaSource.diaObjectId",
+            "diaSource.snr",
+            "diaSource.scienceFlux",
+            "diaSource.scienceFluxErr",
+            "diaSource.templateFlux",
+            "diaSource.templateFluxErr",
+            "diaSource.band",
+            "diaSource.midpointMjdTai",
+            "diaSource.ra",
+            "diaSource.dec",
+            "diaSource.reliability",
         ]
 
-        # add other values from the root level (including finkclass & tnsclass)
+        # add other values from the root level,
+        # including fink derived products & tnsclass
         to_avoid = [
             "cutoutScience",
             "cutoutTemplate",
             "cutoutDifference",
-            "candidate",
-            "prv_candidates",
+            "diaSource",
+            "prvDiaSources",
+            "prvDiaForcedSources",
+            "diaObject",
+            "ssSource",
+            "MPCORB",  # FIXME: to be replaced by mpc_orbits in v10
             "day",
             "month",
             "year",
@@ -551,9 +540,9 @@ def main(args):
         # other cases
         cnames = content
 
-        if "candidate.jd" not in cnames:
+        if "diaSource.midpointMjdTai" not in cnames:
             # required for the Kafka client partitionment
-            cnames.append("candidate.jd")
+            cnames.append("diaSource.midpointMjdTai")
 
     # enforce proper serialisation
     cnames = sanitize_fields(cnames)
