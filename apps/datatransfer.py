@@ -34,9 +34,9 @@ from apps.mining.utils import (
 from apps.configuration import extract_configuration
 from apps.utils import format_field_for_data_transfer
 from apps.utils import create_datatransfer_schema_table
+from apps.utils import query_and_order_statistics
 
 # from apps.utils import create_datatransfer_livestream_table
-# from apps.utils import query_and_order_statistics
 from apps.plotting import DEFAULT_FINK_COLORS
 
 import datetime
@@ -635,12 +635,11 @@ Install the latest version and use e.g.
 
 
 def layout():
-    # pdf = query_and_order_statistics(
-    #     columns="basic:sci",
-    #     drop=False,
-    # )
-    # n_alert_total = np.sum(pdf["basic:sci"].to_numpy())
-    n_alert_total = 500000
+    pdf = query_and_order_statistics(
+        columns="f:alerts",
+        drop=False,
+    )
+    n_alert_total = np.sum(pdf["f:alerts"].to_numpy())
     active = 0
 
     helper = """

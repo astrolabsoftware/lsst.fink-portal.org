@@ -14,6 +14,9 @@
 # limitations under the License.
 import json
 import requests
+from datetime import date
+
+from apps.utils import query_and_order_statistics
 
 # coeffs_per_class = pd.read_parquet("assets/fclass_2022_060708_coeffs.parquet")
 # coeffs_per_filters = pd.read_parquet("assets/ffilters_2025_01_to_06_coeffs.parquet")
@@ -162,67 +165,65 @@ def estimate_size_gb_lsst(content):
     return sizeGb
 
 
-# def initialise_classes(class_select):
-#     """Add classes selected by the user
+def initialise_classes(class_select):
+    """Add classes selected by the user
 
-#     Parameters
-#     ----------
-#     class_select: list, optional
-#         List of classes selected by the user.
-#         None is not class selected.
+    Parameters
+    ----------
+    class_select: list, optional
+        List of classes selected by the user.
+        None is not class selected.
 
-#     Returns
-#     -------
-#     columns: str
-#         Comma-separated names of classes
-#     column_classes: list
-#         List of classes. Empty list if no class selected.
-#     """
-#     column_names = []
-#     columns = "basic:sci"
-#     if (class_select is not None) and (class_select != []):
-#         if "allclasses" not in class_select:
-#             for elem in class_select:
-#                 if elem.startswith("(TNS)"):
-#                     continue
+    Returns
+    -------
+    columns: str
+        Comma-separated names of classes
+    column_classes: list
+        List of classes. Empty list if no class selected.
+    """
+    column_names = []
+    columns = "f:alerts"
+    if (class_select is not None) and (class_select != []):
+        for elem in class_select:
+            if elem.startswith("(TNS)"):
+                continue
 
-#                 # name correspondance
-#                 if elem.startswith("(SIMBAD)"):
-#                     elem = elem.replace("(SIMBAD) ", "class:")
-#                 else:
-#                     # prepend class:
-#                     elem = "class:" + elem
-#                 columns += f",{elem}"
-#                 column_names.append(elem)
+            # name correspondance
+            if elem.startswith("(SIMBAD)"):
+                elem = elem.replace("(SIMBAD) ", "class:")
+            else:
+                # prepend class:
+                elem = "class:" + elem
+            columns += f",{elem}"
+            column_names.append(elem)
 
-#     return columns, column_names
+    return columns, column_names
 
 
-# def get_statistics(column_names, dstart, dstop, with_class=True):
-#     """ """
-#     dic = {"basic:sci": 0}
+def get_statistics(column_names, dstart, dstop, with_class=True):
+    """ """
+    dic = {"f:alerts": 0}
 
-#     # Get total number of alerts for the period
-#     pdf = query_and_order_statistics(
-#         drop=False,
-#     )
-#     pdf["ISO"] = pdf["key:key"].apply(lambda x: x.split("_")[1])
+    # Get total number of alerts for the period
+    pdf = query_and_order_statistics(
+        drop=False,
+    )
 
-#     f1 = pdf["ISO"] <= dstop.strftime("%Y%m%d")
-#     f2 = pdf["ISO"] >= dstart.strftime("%Y%m%d")
+    f1 = pdf["f:night"] <= int(dstop.strftime("%Y%m%d"))
+    f2 = pdf["f:night"] >= int(dstart.strftime("%Y%m%d"))
 
-#     pdf = pdf[f1 & f2]
-#     dic["basic:sci"] += int(pdf["basic:sci"].sum())
+    pdf = pdf[f1 & f2]
+    dic["f:alerts"] += int(pdf["f:alerts"].sum())
 
-#     if with_class:
-#         # Initialise count
-#         for column_name in column_names:
-#             if column_name in pdf.columns:
-#                 dic[column_name] = int(pdf[column_name].sum())
-#             else:
-#                 dic[column_name] = 0
+    if with_class:
+        # Initialise count
+        for column_name in column_names:
+            if column_name in pdf.columns:
+                dic[column_name] = int(pdf[column_name].sum())
+            else:
+                dic[column_name] = 0
 
-#     return dic
+    return dic
 
 
 # def add_tns_estimation(dic, class_select):
@@ -275,33 +276,36 @@ def estimate_alert_number_lsst(date_range_picker, class_select, filter_select):
     This can be improved by using the REST API directly to get number of
     alerts per class.
     """
-    # dstart = date(*[int(i) for i in date_range_picker[0].split("-")])
-    # dstop = date(*[int(i) for i in date_range_picker[1].split("-")])
+    # FIXME: rewrite the logic for LSST
+    # FIXME: for the moment, not filtering
+    dstart = date(*[int(i) for i in date_range_picker[0].split("-")])
+    dstop = date(*[int(i) for i in date_range_picker[1].split("-")])
 
-    # _, column_names = initialise_classes(class_select)
+    _, column_names = initialise_classes(class_select)
 
+    with_filter = False
     # with_filter = (
     #     (filter_select is not None) and (filter_select != "") and (filter_select != [])
     # )
     # with_class = (
     #     (class_select is not None) and (class_select != "") and (class_select != [])
     # )
-    # dic = get_statistics(column_names, dstart, dstop, with_class=not with_filter)
+    dic = get_statistics(column_names, dstart, dstop, with_class=not with_filter)
 
-    # # we check first filter, and then class
+    # we check first filter, and then class
     # if with_filter:
     #     dic = get_filter_statistics(dic, filter_select)
-    #     total = dic["basic:sci"]
-    #     count = np.sum([v for k, v in dic.items() if k != "basic:sci"])
+    #     total = dic["f:alerts"]
+    #     count = np.sum([v for k, v in dic.items() if k != "f:alerts"])
     # elif with_class:
     #     dic = add_tns_estimation(dic, class_select)
-    #     total = dic["basic:sci"]
-    #     count = np.sum([v for k, v in dic.items() if k != "basic:sci"])
+    #     total = dic["f:alerts"]
+    #     count = np.sum([v for k, v in dic.items() if k != "f:alerts"])
     # else:
-    #     total = dic["basic:sci"]
-    #     count = dic["basic:sci"]
+    #     total = dic["f:alerts"]
+    #     count = dic["f:alerts"]
 
-    total = 500000
-    count = 500000
+    total = dic["f:alerts"]
+    count = dic["f:alerts"]
 
     return total, count
