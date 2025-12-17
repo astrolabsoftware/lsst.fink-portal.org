@@ -132,12 +132,12 @@ def add_classification(spark, df, path_to_tns):
 
         # create catalogs
         catalog_lsst = SkyCoord(
-            ra=np.array(ra, dtype=np.float) * u.degree,
-            dec=np.array(dec, dtype=np.float) * u.degree,
+            ra=np.array(ra, dtype=float) * u.degree,
+            dec=np.array(dec, dtype=float) * u.degree,
         )
         catalog_tns = SkyCoord(
-            ra=np.array(ra2, dtype=np.float) * u.degree,
-            dec=np.array(dec2, dtype=np.float) * u.degree,
+            ra=np.array(ra2, dtype=float) * u.degree,
+            dec=np.array(dec2, dtype=float) * u.degree,
         )
 
         # cross-match
@@ -161,7 +161,7 @@ def add_classification(spark, df, path_to_tns):
         to_return = diaobjectid.apply(
             lambda x: "Unknown"
             if x not in sub_pdf["diaobjectId"].to_numpy()
-            else sub_pdf["TNS"][sub_pdf["objectId"] == x].to_numpy()[0]
+            else sub_pdf["TNS"][sub_pdf["diaobjectId"] == x].to_numpy()[0]
         )
 
         return to_return
@@ -360,6 +360,19 @@ def sanitize_fields(cnames):
     #         cnames[cnames.index(lc_features)] = "struct({}.*) as {}".format(
     #             lc_features, lc_features
     #         )
+
+    for col in [
+        "xm",
+        "clf",
+        "pred",
+        "misc",
+        "diaSource",
+        "diaObject",
+        "ssSource",
+        "MPCORB",
+    ]:
+        if col in cnames:
+            cnames[cnames.index(col)] = "struct({}.*) as {}".format(col, col)
 
     for ts in [
         "timestamp",

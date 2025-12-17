@@ -18,6 +18,8 @@ from datetime import date
 
 from apps.utils import query_and_order_statistics
 
+import logging
+
 # coeffs_per_class = pd.read_parquet("assets/fclass_2022_060708_coeffs.parquet")
 # coeffs_per_filters = pd.read_parquet("assets/ffilters_2025_01_to_06_coeffs.parquet")
 
@@ -69,8 +71,8 @@ def upload_file_hdfs(code, webhdfs, namenode, user, filename):
         text = e
 
     if status_code != 201:
-        print(f"Status code: {status_code}")
-        print(f"Log: {text}")
+        logging.warning(f"Status code: {status_code}")
+        logging.warning(f"Log: {text}")
 
     return status_code, text
 
@@ -116,9 +118,9 @@ def submit_spark_job(livyhost, filename, spark_conf, job_args):
     batchid = response.json()["id"]
 
     if response.status_code != 201:
-        print(f"Batch ID {batchid}")
-        print(f"Status code: {response.status_code}")
-        print(f"Log: {response.text}")
+        logging.warning(f"Batch ID {batchid}")
+        logging.warning(f"Status code: {response.status_code}")
+        logging.warning(f"Log: {response.text}")
 
     return batchid, response.status_code, response.text
 
