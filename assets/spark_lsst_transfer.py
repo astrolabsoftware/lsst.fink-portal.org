@@ -99,7 +99,7 @@ def add_classification(spark, df, path_to_tns):
     -------
     df: DataFrame
         Input DataFrame with 2 new columns `finkclass` and
-        `tnsclass` containing classification tags.
+        `tns_type_recomputed` containing classification tags.
     """
     # # extract Fink classification
     # df = df.withColumn(
@@ -167,7 +167,7 @@ def add_classification(spark, df, path_to_tns):
         return to_return
 
     df = df.withColumn(
-        "tnsclass",
+        "tns_type_recomputed",
         crossmatch_with_tns(
             df["diaObject.diaObjectId"], df["diaSource.ra"], df["diaSource.dec"]
         ),
@@ -428,10 +428,10 @@ def main(args):
 
                 if tns_class != [] and sanitized_other_class != []:
                     f1 = df["finkclass"].isin(sanitized_other_class)
-                    f2 = df["tnsclass"].isin(tns_class)
+                    f2 = df["tns_type_recomputed"].isin(tns_class)
                     df = df.filter(f1 | f2)
                 elif tns_class != []:
-                    f1 = df["tnsclass"].isin(tns_class)
+                    f1 = df["tns_type_recomputed"].isin(tns_class)
                     df = df.filter(f1)
                 elif sanitized_other_class != []:
                     f1 = df["finkclass"].isin(sanitized_other_class)
@@ -532,7 +532,7 @@ def main(args):
         ]
 
         # add other values from the root level,
-        # including fink derived products & tnsclass
+        # including fink derived products & tns_type_recomputed
         to_avoid = [
             "cutoutScience",
             "cutoutTemplate",
