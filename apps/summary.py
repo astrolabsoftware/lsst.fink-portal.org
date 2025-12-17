@@ -648,10 +648,10 @@ def store_ztf_data(n_clicks, object_data):
         if r.status_code != 200:
             return no_update, "No ZTF alerts (error {})".format(r.status_code)
         elif isinstance(r.json(), list):
-            if len(r.json() == 0):
+            if len(r.json()) == 0:
                 # just propagate r
                 pass
-            elif len(r.json() == 1):
+            elif len(r.json()) == 1:
                 # overwrite r
                 r = requests.post(
                     "https://api.fink-portal.org/api/v1/objects",
