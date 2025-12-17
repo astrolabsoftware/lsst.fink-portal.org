@@ -656,7 +656,7 @@ def store_ztf_data(n_clicks, object_data):
                 r = requests.post(
                     "https://api.fink-portal.org/api/v1/objects",
                     json={
-                        "objectId": r.json()[0]["objectId"],
+                        "objectId": r.json()[0]["i:objectId"],
                         "output-format": "json",
                     },
                 )
