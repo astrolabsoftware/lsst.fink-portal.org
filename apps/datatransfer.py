@@ -432,16 +432,12 @@ def gauge_meter(
 )
 def update_code_block(topic_name):
     if topic_name is not None and topic_name != "":
-        if "elasticc" in topic_name:
-            partition = "classId"
-        else:
-            partition = "finkclass"
-
+        # FIXME: introduce partitioning?
+        # This is done by time by default
         code_block = f"""
 fink_datatransfer \\
     -topic {topic_name} \\
     -outdir {topic_name} \\
-    -partitionby {partition} \\
     --verbose
         """
         return code_block
