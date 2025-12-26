@@ -529,7 +529,8 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
     # prevent_initial_call=True
     prevent_initial_call="initial_duplicate",
     # FIXME: Hum, why this one is needed?
-    _allow_dynamic_callbacks=True,
+    # _allow_dynamic_callbacks=True,
+    running=[(Output("search_bar_submit", "loading"), True, False)],
 )
 def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_table):
     """Parse the search string and query the database"""
