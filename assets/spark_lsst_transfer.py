@@ -159,9 +159,11 @@ def add_classification(spark, df, path_to_tns):
         sub_pdf["TNS"][sep_constraint2] = type2.to_numpy()[idx2[sep_constraint2]]
 
         to_return = diaobjectid.apply(
-            lambda x: "Unknown"
-            if x not in sub_pdf["diaobjectId"].to_numpy()
-            else sub_pdf["TNS"][sub_pdf["diaobjectId"] == x].to_numpy()[0]
+            lambda x: (
+                "Unknown"
+                if x not in sub_pdf["diaobjectId"].to_numpy()
+                else sub_pdf["TNS"][sub_pdf["diaobjectId"] == x].to_numpy()[0]
+            )
         )
 
         return to_return
@@ -256,7 +258,8 @@ def write_to_kafka(
 
     # Send schema
     _ = (
-        df_kafka.write.format("kafka")
+        df_kafka.write
+        .format("kafka")
         .option("kafka.bootstrap.servers", kafka_bootstrap_servers)
         .option("kafka.sasl.username", kafka_sasl_username)
         .option("kafka.sasl.password", kafka_sasl_password)
@@ -407,7 +410,8 @@ def main(args):
         sys.exit(1)
 
     df = (
-        spark.read.format("parquet")
+        spark.read
+        .format("parquet")
         .option("mergeSchema", "true")
         .option("basePath", args.basePath)
         .load(paths)
