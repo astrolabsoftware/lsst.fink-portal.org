@@ -530,6 +530,172 @@ def extract_bayestar_query_url(search: str):
     return credible_level, event_name
 
 
+def format_field_for_data_transfer(with_predefined_options=True, cutouts_allowed=True):
+    """Get schema from API, and make it suitable for Data Transfer"""
+    data = []
+
+    # schema = request_api("/api/v1/schema", method="GET", output="json")
+
+    if with_predefined_options:
+        # high level
+        packet = {
+            "group": "Pre-defined schema",
+            "items": [
+                {"value": "Full packet", "label": "Full packet"},
+                {
+                    "value": "Medium packet",
+                    "label": "Medium packet (all but cutouts)",
+                },
+                {
+                    "value": "Light packet",
+                    "label": "Light packet (all but cutouts and history)",
+                },
+            ],
+        }
+        data.append(packet)
+
+    # # classification
+    # objectid = {
+    #     "group": "Fink derived classification",
+    #     "items": [{"value": "finkclass", "label": "finkclass"}],
+    # }
+    # data.append(objectid)
+
+    # Fink added values
+    # labels = [
+    #     "{}".format(select_struct(k))
+    #     for k in schema["Fink science module outputs (f:)"].keys()
+    #     if k not in ["tag"]
+    # ]
+    # fink = {
+    #     "group": "Fink science module outputs",
+    #     "items": [{"value": label, "label": label} for label in labels],
+    # }
+    # data.append(fink)
+
+    # # candidate
+    # labels = [
+    #     "{}".format(select_struct(k, "candidate."))
+    #     for k in schema["LSST original fields (r:)"].keys()
+    # ]
+    # candidate = {
+    #     "group": "LSST original fields",
+    #     "items": [{"value": label, "label": label} for label in labels],
+    # }
+    # data.append(candidate)
+
+    # if cutouts_allowed:
+    #     # Cutouts
+    #     labels = [
+    #         "{}".format(select_struct(k))
+    #         for k in schema["LSST original cutouts (b:)"].keys()
+    #     ]
+    #     cutout = {
+    #         "group": "LSST original cutouts",
+    #         "items": [{"value": label, "label": label} for label in labels],
+    #     }
+    #     data.append(cutout)
+
+    return data
+
+
+def create_datatransfer_schema_table(cutouts_allowed=True):
+    """ """
+    # schema = request_api("/api/v1/schema", method="GET", output="json")
+
+    def format_type(t):
+        if isinstance(t, list):
+            return t[-1]
+        else:
+            return t
+
+    rows = []
+    # rows.append(
+    #     dmc.TableTr(
+    #         [
+    #             dmc.TableTd("objectId"),
+    #             dmc.TableTd("ZTF"),
+    #             dmc.TableTd("string"),
+    #             dmc.TableTd("Unique identifier for an object"),
+    #         ]
+    #     )
+    # )
+    # rows.append(
+    #     dmc.TableTr(
+    #         [
+    #             dmc.TableTd("finkclass"),
+    #             dmc.TableTd("Fink"),
+    #             dmc.TableTd("string"),
+    #             dmc.TableTd("Fink derived classification"),
+    #         ]
+    #     )
+    # )
+
+    # provenances = ["Fink science module outputs (d:)", "ZTF original fields (i:)"]
+    # prefixes = ["", "candidate."]
+
+    # if cutouts_allowed:
+    #     provenances.append("ZTF original cutouts (b:)")
+    #     prefixes.append("")
+    # for prov, prefix in zip(provenances, prefixes):
+    #     # Table candidates
+    #     labels = [
+    #         select_struct(k, prefix)
+    #         for k in schema[prov].keys()
+    #         if k not in ["objectId", "tag"]
+    #     ]
+    #     types = [
+    #         format_type(v["type"])
+    #         for k, v in schema[prov].items()
+    #         if k not in ["objectId", "tag"]
+    #     ]
+    #     docs = [
+    #         v["doc"] for k, v in schema[prov].items() if k not in ["objectId", "tag"]
+    #     ]
+
+    #     [
+    #         rows.append(
+    #             dmc.TableTr(
+    #                 [
+    #                     dmc.TableTd(label),
+    #                     dmc.TableTd(prov.split(" ")[0]),
+    #                     dmc.TableTd(type_),
+    #                     dmc.TableTd(doc),
+    #                 ]
+    #             )
+    #         )
+    #         for label, type_, doc in zip(labels, types, docs)
+    #     ]
+
+    head = dmc.TableThead(
+        dmc.TableTr([
+            dmc.TableTh("Name", w="25%"),
+            dmc.TableTh("From", w="15%"),
+            dmc.TableTh("Type", w="15%"),
+            dmc.TableTh("Documentation"),
+        ])
+    )
+    body = dmc.TableTbody(rows)
+    caption = dmc.TableCaption("Alert schema")
+
+    table_candidate = dmc.TableScrollContainer(
+        dmc.Table(
+            [head, body, caption],
+            horizontalSpacing="xl",
+            highlightOnHover=True,
+        ),
+        maxHeight=300,
+        minWidth=0,
+        type="scrollarea",
+    )
+    return dmc.Stack([
+        dmc.Text(
+            "Full packet will give you all LSST + Fink content. Medium packet is Full packet without the cutouts. Light packet is necessary fields for lightcurve analysis."
+        ),
+        table_candidate,
+    ])
+
+
 def query_and_order_statistics(date="20", columns="*", index_by="f:night", drop=True):
     """Query /statistics, and order the resulting dataframe
 

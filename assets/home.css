@@ -71,12 +71,6 @@ html, body {
   right: 0;
 }
 
-.inputbar:focus {
-  outline: none;
-  -webkit-box-shadow: none;
-  box-shadow: none;
-}
-
 .rcorners2 {
   border-radius: 15px;
   /* border: 2px solid grey; */
@@ -155,3 +149,4 @@ img[alt=logoexp] { width: 200px; display: block; margin: auto;}
   border-bottom: dashed 1px;
   margin: auto 0 auto 1em;
 }
+

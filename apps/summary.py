@@ -625,23 +625,54 @@ def store_ztf_data(n_clicks, object_data):
                 "output-format": "json",
             },
         )
+
+        if r.status_code != 200:
+            return no_update, "No ZTF alerts for SSO {} (error {})".format(
+                sso_name, r.status_code
+            )
     else:
         ra = pdf["r:ra"].mean()
         dec = pdf["r:dec"].mean()
 
-        # get data for 2021RZ105
         r = requests.post(
             "https://api.fink-portal.org/api/v1/conesearch",
             json={
                 "ra": ra,
                 "dec": dec,
                 "radius": 1.5,
+                "columns": "i:objectId",
                 "output-format": "json",
             },
         )
 
-    if r.status_code != 200:
-        return no_update, "No ZTF alerts (error {})".format(r.status_code)
+        if r.status_code != 200:
+            return no_update, "No ZTF alerts (error {})".format(r.status_code)
+        elif isinstance(r.json(), list):
+            if len(r.json()) == 0:
+                # just propagate r
+                pass
+            elif len(r.json()) == 1:
+                # overwrite r
+                r = requests.post(
+                    "https://api.fink-portal.org/api/v1/objects",
+                    json={
+                        "objectId": r.json()[0]["i:objectId"],
+                        "output-format": "json",
+                    },
+                )
+
+                if r.status_code != 200:
+                    return no_update, "No ZTF alerts (error {})".format(r.status_code)
+            else:
+                # catch and show error
+                # FIXME: better message
+                # FIXME: maybe an alert instead of the button message?
+                return (
+                    no_update,
+                    "{} objects found within 1.5''. Please report to contact@fink-broker.org".format(
+                        len(r.json())
+                    ),
+                )
 
     # Format output in a DataFrame
     pdf_ztf = pd.read_json(io.BytesIO(r.content))

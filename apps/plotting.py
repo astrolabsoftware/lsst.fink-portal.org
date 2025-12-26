@@ -957,7 +957,8 @@ def draw_lightcurve_preview(
             mean_values = pdf[idx].groupby("id")[flux_name].mean().reset_index()
             if len(mean_values) > 1:
                 arr = (
-                    mean_values.sort_values("id", ascending=False)
+                    mean_values
+                    .sort_values("id", ascending=False)
                     .head(2)[flux_name]
                     .to_numpy()
                 )
