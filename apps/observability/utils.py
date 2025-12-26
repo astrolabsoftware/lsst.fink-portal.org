@@ -67,7 +67,8 @@ def observation_time_to_utc_offset(observatory):
     lat, lon = observatory.lat.deg, observatory.lon.deg
     tz = TimezoneFinder().timezone_at(lat=lat, lng=lon)
     offset = (
-        datetime.datetime.now()
+        datetime.datetime
+        .now()
         .replace(tzinfo=ZoneInfo("UTC"))
         .astimezone(ZoneInfo(tz))
         .utcoffset()

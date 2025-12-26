@@ -168,7 +168,7 @@ fink_search_bar = (
                     ),
                     # Clear
                     dmc.ActionIcon(
-                        DashIconify(icon="mdi:clear-bold"),
+                        DashIconify(icon="ic:baseline-clear"),
                         n_clicks=0,
                         id="search_bar_clear",
                         color="gray",
@@ -178,27 +178,24 @@ fink_search_bar = (
                         # title="Clear the input",
                     ),
                     # Submit
-                    dbc.Spinner(
-                        dmc.ActionIcon(
-                            DashIconify(icon="tabler:search", width=20),
-                            n_clicks=0,
-                            id="search_bar_submit",
-                            color="gray",
-                            variant="transparent",
-                            radius="xl",
-                            size="lg",
-                            # loaderProps={"variant": "dots", "color": "orange"},
-                            # title="Search",
-                        ),
+                    dmc.Button(
+                        DashIconify(icon="ic:baseline-search", width=20),
+                        n_clicks=0,
+                        id="search_bar_submit",
+                        color="gray",
+                        variant="transparent",
+                        radius="xl",
                         size="sm",
-                        color="warning",
+                        style={"padding": "0"},
+                        loaderProps={"type": "oval", "color": "orange", "size": "xs"},
+                        # title="Search",
                     ),
                     # Help popup
                     help_popover(
                         [dcc.Markdown(message_help)],
                         "help_search",
                         trigger=dmc.ActionIcon(
-                            DashIconify(icon="mdi:help"),
+                            DashIconify(icon="ic:baseline-question-mark"),
                             id="help_search",
                             color="gray",
                             variant="transparent",
@@ -217,10 +214,6 @@ fink_search_bar = (
                     id="search_bar_suggestions_collapser",
                     is_open=False,
                 ),
-                # Debounce timer
-                dcc.Interval(
-                    id="search_bar_timer", interval=2000, max_intervals=1, disabled=True
-                ),
                 dcc.Store(
                     id="search_history_store",
                     storage_type="local",
@@ -228,28 +221,6 @@ fink_search_bar = (
             ],
         )
     ]
-)
-
-# Time-based debounce from https://joetatusko.com/2023/07/11/time-based-debouncing-with-plotly-dash/
-clientside_callback(
-    """
-    function start_suggestion_debounce_timer(value, n_submit, n_clicks, n_intervals) {
-        const triggered = dash_clientside.callback_context.triggered.map(t => t.prop_id);
-        if (triggered == 'search_bar_input.n_submit' || triggered == 'search_bar_submit.n_clicks')
-            return [dash_clientside.no_update, true];
-
-        if (n_intervals > 0)
-            return [0, false];
-        else
-            return [dash_clientside.no_update, false];
-    }
-    """,
-    [Output("search_bar_timer", "n_intervals"), Output("search_bar_timer", "disabled")],
-    Input("search_bar_input", "value"),
-    Input("search_bar_input", "n_submit"),
-    Input("search_bar_submit", "n_clicks"),
-    State("search_bar_timer", "n_intervals"),
-    prevent_initial_call=True,
 )
 
 
@@ -283,7 +254,6 @@ def update_search_history_menu(timestamp, history):
     Output("search_bar_suggestions", "children"),
     Output("search_bar_submit", "children"),
     Output("search_bar_suggestions_collapser", "is_open"),
-    Input("search_bar_timer", "n_intervals"),
     Input("search_bar_input", "n_submit"),
     Input("search_bar_submit", "n_clicks"),
     # Next input uses dynamically created source, so has to be pattern-matching
@@ -291,7 +261,7 @@ def update_search_history_menu(timestamp, history):
     State("search_bar_input", "value"),
     prevent_initial_call=True,
 )
-def update_suggestions(n_intervals, n_submit, n_clicks, s_n_clicks, value):
+def update_suggestions(n_submit, n_clicks, s_n_clicks, value):
     # Clear the suggestions on submit by various means
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -301,10 +271,6 @@ def update_suggestions(n_intervals, n_submit, n_clicks, s_n_clicks, value):
         '{"type":"search_bar_suggestion","value":0}',
     ]:
         return no_update, no_update, False
-
-    # Did debounce trigger fire?..
-    if n_intervals != 1:
-        return no_update, no_update, no_update
 
     if not value.strip():
         return None, no_update, False
