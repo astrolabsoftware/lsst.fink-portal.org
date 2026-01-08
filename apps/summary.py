@@ -39,6 +39,7 @@ from apps.observability.utils import additional_observatories
 from apps.utils import loading
 from apps.plotting import CONFIG_PLOT
 from apps.sso.cards import card_sso_right
+from apps.sso.utils import is_packed_designation
 from apps.utils import flux_to_mag
 from apps.plotting import DEFAULT_FINK_COLORS
 
