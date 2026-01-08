@@ -190,7 +190,9 @@ def is_row_static_or_moving(row: dict):
     """
     # Check whether you have diaObject or ssObject
     dianame = demarkdownify_objectid(str(row.get("r:diaObjectId", 0)))
-    ssname = demarkdownify_objectid(str(row.get("r:mpcDesignation", 0)))
+    ssname = demarkdownify_objectid(
+        str(row.get("r:packed_primary_provisional_designation", 0))
+    )
     if dianame in [0, "0", None]:
         # FIXME: is 0 the normal value?
         main_id = ssname
