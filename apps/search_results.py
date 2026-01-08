@@ -233,15 +233,19 @@ def display_skymap(data, columns, is_open):
         label = "MPC designation"
         # get data for all sso sources and overwrite
         endpoint = "/api/v1/sso"
-        columns = "r:ra,r:dec,r:midpointMjdTai,r:diaSourceId,r:mpcDesignation"
-        # FIXME: row["r:mpcDesignation"] is not enough if multiple SSOs in pdf
+        columns = "r:ra,r:dec,r:midpointMjdTai,r:diaSourceId,r:packed_primary_provisional_designation"
+        # FIXME: row["r:packed_primary_provisional_designation"] is not enough if multiple SSOs in pdf
         pdf = request_api(
-            endpoint, json={"n_or_d": row["r:mpcDesignation"], "columns": columns}
+            endpoint,
+            json={
+                "n_or_d": row["r:packed_primary_provisional_designation"],
+                "columns": columns,
+            },
         )
 
         titles = [
             link.format(config_args["SITEURL"], i, i)
-            for i in pdf["r:mpcDesignation"].to_numpy()
+            for i in pdf["r:packed_primary_provisional_designation"].to_numpy()
         ]
         classes = ["SSO"] * len(pdf)
         n_alert_per_class = {"SSO": len(pdf)}

@@ -247,7 +247,7 @@ def tab_ssobject(pdf):
         mpcdesignation = "null"
         sso_name = "null"
     else:
-        mpcdesignation = pdf["r:mpcDesignation"].to_numpy()[0]
+        mpcdesignation = pdf["r:packed_primary_provisional_designation"].to_numpy()[0]
         sso_name = pdf["f:sso_name"].to_numpy()[0]
 
     msg = """
@@ -467,7 +467,7 @@ def store_query(name):
                 "r:diaSourceId": np.int64,
             },
         )
-    elif oid.startswith("K"):
+    elif oid.startswith("K") or oid.startswith("J"):
         # ssObjectId
         pdf = request_api(
             "/api/v1/sso",
@@ -534,7 +534,7 @@ def store_ephemerides(object_data):
     https://dash.plotly.com/sharing-data-between-callbacks
     """
     pdf = pd.read_json(io.StringIO(object_data))
-    if "r:mpcDesignation" in pdf.columns:
+    if "r:packed_primary_provisional_designation" in pdf.columns:
         # get ephemerides
         ssnamenrs = np.unique(pdf["f:sso_name"].to_numpy())
         infos = []
@@ -611,7 +611,7 @@ def store_ztf_data(n_clicks, object_data):
 
     # FIXME: refactor to have is_sso function everywhere instead of
     # check columns each time
-    if "r:mpcDesignation" in pdf.columns:
+    if "r:packed_primary_provisional_designation" in pdf.columns:
         # FIXME: take all names!
         sso_name = pdf["f:sso_name"].to_numpy()[0]
 
