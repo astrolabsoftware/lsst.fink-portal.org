@@ -467,7 +467,7 @@ def store_query(name):
                 "r:diaSourceId": np.int64,
             },
         )
-    elif oid.startswith("K") or oid.startswith("J"):
+    elif is_packed_designation(oid):
         # ssObjectId
         pdf = request_api(
             "/api/v1/sso",
