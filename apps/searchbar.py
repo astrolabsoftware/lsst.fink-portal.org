@@ -140,8 +140,6 @@ fink_search_bar = (
                             "radius=",
                             "r:",
                             "r=",
-                            "trend=",
-                            "trend:",
                         ],
                         options={
                             "tag:": fink_tags,
@@ -152,12 +150,6 @@ fink_search_bar = (
                             "radius=": ["10", "60", "10m", "30m"],
                             "r:": ["10", "60", "10m", "30m"],
                             "r=": ["10", "60", "10m", "30m"],
-                            "trend=": [
-                                "rising",
-                                "fading",
-                                "low_state",
-                                "new_low_state",
-                            ],
                         },
                         maxOptions=0,
                         className="inputbar form-control border-0",
