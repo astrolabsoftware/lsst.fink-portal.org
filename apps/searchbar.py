@@ -35,12 +35,13 @@ from app import app
 
 
 from apps.helpers import help_popover, message_help
-from apps.dataclasses import fink_classes
+from apps.dataclasses import fink_tags
 from apps.parse import parse_query
 
 # Smart search field
 quick_fields = [
-    ["last", "Number of latest alerts to show. Must be used with the `class` keyword."],
+    ["tag", "Search last alerts by user-defined tags"],
+    ["last", "Number of latest alerts to show. Must be used with the `tag` keyword."],
     [
         "radius",
         "Radius for cone search\nMay be used as either `r` or `radius`\nIn arcseconds by default, use `r=1m` or `r=2d` for arcminutes or degrees, correspondingly",
@@ -131,32 +132,24 @@ fink_search_bar = (
                         placeholder="Search, and you will find",
                         component="input",
                         trigger=[
-                            "class:",
-                            "class=",
+                            "tag:",
+                            "tag=",
                             "last:",
                             "last=",
                             "radius:",
                             "radius=",
                             "r:",
                             "r=",
-                            "trend=",
-                            "trend:",
                         ],
                         options={
-                            "class:": fink_classes,
-                            "class=": fink_classes,
+                            "tag:": fink_tags,
+                            "tag=": fink_tags,
                             "last:": ["1", "10", "100", "1000"],
                             "last=": ["1", "10", "100", "1000"],
                             "radius:": ["10", "60", "10m", "30m"],
                             "radius=": ["10", "60", "10m", "30m"],
                             "r:": ["10", "60", "10m", "30m"],
                             "r=": ["10", "60", "10m", "30m"],
-                            "trend=": [
-                                "rising",
-                                "fading",
-                                "low_state",
-                                "new_low_state",
-                            ],
                         },
                         maxOptions=0,
                         className="inputbar form-control border-0",

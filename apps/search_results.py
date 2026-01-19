@@ -586,8 +586,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
     if not query or not query["action"]:
         return None, no_update, no_update, no_update
 
-    if query["action"] != "class" and "trend" in query["params"]:
-        msg = "trend is experimental and can only be used with class search. Add the keyword `class=` to your search."
+    if query["action"] != "tag" and "trend" in query["params"]:
+        msg = "trend is experimental and can only be used with tag search. Add the keyword `tag=` to your search."
         return (
             dbc.Alert(msg, color="warning", className="shadow-sm"),
             no_update,
@@ -596,7 +596,9 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         )
 
     if "last" in query["params"] and query["action"] == "unknown":
-        msg = "last must be used with class search. Add the keyword `class=` to your search."
+        msg = (
+            "last must be used with tag search. Add the keyword `tag=` to your search."
+        )
         return (
             dbc.Alert(msg, color="warning", className="shadow-sm"),
             no_update,
@@ -703,15 +705,15 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
             # "v:lapse": "Time variation (day)",
         }
 
-    elif query["action"] == "class":
+    elif query["action"] == "tag":
         # Class-based search
-        alert_class = query["params"].get("class")
+        alert_tag = query["params"].get("tag")
 
         n_last = int(query["params"].get("last", 100))
 
-        msg = "Last {} objects with class '{}'".format(n_last, alert_class)
+        msg = "Last {} objects with tag '{}'".format(n_last, alert_tag)
 
-        payload = {"class": alert_class, "n": n_last}
+        payload = {"tag": alert_tag, "n": n_last}
 
         if "after" in query["params"]:
             startdate = isoify_time(query["params"]["after"])
@@ -727,11 +729,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
             payload["stopdate"] = stopdate
 
-        if "trend" in query["params"]:
-            msg += " and {} trend".format(query["params"]["trend"])
-            payload["trend"] = query["params"]["trend"]
-
-        endpoint = "/api/v1/latests"
+        endpoint = "/api/v1/tags"
         pdf = request_api(endpoint, json=payload)
         main_id = "r:diaObjectId"
 
