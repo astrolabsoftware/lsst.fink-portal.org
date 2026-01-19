@@ -66,6 +66,7 @@ def card_search_result(row, i):
     main_id, is_sso = is_row_static_or_moving(row)
     diasourceid = row["r:diaSourceId"]
 
+    # FIXME: should be a call to the tag resolver, with all tags printed here.
     cdsxmatch = row.get("f:xm_simbad_otype")
     if cdsxmatch not in BAD_VALUES:
         badges.append(

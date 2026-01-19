@@ -365,7 +365,7 @@ def parse_query(string, timeout=None):
     elif query["type"] == "sso" or "sso" in query["params"]:
         query["action"] = "sso"
 
-    elif query["params"].get("class") == "Anomaly":
+    elif query["params"].get("tag") == "Anomaly":
         query["action"] = "anomaly"
         query["hint"] = "Anomaly search"
 
@@ -373,9 +373,9 @@ def parse_query(string, timeout=None):
         query["action"] = "random"
         query["hint"] = "Random search / {} objects".format(query["params"]["random"])
 
-    elif "class" in query["params"]:
-        query["action"] = "class"
-        query["hint"] = "Class based search / {}".format(query["params"]["class"])
+    elif "tag" in query["params"]:
+        query["action"] = "tag"
+        query["hint"] = "Tag based search / {}".format(query["params"]["tag"])
 
     elif "last" in query["params"]:
         query["action"] = "unknown"
