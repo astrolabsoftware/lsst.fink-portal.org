@@ -19,8 +19,9 @@ import numpy as np
 import pandas as pd
 import requests
 import yaml
-from dash import Input, Output, State, html, dcc, ctx, callback, no_update
+from dash import Input, Output, State, html, dcc, ctx, callback, no_update, MATCH, ALL
 from dash_iconify import DashIconify
+from dash_autocomplete_input import AutocompleteInput
 
 from fink_utils.xmatch.simbad import get_simbad_labels
 
@@ -33,8 +34,10 @@ from apps.mining.utils import (
 )
 from apps.configuration import extract_configuration
 from apps.utils import format_field_for_data_transfer
-from apps.utils import create_datatransfer_schema_table
+from apps.utils import create_datatransfer_schema_table, create_userfilter_description
 from apps.utils import query_and_order_statistics
+from apps.api import request_api
+
 
 # from apps.utils import create_datatransfer_livestream_table
 from apps.plotting import DEFAULT_FINK_COLORS
@@ -111,25 +114,119 @@ def check_field(fields):
     return ""
 
 
+@app.callback(
+    [
+        Output({"type": "button_filter_transfer", "index": MATCH}, "children"),
+        Output({"type": "button_filter_transfer", "index": MATCH}, "variant"),
+        Output({"type": "button_filter_transfer", "index": MATCH}, "color"),
+    ],
+    [
+        Input({"type": "button_filter_transfer", "index": MATCH}, "n_clicks"),
+    ],
+    State({"type": "button_filter_transfer", "index": MATCH}, "children"),
+)
+def switch_filter_button(nclicks, label):
+    """TBD"""
+    # button_clicked = ctx.triggered_id
+    if nclicks is None:
+        return no_update
+
+    if isinstance(nclicks, int):
+        if nclicks == 0:
+            return no_update
+
+        cycle_value = nclicks % 3
+        if cycle_value == 0:
+            # back to unchecked
+            return label.split("NOT")[-1].strip(), "light", "grey"
+        if cycle_value == 1:
+            # odd clicks
+            return label, "filled", DEFAULT_FINK_COLORS[-1]
+        elif cycle_value == 2:
+            # even clicks: 2, 4, 6, ...
+            return "NOT " + label, "filled", DEFAULT_FINK_COLORS[0]
+
+
+@app.callback(
+    Output("tag_select", "data"),
+    [
+        Input({"type": "button_filter_transfer", "index": ALL}, "children"),
+        Input({"type": "button_filter_transfer", "index": ALL}, "variant"),
+        Input({"type": "button_filter_transfer", "index": ALL}, "n_clicks"),
+    ],
+)
+def store_tags(tags, variants, n_clicks):
+    """Return a list of active tags"""
+    if n_clicks is None:
+        return no_update
+    active_tags = [tag for tag, variant in zip(tags, variants) if variant == "filled"]
+    return active_tags
+
+
+fink_tags2 = ["cataloged", "tns"]
+
+
 def filter_number_tab():
+    schema_sources = request_api(
+        endpoint="/api/v1/schema", json={"endpoint": "/api/v1/sources"}, output="json"
+    )
+    field_sources = list(schema_sources["Rubin original fields (r:)"].keys())
+
+    schema_objects_static = request_api(
+        endpoint="/api/v1/schema", json={"endpoint": "/api/v1/objects"}, output="json"
+    )
+    field_objects_static = list(
+        schema_objects_static["Rubin original fields (r:)"].keys()
+    )
+
+    schema_objects_sso = request_api(
+        endpoint="/api/v1/schema", json={"endpoint": "/api/v1/sso"}, output="json"
+    )
+    field_objects_sso = list(schema_objects_sso["Rubin original fields (r:)"].keys())
+
     options = html.Div(
         [
-            dmc.MultiSelect(
-                label="Alert class",
-                description="The simplest filter to start with is to select the classes of objects you like! If no class is selected, all classes are considered.",
-                placeholder="start typing...",
-                id="class_select",
-                data=[
-                    *[
-                        {"label": "(TNS) " + simtype, "value": "(TNS) " + simtype}
-                        for simtype in tns_types
-                    ],
-                    *[
-                        {"label": "(SIMBAD) " + simtype, "value": "(SIMBAD) " + simtype}
-                        for simtype in simbad_types
-                    ],
+            dmc.Text("User-defined filters", size="sm"),
+            dmc.Text(
+                "Select the filters you want to apply to the stream. Filters are provided by the community (see help below). One click to apply (dark orange), two clicks to apply the negation (dark blue), three clicks to deselect.",
+                size="xs",
+                c="gray",
+            ),
+            dmc.Space(h=10),
+            *[
+                dmc.Button(
+                    children=fink_tag,
+                    className="button_filter_transfer",
+                    id={
+                        "type": "button_filter_transfer",
+                        "index": index,
+                    },
+                    radius="xl",
+                    size="xs",
+                    variant="light",
+                    color="grey",
+                    style={"margin": "3px"},
+                )
+                for index, fink_tag in enumerate(fink_tags2)
+            ],
+            dmc.Accordion(
+                id="extra_cond_description",
+                children=[
+                    dmc.AccordionItem(
+                        [
+                            dmc.AccordionControl(
+                                "Filters description",
+                                icon=DashIconify(
+                                    icon="tabler:help",
+                                    color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                                    width=20,
+                                ),
+                            ),
+                            dmc.AccordionPanel(create_userfilter_description()),
+                        ],
+                        value="info",
+                    ),
                 ],
-                searchable=True,
             ),
             dmc.Space(h=10),
             dmc.Select(id="filter_select", style={"display": "none"}),
@@ -173,16 +270,59 @@ def filter_number_tab():
             #     ],
             # ),
             # dmc.Space(h=10),
-            dmc.Textarea(
-                id="extra_cond",
-                label="Extra conditions",
-                # Extra filters
-                description=[
-                    "One condition per line (SQL syntax), ending with semi-colon. See below for the alert schema."
+            # dmc.Textarea(
+            #     id="extra_cond",
+            #     label="Extra conditions",
+            #     # Extra filters
+            #     description=[
+            #         "One condition per line (SQL syntax), ending with semi-colon. See below for the alert schema."
+            #     ],
+            #     placeholder="e.g. candidate.magpsf > 19.5;",
+            #     autosize=True,
+            #     minRows=2,
+            # ),
+            dmc.Space(h=10),
+            dmc.Text("Write your own filter", size="sm"),
+            dmc.Text(
+                "One condition per line (SQL syntax), ending with semi-colon. trigger to be explained.",
+                size="xs",
+                c="gray",
+            ),
+            dmc.Space(h=10),
+            AutocompleteInput(
+                placeholder="One condition per line (SQL syntax), ending with semi-colon.",
+                component="textarea",
+                trigger=[
+                    "diaSource.",
+                    "ssSource.",
+                    "diaObject.",
+                    "mpc_orbits.",
+                    "xm.",
+                    "clf.",
+                    "misc.",
+                    "pred.",
                 ],
-                placeholder="e.g. candidate.magpsf > 19.5;",
-                autosize=True,
-                minRows=2,
+                options={
+                    "diaSource.": field_sources,
+                    "ssSource.": [],
+                    "mpc_orbits.": field_objects_sso,
+                    "diaObject.": field_objects_static,
+                    "xm.": [],
+                    "clf.": [],
+                    "misc.": [],
+                    "pred.": [],
+                },
+                maxOptions=0,
+                className="inputbar form-control border-0",
+                quoteWhitespaces=True,
+                autoFocus=True,
+                ignoreCase=True,
+                triggerInsideWord=False,
+                matchAny=True,
+                style={
+                    "height": "15pc",
+                    "width": "100%",
+                },
             ),
             dmc.Accordion(
                 id="extra_cond_description",
@@ -289,7 +429,7 @@ def filter_content_tab():
     [
         Input("alert-stats", "data"),
         Input("date-range-picker", "value"),
-        Input("class_select", "value"),
+        Input("tag_select", "value"),
         Input("field_select", "value"),
         Input("filter_select", "value"),
         Input("extra_cond", "value"),
@@ -298,12 +438,13 @@ def filter_content_tab():
 def gauge_meter(
     alert_stats,
     date_range_picker,
-    class_select,
+    tag_select,
     field_select,
     filter_select,
     extra_cond,
 ):
     """ """
+    print(tag_select)
     if date_range_picker is None:
         return (
             [{"value": 0, "color": "grey", "tooltip": "0%"}],
@@ -323,7 +464,7 @@ def gauge_meter(
             field_select = ["Full packet"]
 
         total, count = estimate_alert_number_lsst(
-            date_range_picker, class_select, filter_select
+            date_range_picker, tag_select, filter_select
         )
         sizeGb = estimate_size_gb_lsst(field_select)
         defaultGb = 55 / 1024 / 1024
@@ -453,7 +594,7 @@ fink_datatransfer \\
     ],
     [
         State("date-range-picker", "value"),
-        State("class_select", "value"),
+        State("tag_select", "value"),
         State("filter_select", "value"),
         State("field_select", "value"),
         State("extra_cond", "value"),
@@ -463,7 +604,7 @@ fink_datatransfer \\
 def submit_job(
     n_clicks,
     date_range_picker,
-    class_select,
+    tag_select,
     filter_select,
     field_select,
     extra_cond,
@@ -515,8 +656,8 @@ def submit_job(
             "-kafka_sasl_password={}".format(input_args["KAFKA_SASL_PASSWORD"]),
             "-path_to_tns=/data/fink/tns/tns.parquet",
         ]
-        if class_select is not None:
-            [job_args.append(f"-fclass={elem}") for elem in class_select]
+        if tag_select is not None:
+            [job_args.append(f"-fclass={elem}") for elem in tag_select]
         if field_select is not None:
             [job_args.append(f"-ffield={elem}") for elem in field_select]
         if isinstance(filter_select, str):
@@ -837,6 +978,7 @@ def layout():
                             ),
                             dcc.Store(data=n_alert_total, id="alert-stats"),
                             dcc.Store(data="", id="log_progress"),
+                            dcc.Store(data=[], id="tag_select"),
                             html.Div("", id="batch_id", style={"display": "none"}),
                             html.Div("", id="topic_name", style={"display": "none"}),
                         ],

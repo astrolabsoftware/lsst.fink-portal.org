@@ -142,8 +142,8 @@ fink_search_bar = (
                             "r=",
                         ],
                         options={
-                            "tag:": fink_tags,
-                            "tag=": fink_tags,
+                            "tag:": list(fink_tags.keys()),
+                            "tag=": list(fink_tags.keys()),
                             "last:": ["1", "10", "100", "1000"],
                             "last=": ["1", "10", "100", "1000"],
                             "radius:": ["10", "60", "10m", "30m"],

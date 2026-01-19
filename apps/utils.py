@@ -1,4 +1,4 @@
-# Copyright 2019-2024 AstroLab Software
+# Copyright 2019-2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,7 @@ from astropy.time import Time
 from astroquery.mpc import MPC
 
 from apps.api import request_api
+from apps.dataclasses import fink_tags
 
 from fink_utils.xmatch.simbad import get_simbad_labels
 
@@ -696,6 +697,40 @@ def create_datatransfer_schema_table(cutouts_allowed=True):
         ),
         table_candidate,
     ])
+
+
+def create_userfilter_description():
+    """ """
+    # header
+    rows = []
+    for tag, description in fink_tags.items():
+        rows.append(
+            dmc.TableTr([
+                dmc.TableTd(tag),
+                dmc.TableTd(description),
+            ])
+        )
+
+    head = dmc.TableThead(
+        dmc.TableTr([
+            dmc.TableTh("Tag", w="35%"),
+            dmc.TableTh("Description", w="65%"),
+        ])
+    )
+    body = dmc.TableTbody(rows)
+    caption = dmc.TableCaption("User-defined filters description")
+
+    table_candidate = dmc.TableScrollContainer(
+        dmc.Table(
+            [head, body, caption],
+            horizontalSpacing="xl",
+            highlightOnHover=True,
+        ),
+        maxHeight=300,
+        minWidth=0,
+        type="scrollarea",
+    )
+    return table_candidate
 
 
 def query_and_order_statistics(date="20", columns="*", index_by="f:night", drop=True):
