@@ -621,8 +621,8 @@ def submit_job(
         ]
         if field_select is not None:
             [job_args.append(f"-ffield={elem}") for elem in field_select]
-        if isinstance(tag_select, str):
-            job_args.append(f"-ffilter={tag_select}")
+        if isinstance(tag_select, list) and len(tag_select) > 0:
+            [job_args.append(f"-ffilter={tag}") for tag in tag_select]
 
         if extra_cond is not None:
             extra_cond_list = extra_cond.split(";")

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2025 AstroLab Software
+# Copyright 2019-2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,13 @@ from pyspark.sql.column import Column, _to_java_column
 import pyspark.sql.functions as F
 from pyspark.sql.functions import struct, lit
 from pyspark.sql.functions import pandas_udf, PandasUDFType
-from pyspark.sql.types import StringType
+from pyspark.sql.types import StringType, BooleanType
 
-# from fink_filters.ztf.classification import extract_fink_classification
 from fink_utils.spark import schema_converter
-# from fink_utils.spark.utils import apply_user_defined_filter
+from fink_utils.spark.utils import (
+    expand_function_from_string,
+    FinkUDF,
+)
 
 # from fink_science.ztf.ad_features.processor import extract_features_ad
 
@@ -101,26 +103,6 @@ def add_classification(spark, df, path_to_tns):
         Input DataFrame with 2 new columns `finkclass` and
         `tns_type_recomputed` containing classification tags.
     """
-    # # extract Fink classification
-    # df = df.withColumn(
-    #     "finkclass",
-    #     extract_fink_classification(
-    #         df["cdsxmatch"],
-    #         df["roid"],
-    #         df["mulens"],
-    #         df["snn_snia_vs_nonia"],
-    #         df["snn_sn_vs_all"],
-    #         df["rf_snia_vs_nonia"],
-    #         df["diaSource.ndethist"],
-    #         df["diaSource.drb"],
-    #         df["diaSource.classtar"],
-    #         df["diaSource.jd"],
-    #         df["diaSource.jdstarthist"],
-    #         df["rf_kn_vs_nonkn"],
-    #         df["tracklet"],
-    #     ),
-    # )
-
     pdf_tns_filt = pd.read_parquet(path_to_tns)
     pdf_tns_filt_b = spark.sparkContext.broadcast(pdf_tns_filt)
 
@@ -373,6 +355,7 @@ def sanitize_fields(cnames):
         "diaObject",
         "ssSource",
         "MPCORB",
+        "mpc_orbits",
     ]:
         if col in cnames:
             cnames[cnames.index(col)] = "struct({}.*) as {}".format(col, col)
@@ -419,87 +402,35 @@ def main(args):
 
     df = add_classification(spark, df, args.path_to_tns)
 
-    # need fclass and extra conditions
-    if args.fclass is not None:
-        if args.fclass != []:
-            if "allclasses" not in args.fclass:
-                log.info("Filtering for classes {}...".format(args.fclass))
-                tns_class = [i for i in args.fclass if i.startswith("(TNS)")]
-                other_class = [i for i in args.fclass if i not in tns_class]
-                sanitized_other_class = [
-                    i.replace("(SIMBAD) ", "") for i in other_class
-                ]
-
-                if tns_class != [] and sanitized_other_class != []:
-                    f1 = df["finkclass"].isin(sanitized_other_class)
-                    f2 = df["tns_type_recomputed"].isin(tns_class)
-                    df = df.filter(f1 | f2)
-                elif tns_class != []:
-                    f1 = df["tns_type_recomputed"].isin(tns_class)
-                    df = df.filter(f1)
-                elif sanitized_other_class != []:
-                    f1 = df["finkclass"].isin(sanitized_other_class)
-                    df = df.filter(f1)
-
     if args.extraCond is not None:
         for cond in args.extraCond:
             if cond == "":
                 continue
             df = df.filter(cond)
 
-    if args.ffilter is not None and isinstance(args.ffilter, str):
-        if args.ffilter != "":
-            log.info("Applying user-defined filter {}...".format(args.ffilter))
-            pass
-
-    # Features
-    # if "lc_features_g" not in df.columns:
-    #     what = [
-    #         "jd",
-    #         "fid",
-    #         "magpsf",
-    #         "sigmapsf",
-    #         "magnr",
-    #         "sigmagnr",
-    #         "isdiffpos",
-    #         "distnr",
-    #     ]
-    #     prefix = "c"
-    #     what_prefix = [prefix + i for i in what]
-    #     for colname in what:
-    #         df = concat_col(df, colname, prefix=prefix)
-
-    #     ad_args = [
-    #         "cmagpsf",
-    #         "cjd",
-    #         "csigmapsf",
-    #         "cfid",
-    #         "objectId",
-    #         "cdistnr",
-    #         "cmagnr",
-    #         "csigmagnr",
-    #         "cisdiffpos",
-    #     ]
-
-    #     # Temporary fix -- add 100 do distnr to pretend
-    #     # extra-galactic and skip dcmag
-    #     df = (
-    #         df.withColumn("tmp", F.expr("TRANSFORM(cdistnr, el -> el + 100)"))
-    #         .drop("cdistnr")
-    #         .withColumnRenamed("tmp", "cdistnr")
-    #     )
-
-    #     df = df.withColumn("lc_features", extract_features_ad(*ad_args))
-
-    #     # split features
-    #     df = (
-    #         df.withColumn("lc_features_g", df["lc_features"].getItem("1"))
-    #         .withColumn("lc_features_r", df["lc_features"].getItem("2"))
-    #         .drop("lc_features")
-    #     )
-
-    #     # Drop temp columns
-    #     df = df.drop(*what_prefix)
+    if args.ffilter is not None:
+        for userfilter in args.ffilter:
+            if userfilter != "":
+                log.info("Applying user-defined filter {}...".format(userfilter))
+                if userfilter.startswith("NOT"):
+                    reverse = True
+                    tag = userfilter.split("NOT")[-1].strip()
+                else:
+                    reverse = False
+                    tag = userfilter.strip()
+                base_module = (
+                    "fink_filters.rubin.livestream.filter_{}.filter.{}".format(tag, tag)
+                )
+                filter_func, colnames = expand_function_from_string(df, base_module)
+                fink_filter = FinkUDF(
+                    filter_func,
+                    BooleanType(),
+                    tag,
+                )
+                if reverse:
+                    df = df.filter(~fink_filter.for_spark(*colnames))
+                else:
+                    df = df.filter(fink_filter.for_spark(*colnames))
 
     # Define content
     if args.ffield is None:
@@ -612,7 +543,7 @@ if __name__ == "__main__":
     parser.add_argument("-startDate")
     parser.add_argument("-stopDate")
     parser.add_argument("-fclass", action="append")
-    parser.add_argument("-ffilter")
+    parser.add_argument("-ffilter", action="append")
     parser.add_argument("-extraCond", action="append")
     parser.add_argument("-ffield", action="append")
     parser.add_argument("-basePath")
