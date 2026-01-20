@@ -315,6 +315,20 @@ def generate_spark_paths(startDate, stopDate, basePath):
     return paths
 
 
+def cast_long_to_str(df):
+    """Cast long into str"""
+    for section in ["diaSource", "diaObject", "ssSource"]:
+        for field in ["diaObjectId", "diaSourceId", "parentDiaSourceId", "visit"]:
+            if field in df.select(section).columns:
+                df = df.withColumn(
+                    section,
+                    F.col(field).withField(
+                        field, df["{}.{}".format(section, field)].cast("str")
+                    ),
+                )
+    return df
+
+
 def sanitize_fields(cnames):
     """Apply proper serialization before sending to Kafka
 
