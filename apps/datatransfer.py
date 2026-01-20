@@ -158,8 +158,6 @@ def switch_filter_button(nclicks, label):
 )
 def store_tags(tags, variants, n_clicks):
     """Return a list of active tags"""
-    if n_clicks is None:
-        return no_update
     active_tags = [tag for tag, variant in zip(tags, variants) if variant == "filled"]
     return active_tags
 
@@ -399,7 +397,7 @@ def filter_content_tab():
     [
         Input("alert-stats", "data"),
         Input("date-range-picker", "value"),
-        Input("tag_select", "value"),
+        Input("tag_select", "data"),
         Input("field_select", "value"),
         Input("extra_cond", "value"),
     ],
@@ -559,7 +557,7 @@ fink_datatransfer \\
     ],
     [
         State("date-range-picker", "value"),
-        State("tag_select", "value"),
+        State("tag_select", "data"),
         State("field_select", "value"),
         State("extra_cond", "value"),
     ],

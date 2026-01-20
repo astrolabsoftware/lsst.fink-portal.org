@@ -410,27 +410,28 @@ def main(args):
 
     if args.ffilter is not None:
         for userfilter in args.ffilter:
-            if userfilter != "":
-                log.info("Applying user-defined filter {}...".format(userfilter))
-                if userfilter.startswith("NOT"):
-                    reverse = True
-                    tag = userfilter.split("NOT")[-1].strip()
-                else:
-                    reverse = False
-                    tag = userfilter.strip()
-                base_module = (
-                    "fink_filters.rubin.livestream.filter_{}.filter.{}".format(tag, tag)
-                )
-                filter_func, colnames = expand_function_from_string(df, base_module)
-                fink_filter = FinkUDF(
-                    filter_func,
-                    BooleanType(),
-                    tag,
-                )
-                if reverse:
-                    df = df.filter(~fink_filter.for_spark(*colnames))
-                else:
-                    df = df.filter(fink_filter.for_spark(*colnames))
+            if userfilter == "":
+                continue
+            log.info("Applying user-defined filter {}...".format(userfilter))
+            if userfilter.startswith("NOT"):
+                reverse = True
+                tag = userfilter.split("NOT")[-1].strip()
+            else:
+                reverse = False
+                tag = userfilter.strip()
+            base_module = "fink_filters.rubin.livestream.filter_{}.filter.{}".format(
+                tag, tag
+            )
+            filter_func, colnames = expand_function_from_string(df, base_module)
+            fink_filter = FinkUDF(
+                filter_func,
+                BooleanType(),
+                tag,
+            )
+            if reverse:
+                df = df.filter(~fink_filter.for_spark(*colnames))
+            else:
+                df = df.filter(fink_filter.for_spark(*colnames))
 
     # Define content
     if args.ffield is None:
@@ -542,7 +543,6 @@ if __name__ == "__main__":
 
     parser.add_argument("-startDate")
     parser.add_argument("-stopDate")
-    parser.add_argument("-fclass", action="append")
     parser.add_argument("-ffilter", action="append")
     parser.add_argument("-extraCond", action="append")
     parser.add_argument("-ffield", action="append")
