@@ -718,11 +718,10 @@ def create_userfilter_description():
         ])
     )
     body = dmc.TableTbody(rows)
-    caption = dmc.TableCaption("User-defined filters description")
 
     table_candidate = dmc.TableScrollContainer(
         dmc.Table(
-            [head, body, caption],
+            [head, body, None],
             horizontalSpacing="xl",
             highlightOnHover=True,
         ),

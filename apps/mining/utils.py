@@ -202,7 +202,7 @@ def initialise_classes(class_select):
     return columns, column_names
 
 
-def get_statistics(column_names, dstart, dstop, with_class=True):
+def get_statistics(dstart, dstop):
     """ """
     dic = {"f:alerts": 0}
 
@@ -216,14 +216,6 @@ def get_statistics(column_names, dstart, dstop, with_class=True):
 
     pdf = pdf[f1 & f2]
     dic["f:alerts"] += int(pdf["f:alerts"].sum())
-
-    if with_class:
-        # Initialise count
-        for column_name in column_names:
-            if column_name in pdf.columns:
-                dic[column_name] = int(pdf[column_name].sum())
-            else:
-                dic[column_name] = 0
 
     return dic
 
@@ -253,26 +245,26 @@ def get_statistics(column_names, dstart, dstop, with_class=True):
 #     return dic
 
 
-# def get_filter_statistics(dic, filter_select):
+# def get_tag_statistics(dic, tag_select):
 #     """Get stastitics based on a user-defined filter
 
 #     Parameters
 #     ----------
 #     dic: dict
 #         Dictionnary containing counts
-#     filter_select: str, optional
+#     tag_select: str, optional
 #         Filter name
 #     """
-#     id_ = coeffs_per_filters["filter"] == filter_select
+#     id_ = coeffs_per_filters["filter"] == tag_select
 #     if np.sum(id_) == 1:
-#         dic[filter_select] = (
+#         dic[tag_select] = (
 #             coeffs_per_filters[id_]["coeff"].to_numpy()[0] * dic["basic:sci"]
 #         )
 
 #     return dic
 
 
-def estimate_alert_number_lsst(date_range_picker, class_select, filter_select):
+def estimate_alert_number_lsst(date_range_picker, tag_select):
     """Callback to estimate the number of alerts to be transfered
 
     This can be improved by using the REST API directly to get number of
@@ -283,29 +275,12 @@ def estimate_alert_number_lsst(date_range_picker, class_select, filter_select):
     dstart = date(*[int(i) for i in date_range_picker[0].split("-")])
     dstop = date(*[int(i) for i in date_range_picker[1].split("-")])
 
-    _, column_names = initialise_classes(class_select)
+    dic = get_statistics(dstart, dstop)
 
-    with_filter = False
-    # with_filter = (
-    #     (filter_select is not None) and (filter_select != "") and (filter_select != [])
-    # )
-    # with_class = (
-    #     (class_select is not None) and (class_select != "") and (class_select != [])
-    # )
-    dic = get_statistics(column_names, dstart, dstop, with_class=not with_filter)
-
-    # we check first filter, and then class
-    # if with_filter:
-    #     dic = get_filter_statistics(dic, filter_select)
-    #     total = dic["f:alerts"]
-    #     count = np.sum([v for k, v in dic.items() if k != "f:alerts"])
-    # elif with_class:
-    #     dic = add_tns_estimation(dic, class_select)
-    #     total = dic["f:alerts"]
-    #     count = np.sum([v for k, v in dic.items() if k != "f:alerts"])
-    # else:
-    #     total = dic["f:alerts"]
-    #     count = dic["f:alerts"]
+    # # we check first filter, and then class
+    # dic = get_tag_statistics(dic, tag_select)
+    # total = dic["f:alerts"]
+    # count = np.sum([v for k, v in dic.items() if k != "f:alerts"])
 
     total = dic["f:alerts"]
     count = dic["f:alerts"]

@@ -37,6 +37,7 @@ from apps.utils import format_field_for_data_transfer
 from apps.utils import create_datatransfer_schema_table, create_userfilter_description
 from apps.utils import query_and_order_statistics
 from apps.api import request_api
+from apps.dataclasses import fink_tags
 
 
 # from apps.utils import create_datatransfer_livestream_table
@@ -163,10 +164,13 @@ def store_tags(tags, variants, n_clicks):
     return active_tags
 
 
-fink_tags2 = ["cataloged", "tns"]
-
-
 def filter_number_tab():
+    """Construct the filtering tab for the Data Transfer service
+
+    Returns
+    -------
+    out: Div
+    """
     schema_sources = request_api(
         endpoint="/api/v1/schema", json={"endpoint": "/api/v1/sources"}, output="json"
     )
@@ -186,9 +190,16 @@ def filter_number_tab():
 
     options = html.Div(
         [
+            dmc.Space(h=10),
             dmc.Text("User-defined filters", size="sm"),
             dmc.Text(
-                "Select the filters you want to apply to the stream. Filters are provided by the community (see help below). One click to apply (dark orange), two clicks to apply the negation (dark blue), three clicks to deselect.",
+                [
+                    "You can apply one or several Fink filters used in real-time to further reduce the number of alerts. Filters are provided by the community (see their description below). One click to apply the filter ",
+                    dmc.Text("(dark orange) ", c="orange", span=True, inherit=True),
+                    ", two clicks to apply the negation ",
+                    dmc.Text("(dark blue) ", c="blue", span=True, inherit=True),
+                    ", three clicks to deselect (gray).",
+                ],
                 size="xs",
                 c="gray",
             ),
@@ -207,7 +218,7 @@ def filter_number_tab():
                     color="grey",
                     style={"margin": "3px"},
                 )
-                for index, fink_tag in enumerate(fink_tags2)
+                for index, fink_tag in enumerate(list(fink_tags.keys()))
             ],
             dmc.Accordion(
                 id="extra_cond_description",
@@ -228,68 +239,22 @@ def filter_number_tab():
                     ),
                 ],
             ),
-            dmc.Space(h=10),
-            dmc.Select(id="filter_select", style={"display": "none"}),
-            # dmc.Select(
-            #     label="Apply a Fink filter",
-            #     description=html.Div(
-            #         [
-            #             "You can apply one Fink filter used in the Livestream service to further reduce the number of alerts. ",
-            #             "Filters are provided by the Fink community of users. More information at ",
-            #             html.A(
-            #                 "filters/#real-time-filters",
-            #                 href="https://fink-broker.readthedocs.io/en/latest/broker/filters/#real-time-filters",
-            #                 target="_blank",
-            #             ),
-            #             ". No filter is applied by default.",
-            #         ]
-            #     ),
-            #     placeholder="start typing...",
-            #     id="filter_select",
-            #     allowDeselect=True,
-            #     searchable=True,
-            #     clearable=True,
-            # ),
-            # dmc.Accordion(
-            #     id="filter_select_description",
-            #     children=[
-            #         dmc.AccordionItem(
-            #             [
-            #                 dmc.AccordionControl(
-            #                     "Filters description",
-            #                     icon=DashIconify(
-            #                         icon="tabler:help",
-            #                         color=dmc.DEFAULT_THEME["colors"]["blue"][6],
-            #                         width=20,
-            #                     ),
-            #                 ),
-            #                 dmc.AccordionPanel(create_datatransfer_livestream_table()),
-            #             ],
-            #             value="info",
-            #         ),
-            #     ],
-            # ),
-            # dmc.Space(h=10),
-            # dmc.Textarea(
-            #     id="extra_cond",
-            #     label="Extra conditions",
-            #     # Extra filters
-            #     description=[
-            #         "One condition per line (SQL syntax), ending with semi-colon. See below for the alert schema."
-            #     ],
-            #     placeholder="e.g. candidate.magpsf > 19.5;",
-            #     autosize=True,
-            #     minRows=2,
-            # ),
-            dmc.Space(h=10),
+            dmc.Space(h=20),
             dmc.Text("Write your own filter", size="sm"),
             dmc.Text(
-                "One condition per line (SQL syntax), ending with semi-colon. trigger to be explained.",
+                [
+                    "One condition per line (SQL syntax), ending with semi-colon (see below for examples). Start typing an alert section such as ",
+                    dmc.Text("diaSource., ", fw=700, inherit=True, span=True),
+                    dmc.Text("diaObject., ", fw=700, inherit=True, span=True),
+                    dmc.Text("mpc_orbits., ", fw=700, inherit=True, span=True),
+                    "and a list will available fields will trigger.",
+                ],
                 size="xs",
                 c="gray",
             ),
             dmc.Space(h=10),
             AutocompleteInput(
+                id="extra_cond",
                 placeholder="One condition per line (SQL syntax), ending with semi-colon.",
                 component="textarea",
                 trigger=[
@@ -338,22 +303,27 @@ def filter_number_tab():
                                 ),
                             ),
                             dmc.AccordionPanel(
-                                dcc.Markdown("""Finally, you can impose extra conditions on the alerts you want to retrieve based on their content. You will simply specify the name of the parameter with the condition (SQL syntax). See below for the alert schema. If you have several conditions, put one condition per line, ending with semi-colon. Example of valid conditions:
+                                dcc.Markdown("""You can impose any extra conditions on the alerts you want to retrieve based on their content. Simply specify the name of the parameter with the condition (SQL syntax). See below for the alert schema. If you have several conditions, put one condition per line, ending with semi-colon. Example of valid conditions:
 
 ```sql
 -- Example 1
--- Alerts with magnitude above 19.5 and
--- at least 2'' distance away to nearest
+-- Alerts with flux above 13500 nJy (< mag 21) and
+-- at least 3 detections
 -- source in ZTF reference images:
-candidate.magpsf > 19.5;
-candidate.distnr > 2;
+diaSource.psfFlux > 13500;
+diaObject.nDiaSources > 3;
 
--- Example 2: Using a combination of fields
-(candidate.magnr - candidate.magpsf) < -4 * (LOG10(candidate.distnr) + 0.2);
+-- Example 2: Using a combination of fields (at least 1 mag difference)
+(diaSource.psfFlux - diaSource.templateFlux) > 20000;
 
 -- Example 3: Filtering on ML scores
-rf_snia_vs_nonia > 0.5;
-snn_snia_vs_nonia > 0.5;
+clf.snnSnVsOthers_score > 0.5;
+
+-- Example 4: Only classified objects
+pred.is_cataloged;
+
+-- Example 5: No Solar System objects
+NOT pred.is_sso;
 ```"""),
                             ),
                         ],
@@ -431,7 +401,6 @@ def filter_content_tab():
         Input("date-range-picker", "value"),
         Input("tag_select", "value"),
         Input("field_select", "value"),
-        Input("filter_select", "value"),
         Input("extra_cond", "value"),
     ],
 )
@@ -440,11 +409,9 @@ def gauge_meter(
     date_range_picker,
     tag_select,
     field_select,
-    filter_select,
     extra_cond,
 ):
     """ """
-    print(tag_select)
     if date_range_picker is None:
         return (
             [{"value": 0, "color": "grey", "tooltip": "0%"}],
@@ -463,9 +430,7 @@ def gauge_meter(
         if field_select is None or field_select == []:
             field_select = ["Full packet"]
 
-        total, count = estimate_alert_number_lsst(
-            date_range_picker, tag_select, filter_select
-        )
+        total, count = estimate_alert_number_lsst(date_range_picker, tag_select)
         sizeGb = estimate_size_gb_lsst(field_select)
         defaultGb = 55 / 1024 / 1024
 
@@ -595,7 +560,6 @@ fink_datatransfer \\
     [
         State("date-range-picker", "value"),
         State("tag_select", "value"),
-        State("filter_select", "value"),
         State("field_select", "value"),
         State("extra_cond", "value"),
     ],
@@ -605,7 +569,6 @@ def submit_job(
     n_clicks,
     date_range_picker,
     tag_select,
-    filter_select,
     field_select,
     extra_cond,
 ):
@@ -656,12 +619,10 @@ def submit_job(
             "-kafka_sasl_password={}".format(input_args["KAFKA_SASL_PASSWORD"]),
             "-path_to_tns=/data/fink/tns/tns.parquet",
         ]
-        if tag_select is not None:
-            [job_args.append(f"-fclass={elem}") for elem in tag_select]
         if field_select is not None:
             [job_args.append(f"-ffield={elem}") for elem in field_select]
-        if isinstance(filter_select, str):
-            job_args.append(f"-ffilter={filter_select}")
+        if isinstance(tag_select, str):
+            job_args.append(f"-ffilter={tag_select}")
 
         if extra_cond is not None:
             extra_cond_list = extra_cond.split(";")
