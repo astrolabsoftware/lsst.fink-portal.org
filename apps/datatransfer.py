@@ -152,18 +152,7 @@ def check_field(fields):
     return ""
 
 
-@app.callback(
-    [
-        Output({"type": "button_filter_transfer", "index": MATCH}, "children"),
-        Output({"type": "button_filter_transfer", "index": MATCH}, "variant"),
-        Output({"type": "button_filter_transfer", "index": MATCH}, "color"),
-    ],
-    [
-        Input({"type": "button_filter_transfer", "index": MATCH}, "n_clicks"),
-    ],
-    State({"type": "button_filter_transfer", "index": MATCH}, "children"),
-)
-def switch_filter_button(nclicks, label):
+def switch_button(nclicks, label):
     """TBD"""
     # button_clicked = ctx.triggered_id
     if nclicks is None:
@@ -186,6 +175,44 @@ def switch_filter_button(nclicks, label):
 
 
 @app.callback(
+    [
+        Output({"type": "button_filter_transfer", "index": MATCH}, "children"),
+        Output({"type": "button_filter_transfer", "index": MATCH}, "variant"),
+        Output({"type": "button_filter_transfer", "index": MATCH}, "color"),
+    ],
+    [
+        Input({"type": "button_filter_transfer", "index": MATCH}, "n_clicks"),
+    ],
+    State({"type": "button_filter_transfer", "index": MATCH}, "children"),
+)
+def switch_filter_button(nclicks, label):
+    """TBD"""
+    return switch_button(nclicks, label)
+
+
+@app.callback(
+    [
+        Output({"type": "button_blocks_transfer", "index": MATCH}, "children"),
+        Output({"type": "button_blocks_transfer", "index": MATCH}, "variant"),
+        Output({"type": "button_blocks_transfer", "index": MATCH}, "color"),
+    ],
+    [
+        Input({"type": "button_blocks_transfer", "index": MATCH}, "n_clicks"),
+    ],
+    State({"type": "button_blocks_transfer", "index": MATCH}, "children"),
+)
+def switch_block_button(nclicks, label):
+    """TBD"""
+    return switch_button(nclicks, label)
+
+
+def store_tags_blocks(tags, variants, n_clicks):
+    """Return a list of active tags/blocks"""
+    active_tags = [tag for tag, variant in zip(tags, variants) if variant == "filled"]
+    return active_tags
+
+
+@app.callback(
     Output("tag_select", "data", allow_duplicate=True),
     [
         Input({"type": "button_filter_transfer", "index": ALL}, "children"),
@@ -196,8 +223,21 @@ def switch_filter_button(nclicks, label):
 )
 def store_tags(tags, variants, n_clicks):
     """Return a list of active tags"""
-    active_tags = [tag for tag, variant in zip(tags, variants) if variant == "filled"]
-    return active_tags
+    return store_tags_blocks(tags, variants, n_clicks)
+
+
+@app.callback(
+    Output("blocks_select", "data", allow_duplicate=True),
+    [
+        Input({"type": "button_blocks_transfer", "index": ALL}, "children"),
+        Input({"type": "button_blocks_transfer", "index": ALL}, "variant"),
+        Input({"type": "button_blocks_transfer", "index": ALL}, "n_clicks"),
+    ],
+    prevent_initial_call=True,
+)
+def store_blocks(tags, variants, n_clicks):
+    """Return a list of active blocks"""
+    return store_tags_blocks(tags, variants, n_clicks)
 
 
 def filter_number_tab():
@@ -465,6 +505,7 @@ def filter_content_tab():
         Input("submit_yaml_file", "n_clicks"),
         Input("date-range-picker", "value"),
         Input("tag_select", "data"),
+        Input("blocks_select", "data"),
         Input("field_select", "value"),
         Input("extra_cond", "value"),
     ],
@@ -474,6 +515,7 @@ def download_yaml(
     nclicks,
     date_range_picker,
     tag_select,
+    blocks_select,
     field_select,
     extra_cond,
 ):
@@ -502,10 +544,14 @@ def download_yaml(
             )
         ]
 
+    if extra_cond is not None and isinstance(extra_cond, str):
+        extra_cond = extra_cond.split(";")
+        extra_cond = [i.strip() for i in extra_cond]
+        extra_cond = [i for i in extra_cond if i != ""]
     outfile = {
-        "dates": {"startdate": date_range_picker[0], "stopdate": date_range_picker[0]},
+        "dates": {"startdate": date_range_picker[0], "stopdate": date_range_picker[1]},
         "filters": tag_select,
-        "blocks": [],
+        "blocks": blocks_select,
         "content": field_select,
         "extra_cond": extra_cond,
     }
@@ -538,6 +584,7 @@ def download_yaml(
     [
         Output("date-range-picker", "value", allow_duplicate=True),
         Output("tag_select", "data", allow_duplicate=True),
+        Output("blocks_select", "data", allow_duplicate=True),
         Output("field_select", "value", allow_duplicate=True),
         Output("extra_cond", "value", allow_duplicate=True),
         Output("notification-container", "sendNotifications", allow_duplicate=True),
@@ -552,7 +599,15 @@ def download_yaml(
 def upload_yaml(content, filename):
     """Construct a JSON file and export to YAML"""
     if content is None:
-        return no_update, no_update, no_update, no_update, no_update, no_update
+        return (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+        )
 
     content_type, content_string = content.split(",")
     decoded = base64.b64decode(content_string)
@@ -560,12 +615,12 @@ def upload_yaml(content, filename):
     data = yaml.safe_load(io.StringIO(decoded.decode("utf-8")))
 
     # FIXME: validate the data fields, and send notifications if need be
-    # FIXME: blocks is undefined
     return (
         [data["dates"]["startdate"], data["dates"]["stopdate"]],
         data["filters"],
+        data["blocks"],
         data["content"],
-        data["extra_cond"],
+        ";\n".join(data["extra_cond"]) + ";",
         [
             dict(
                 title="Previous configuration loaded from {}".format(filename),
@@ -747,6 +802,7 @@ fink_datatransfer \\
     [
         State("date-range-picker", "value"),
         State("tag_select", "data"),
+        State("blocks_select", "data"),
         State("field_select", "value"),
         State("extra_cond", "value"),
     ],
@@ -756,6 +812,7 @@ def submit_job(
     n_clicks,
     date_range_picker,
     tag_select,
+    blocks_select,
     field_select,
     extra_cond,
 ):
@@ -814,6 +871,8 @@ def submit_job(
             [job_args.append(f"-ffield={elem}") for elem in field_select]
         if isinstance(tag_select, list) and len(tag_select) > 0:
             [job_args.append(f"-ffilter={tag}") for tag in tag_select]
+        if isinstance(blocks_select, list) and len(blocks_select) > 0:
+            [job_args.append(f"-ffilter={block}") for block in blocks_select]
 
         if extra_cond is not None:
             extra_cond_list = extra_cond.split(";")
@@ -1151,6 +1210,7 @@ def layout():
                             dcc.Store(data=n_alert_total, id="alert-stats"),
                             dcc.Store(data="", id="log_progress"),
                             dcc.Store(data=[], id="tag_select"),
+                            dcc.Store(data=[], id="blocks_select"),
                             html.Div("", id="batch_id", style={"display": "none"}),
                             html.Div("", id="topic_name", style={"display": "none"}),
                         ],
