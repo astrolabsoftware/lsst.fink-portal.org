@@ -19,6 +19,9 @@ import numpy as np
 import pandas as pd
 import requests
 import yaml
+import base64
+import io
+
 from dash import Input, Output, State, html, dcc, ctx, callback, no_update, MATCH, ALL
 from dash_iconify import DashIconify
 from dash_autocomplete_input import AutocompleteInput
@@ -34,10 +37,10 @@ from apps.mining.utils import (
 )
 from apps.configuration import extract_configuration
 from apps.utils import format_field_for_data_transfer
-from apps.utils import create_datatransfer_schema_table, create_userfilter_description
+from apps.utils import create_datatransfer_schema_table
 from apps.utils import query_and_order_statistics
 from apps.api import request_api
-from apps.dataclasses import fink_tags
+from apps.dataclasses import fink_tags, fink_blocks
 
 
 # from apps.utils import create_datatransfer_livestream_table
@@ -56,7 +59,41 @@ tns_types = pd.read_csv("assets/tns_types.csv", header=None)[0].to_numpy()
 tns_types = sorted(tns_types, key=lambda s: s.lower())
 
 min_step = 0
-max_step = 4
+max_step = 5
+
+
+def date_config():
+    tab = html.Div(
+        [
+            dmc.Space(h=50),
+            dmc.Text("Re-use configuration file", size="sm"),
+            dmc.Text(
+                "If you downloaded the configuration file (YAML) of a previous job, you can upload it here. Fields will be automatically populated, and you can re-submit the job or further modify options. Otherwise click on Next Step to start selecting options for your job.",
+                size="xs",
+                c="gray",
+            ),
+            dmc.Space(h=10),
+            dcc.Upload(
+                id="upload_yaml_file",
+                children=html.Div([
+                    "Drag and Drop or ",
+                    html.A("Select Configuration YAML Files "),
+                ]),
+                style={
+                    "width": "100%",
+                    "height": "60px",
+                    "lineHeight": "60px",
+                    "borderWidth": "1px",
+                    "borderStyle": "dashed",
+                    "borderRadius": "5px",
+                    "textAlign": "center",
+                    "margin": "0px",
+                },
+            ),
+        ],
+        id="date_config",
+    )
+    return tab
 
 
 def date_tab():
@@ -149,12 +186,13 @@ def switch_filter_button(nclicks, label):
 
 
 @app.callback(
-    Output("tag_select", "data"),
+    Output("tag_select", "data", allow_duplicate=True),
     [
         Input({"type": "button_filter_transfer", "index": ALL}, "children"),
         Input({"type": "button_filter_transfer", "index": ALL}, "variant"),
         Input({"type": "button_filter_transfer", "index": ALL}, "n_clicks"),
     ],
+    prevent_initial_call=True,
 )
 def store_tags(tags, variants, n_clicks):
     """Return a list of active tags"""
@@ -192,11 +230,21 @@ def filter_number_tab():
             dmc.Text("User-defined filters", size="sm"),
             dmc.Text(
                 [
-                    "You can apply one or several Fink filters used in real-time to further reduce the number of alerts. Filters are provided by the community (see their description below). One click to apply the filter ",
+                    "You can apply one or several Fink filters (",
+                    DashIconify(icon="material-symbols:stream"),
+                    ") used in real-time to select alerts of interest. You can also apply Fink blocks (",
+                    DashIconify(icon="material-symbols:target"),
+                    "), which are small user-defined functions acting as building blocks for the filters. One click to apply the filter/block ",
                     dmc.Text("(dark orange) ", c="orange", span=True, inherit=True),
                     ", two clicks to apply the negation ",
                     dmc.Text("(dark blue) ", c="blue", span=True, inherit=True),
-                    ", three clicks to deselect (gray).",
+                    ", three clicks to deselect (gray). See the ",
+                    html.A(
+                        "schema page",
+                        href="https://lsst.fink-portal.org/schemas",
+                        target="_blank",
+                    ),
+                    r" for description of available filters and blocks.",
                 ],
                 size="xs",
                 c="gray",
@@ -215,37 +263,62 @@ def filter_number_tab():
                     variant="light",
                     color="grey",
                     style={"margin": "3px"},
+                    leftSection=DashIconify(icon="material-symbols:stream"),
                 )
                 for index, fink_tag in enumerate(list(fink_tags.keys()))
             ],
-            dmc.Accordion(
-                id="extra_cond_description",
-                children=[
-                    dmc.AccordionItem(
-                        [
-                            dmc.AccordionControl(
-                                "Filters description",
-                                icon=DashIconify(
-                                    icon="tabler:help",
-                                    color=dmc.DEFAULT_THEME["colors"]["blue"][6],
-                                    width=20,
-                                ),
-                            ),
-                            dmc.AccordionPanel(create_userfilter_description()),
-                        ],
-                        value="info",
-                    ),
-                ],
-            ),
+            dmc.Space(h=10),
+            *[
+                dmc.Button(
+                    children=fink_block,
+                    className="button_blocks_transfer",
+                    id={
+                        "type": "button_blocks_transfer",
+                        "index": index,
+                    },
+                    radius="xl",
+                    size="xs",
+                    variant="light",
+                    color="grey",
+                    style={"margin": "3px"},
+                    leftSection=DashIconify(icon="material-symbols:target"),
+                )
+                for index, fink_block in enumerate(list(fink_blocks.keys()))
+            ],
+            # dmc.Space(h=10),
+            # dmc.Accordion(
+            #     id="extra_cond_description",
+            #     children=[
+            #         dmc.AccordionItem(
+            #             [
+            #                 dmc.AccordionControl(
+            #                     "Filters description",
+            #                     icon=DashIconify(
+            #                         icon="tabler:help",
+            #                         color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+            #                         width=20,
+            #                     ),
+            #                 ),
+            #                 dmc.AccordionPanel(create_userfilter_description()),
+            #             ],
+            #             value="info",
+            #         ),
+            #     ],
+            # ),
             dmc.Space(h=20),
-            dmc.Text("Write your own filter", size="sm"),
+            dmc.Text("Write your own block", size="sm"),
             dmc.Text(
                 [
-                    "One condition per line (SQL syntax), ending with semi-colon (see below for examples). Start typing an alert section such as ",
+                    "Similarly to the blocks above, you can write your own block. You need to specify one condition per line (SQL syntax), ending with semi-colon (see below for examples). Start typing an alert section such as ",
                     dmc.Text("diaSource., ", fw=700, inherit=True, span=True),
                     dmc.Text("diaObject., ", fw=700, inherit=True, span=True),
                     dmc.Text("mpc_orbits., ", fw=700, inherit=True, span=True),
-                    "and a list will available fields will trigger.",
+                    "and a list will available fields will trigger. Note that you can also use the name of existing blocks, and extra function such as `flux2mag`. You can share your block by submitting the JSON file at ",
+                    html.A(
+                        "fink-filters",
+                        href="https://github.com/astrolabsoftware/fink-filters",
+                        target="_blank",
+                    ),
                 ],
                 size="xs",
                 c="gray",
@@ -304,24 +377,20 @@ def filter_number_tab():
                                 dcc.Markdown("""You can impose any extra conditions on the alerts you want to retrieve based on their content. Simply specify the name of the parameter with the condition (SQL syntax). See below for the alert schema. If you have several conditions, put one condition per line, ending with semi-colon. Example of valid conditions:
 
 ```sql
--- Example 1
+-- Example block 1
 -- Alerts with flux above 13500 nJy (< mag 21) and
 -- at least 3 detections
--- source in ZTF reference images:
 diaSource.psfFlux > 13500;
 diaObject.nDiaSources > 3;
 
--- Example 2: Using a combination of fields (at least 1 mag difference)
+-- Example block 2: Using a combination of fields (at least 1 mag difference)
 (diaSource.psfFlux - diaSource.templateFlux) > 20000;
 
--- Example 3: Filtering on ML scores
+-- Example block 3: Filtering on ML scores
 clf.snnSnVsOthers_score > 0.5;
 
--- Example 4: Only classified objects
+-- Example block 4: Only classified objects
 pred.is_cataloged;
-
--- Example 5: No Solar System objects
-NOT pred.is_sso;
 ```"""),
                             ),
                         ],
@@ -385,6 +454,126 @@ def filter_content_tab():
         id="filter_content_tab",
     )
     return tab
+
+
+@app.callback(
+    [
+        Output("download_yaml", "data"),
+        Output("notification-container", "sendNotifications", allow_duplicate=True),
+    ],
+    [
+        Input("submit_yaml_file", "n_clicks"),
+        Input("date-range-picker", "value"),
+        Input("tag_select", "data"),
+        Input("field_select", "value"),
+        Input("extra_cond", "value"),
+    ],
+    prevent_initial_call=True,
+)
+def download_yaml(
+    nclicks,
+    date_range_picker,
+    tag_select,
+    field_select,
+    extra_cond,
+):
+    """Construct a JSON file and export to YAML"""
+    if nclicks is None:
+        return no_update, no_update
+
+    if date_range_picker is None:
+        return no_update, [
+            dict(
+                title="Ooops",
+                id="show-notify",
+                action="show",
+                message="You need to specify dates at least!",
+                color="red",
+            )
+        ]
+    elif isinstance(date_range_picker, list) and None in date_range_picker:
+        return no_update, [
+            dict(
+                title="Ooops",
+                id="show-notify",
+                action="show",
+                message="You need to specify dates at least!",
+                color="red",
+            )
+        ]
+
+    outfile = {
+        "dates": {"startdate": date_range_picker[0], "stopdate": date_range_picker[0]},
+        "filters": tag_select,
+        "blocks": [],
+        "content": field_select,
+        "extra_cond": extra_cond,
+    }
+
+    if field_select is None or field_select == []:
+        field_select = ["Full packet"]
+
+    yaml_string = yaml.dump(outfile, default_flow_style=False)
+
+    # Get the current date and time
+    now = datetime.datetime.now()
+
+    # Format the date and time
+    formatted_date = now.strftime("%Y%m%d_%H%M%S")
+
+    return dict(
+        content=yaml_string, filename="datatransfer_{}.yml".format(formatted_date)
+    ), [
+        dict(
+            title="Success",
+            id="show-notify",
+            action="show",
+            message="Configuration downloaded",
+            color="green",
+        )
+    ]
+
+
+@app.callback(
+    [
+        Output("date-range-picker", "value", allow_duplicate=True),
+        Output("tag_select", "data", allow_duplicate=True),
+        Output("field_select", "value", allow_duplicate=True),
+        Output("extra_cond", "value", allow_duplicate=True),
+        Output("notification-container", "sendNotifications", allow_duplicate=True),
+        Output("stepper-basic-usage", "active", allow_duplicate=True),
+    ],
+    [
+        Input("upload_yaml_file", "contents"),
+        Input("upload_yaml_file", "filename"),
+    ],
+    prevent_initial_call=True,
+)
+def upload_yaml(content, filename):
+    """Construct a JSON file and export to YAML"""
+    if content is None:
+        return no_update, no_update, no_update, no_update, no_update, no_update
+
+    content_type, content_string = content.split(",")
+    decoded = base64.b64decode(content_string)
+
+    data = yaml.safe_load(io.StringIO(decoded.decode("utf-8")))
+
+    # FIXME: validate the data fields, and send notifications if need be
+    # FIXME: blocks is undefined
+    return (
+        [data["dates"]["startdate"], data["dates"]["stopdate"]],
+        data["filters"],
+        data["content"],
+        data["extra_cond"],
+        [
+            dict(
+                title="Previous configuration loaded from {}".format(filename),
+                color="green",
+            )
+        ],
+        max_step - 1,
+    )
 
 
 @app.callback(
@@ -549,7 +738,7 @@ fink_datatransfer \\
 
 @app.callback(
     Output("submit_datatransfer", "disabled"),
-    Output("notification-container", "children"),
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
     Output("batch_id", "children"),
     Output("topic_name", "children"),
     [
@@ -601,10 +790,14 @@ def submit_job(
                     "Contact an administrator at contact@fink-broker.org.",
                 ]
             )
-            alert = dmc.Alert(
-                children=text, title=f"[Status code {status_code}]", color="red"
+            alert = dict(
+                message=text,
+                title=f"[Status code {status_code}]",
+                color="red",
+                action="show",
+                autoClose=False,
             )
-            return True, alert, no_update, no_update
+            return True, [alert], no_update, no_update
 
         # get the job args
         job_args = [
@@ -645,22 +838,24 @@ def submit_job(
                     "Contact an administrator at contact@fink-broker.org.",
                 ]
             )
-            alert = dmc.Alert(
-                children=text,
+            alert = dict(
+                message=text,
                 title=f"[Batch ID {batchid}][Status code {status_code}]",
                 color="red",
+                autoClose=False,
             )
-            return True, alert, no_update, no_update
+            return True, [alert], no_update, no_update
 
-        alert = dmc.Alert(
-            children=f"Your topic name is: {topic_name}",
+        alert = dict(
+            message=f"Your topic name is: {topic_name}",
             title="Submitted successfully",
             color="green",
+            autoClose=False,
         )
         if n_clicks:
-            return True, alert, batchid, topic_name
+            return True, [alert], batchid, topic_name
         else:
-            return False, alert, batchid, topic_name
+            return False, [alert], batchid, topic_name
     else:
         return no_update, no_update, no_update, no_update
 
@@ -831,6 +1026,12 @@ def layout():
                                 active=active,
                                 children=[
                                     dmc.StepperStep(
+                                        label="Configuration",
+                                        description="Upload",
+                                        children=date_config(),
+                                        id="stepper-date",
+                                    ),
+                                    dmc.StepperStep(
                                         label="Date Range",
                                         description="Choose a date",
                                         children=date_tab(),
@@ -874,21 +1075,33 @@ def layout():
                                                                                 0
                                                                             ],
                                                                             leftSection=DashIconify(
-                                                                                icon="fluent:database-plug-connected-20-filled"
+                                                                                icon="fluent:send-16-filled"
                                                                             ),
                                                                         ),
-                                                                        html.A(
-                                                                            dmc.Button(
-                                                                                "Clear and restart",
-                                                                                id="refresh",
-                                                                                color="red",
+                                                                        dmc.Button(
+                                                                            "Download configuration",
+                                                                            id="submit_yaml_file",
+                                                                            variant="outline",
+                                                                            color=DEFAULT_FINK_COLORS[
+                                                                                0
+                                                                            ],
+                                                                            leftSection=DashIconify(
+                                                                                icon="fluent:arrow-download-16-filled"
                                                                             ),
-                                                                            href="/download",
                                                                         ),
+                                                                        dcc.Download(
+                                                                            id="download_yaml"
+                                                                        ),
+                                                                        # dmc.Button("Upload", id="upload_yaml_file"),
+                                                                        # html.A(
+                                                                        #     dmc.Button(
+                                                                        #         "Clear and restart",
+                                                                        #         id="refresh",
+                                                                        #         color="red",
+                                                                        #     ),
+                                                                        #     href="/download",
+                                                                        # ),
                                                                     ]
-                                                                ),
-                                                                html.Div(
-                                                                    id="notification-container"
                                                                 ),
                                                                 dmc.Group(children=[]),
                                                                 dcc.Interval(
@@ -952,7 +1165,7 @@ def layout():
 
 
 @callback(
-    Output("stepper-basic-usage", "active"),
+    Output("stepper-basic-usage", "active", allow_duplicate=True),
     Input("back-basic-usage", "n_clicks"),
     Input("next-basic-usage", "n_clicks"),
     State("stepper-basic-usage", "active"),
