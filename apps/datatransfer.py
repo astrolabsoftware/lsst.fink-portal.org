@@ -1083,7 +1083,7 @@ alerts before hitting submission! Note that the estimation takes into account th
 of alerts between the selected dates, but not the effect of the filters and blocks applied (which could reduce the
 number of alerts).
 
-#### 2. DOwnload your configuration file
+#### 2. Download your configuration file
 
 Hit the `Download configuration` button to export your configuration as a YAML file. This way you can upload later
 to re-submit the same job.
