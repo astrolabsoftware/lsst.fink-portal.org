@@ -614,21 +614,132 @@ def upload_yaml(content, filename):
 
     data = yaml.safe_load(io.StringIO(decoded.decode("utf-8")))
 
-    # FIXME: validate the data fields, and send notifications if need be
+    is_valid, outNotifications = validate_yaml(data)
+
+    if not is_valid:
+        return (
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            no_update,
+            outNotifications,
+            no_update,
+        )
+    else:
+        outNotifications = [
+            dict(
+                title="Previous configuration loaded from {}".format(filename),
+                color="green",
+            )
+        ]
+
+    extra_cond = sanitize_extra_cond(data["extra_cond"])
+
     return (
         [data["dates"]["startdate"], data["dates"]["stopdate"]],
         data["filters"],
         data["blocks"],
         data["content"],
-        ";\n".join(data["extra_cond"]) + ";",
-        [
-            dict(
-                title="Previous configuration loaded from {}".format(filename),
-                color="green",
-            )
-        ],
+        "\n".join(extra_cond),
+        outNotifications,
         max_step - 1,
     )
+
+
+def sanitize_extra_cond(extra_cond):
+    """Sanitize the extra_cond component
+
+    Parameters
+    ----------
+    extra_cond: list of str
+        List of conditions as string
+
+    Returns
+    -------
+    out: list of str
+        Each element of the list has been stripped, and
+        a ; has been added if need be.
+    """
+    if extra_cond is None:
+        return []
+
+    if isinstance(extra_cond, list):
+        if len(extra_cond) > 0:
+            out = []
+            for elem in extra_cond:
+                # get rid of blank
+                elem = elem.strip()
+
+                # add an extra ; at the end if need be
+                if not elem.endswith(";"):
+                    elem = elem + ";"
+
+                out.append(elem)
+            return out
+
+
+def validate_yaml(dic):
+    """Check input dictionary has correct fields
+
+    Parameters
+    ----------
+    dic: dict
+        Dictionary for the YAML construction
+
+    Returns
+    -------
+    is_valid: bool
+        True if the dictionary is valid. False otherwise.
+    outNotifications: dict
+        Notifications to send to the user in case of unvalid dictionary.
+    """
+    outNotifications = None
+    default_fields = {
+        "dates": dict,
+        "filters": list,
+        "blocks": list,
+        "content": list,
+        "extra_cond": list,
+    }
+
+    # Check all mandatory fields are here
+    for key in default_fields:
+        if key not in dic.keys():
+            outNotifications = [
+                dict(
+                    title="Missing field {} in the configuration file".format(key),
+                    color="red",
+                )
+            ]
+            return False, outNotifications
+
+    # Check we have start AND stop dates
+    if len(dic["dates"]) != 2:
+        outNotifications = [
+            dict(
+                title="Missing start/stop dates in the configuration file: {}".format(
+                    dic["dates"]
+                ),
+                color="red",
+            )
+        ]
+        return False, outNotifications
+
+    # Check their type. None is fine (means value not set)
+    for key, value in dic.items():
+        if not isinstance(value, default_fields[key]) and (value is not None):
+            outNotifications = [
+                dict(
+                    title="{} should be a {} or unset. Did you forget a hyphen (-) in your YAML?".format(
+                        key, default_fields[key]
+                    ),
+                    color="red",
+                )
+            ]
+            return False, outNotifications
+
+    return True, outNotifications
 
 
 @app.callback(
@@ -872,7 +983,7 @@ def submit_job(
         if isinstance(tag_select, list) and len(tag_select) > 0:
             [job_args.append(f"-ffilter={tag}") for tag in tag_select]
         if isinstance(blocks_select, list) and len(blocks_select) > 0:
-            [job_args.append(f"-ffilter={block}") for block in blocks_select]
+            [job_args.append(f"-fblock={block}") for block in blocks_select]
 
         if extra_cond is not None:
             extra_cond_list = extra_cond.split(";")
