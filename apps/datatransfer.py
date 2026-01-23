@@ -1,4 +1,4 @@
-# Copyright 2025 AstroLab Software
+# Copyright 2019-2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,6 @@ import dash_mantine_components as dmc
 import textwrap
 
 import numpy as np
-import pandas as pd
 import requests
 import yaml
 import base64
@@ -25,8 +24,6 @@ import io
 from dash import Input, Output, State, html, dcc, ctx, callback, no_update, MATCH, ALL
 from dash_iconify import DashIconify
 from dash_autocomplete_input import AutocompleteInput
-
-from fink_utils.xmatch.simbad import get_simbad_labels
 
 from app import app
 from apps.mining.utils import (
@@ -52,17 +49,12 @@ import datetime
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
 
-simbad_types = get_simbad_labels("old_and_new")
-simbad_types = sorted(simbad_types, key=lambda s: s.lower())
-
-tns_types = pd.read_csv("assets/tns_types.csv", header=None)[0].to_numpy()
-tns_types = sorted(tns_types, key=lambda s: s.lower())
-
 min_step = 0
 max_step = 5
 
 
-def date_config():
+def config_tab():
+    """Tab for the configuration"""
     tab = html.Div(
         [
             dmc.Space(h=50),
@@ -91,12 +83,13 @@ def date_config():
                 },
             ),
         ],
-        id="date_config",
+        id="config_tab",
     )
     return tab
 
 
 def date_tab():
+    """Tab to choose the date"""
     options = html.Div([
         dmc.DatePickerInput(
             type="range",
@@ -107,7 +100,7 @@ def date_tab():
             numberOfColumns=2,
             dropdownType="modal",
             modalProps={"centered": True},
-            minDate="2025-09-06",
+            minDate="2025-12-10",
             maxDate=datetime.datetime.now().date(),
             allowSingleDateInRange=True,
             required=True,
@@ -153,7 +146,7 @@ def check_field(fields):
 
 
 def switch_button(nclicks, label):
-    """TBD"""
+    """Change the layout of buttons depending on the number of clicks"""
     # button_clicked = ctx.triggered_id
     if nclicks is None:
         return no_update
@@ -186,7 +179,7 @@ def switch_button(nclicks, label):
     State({"type": "button_filter_transfer", "index": MATCH}, "children"),
 )
 def switch_filter_button(nclicks, label):
-    """TBD"""
+    """Change the layout of buttons depending on the number of clicks"""
     return switch_button(nclicks, label)
 
 
@@ -202,7 +195,7 @@ def switch_filter_button(nclicks, label):
     State({"type": "button_blocks_transfer", "index": MATCH}, "children"),
 )
 def switch_block_button(nclicks, label):
-    """TBD"""
+    """Change the layout of buttons depending on the number of clicks"""
     return switch_button(nclicks, label)
 
 
@@ -423,13 +416,20 @@ def filter_number_tab():
 diaSource.psfFlux > 13500;
 diaObject.nDiaSources > 3;
 
--- Example block 2: Using a combination of fields (at least 1 mag difference)
-(diaSource.psfFlux - diaSource.templateFlux) > 20000;
+-- Example block 2: Filter on magnitude and specific band
+diaSource.band = 'g';
+31.4 - 2.5 * LOG10(diaSource.scienceFlux) < 21;
+
+-- Example block 3: Using a combination of fields (magnitude difference between science and template)
+2.5 * LOG10(diaSource.psfFlux / diaSource.templateFlux) > 0.5;
 
 -- Example block 3: Filtering on ML scores
 clf.snnSnVsOthers_score > 0.5;
 
--- Example block 4: Only classified objects
+-- Example block 4: Filtering on catalog output
+xm.tns_type IN ('SN Ia', 'SN II');
+
+-- Example block 5: Only classified objects in SIMBAD and Gaia DR3
 pred.is_cataloged;
 ```"""),
                             ),
@@ -1202,7 +1202,7 @@ def layout():
                                     dmc.StepperStep(
                                         label="Configuration",
                                         description="Upload",
-                                        children=date_config(),
+                                        children=config_tab(),
                                         id="stepper-date",
                                     ),
                                     dmc.StepperStep(
