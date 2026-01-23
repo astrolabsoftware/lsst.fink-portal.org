@@ -416,12 +416,14 @@ def main(args):
 
     df = add_classification(spark, df, args.path_to_tns)
 
+    # direct Spark SQL filtering
     if args.extraCond is not None:
         for cond in args.extraCond:
             if cond == "":
                 continue
             df = df.filter(cond)
 
+    # UDF (filters)
     if args.ffilter is not None:
         for userfilter in args.ffilter:
             if userfilter == "":
@@ -446,6 +448,8 @@ def main(args):
                 df = df.filter(~fink_filter.for_spark(*colnames))
             else:
                 df = df.filter(fink_filter.for_spark(*colnames))
+
+    # UDF (blocks)
 
     # Define content
     if args.ffield is None:
@@ -558,6 +562,7 @@ if __name__ == "__main__":
     parser.add_argument("-startDate")
     parser.add_argument("-stopDate")
     parser.add_argument("-ffilter", action="append")
+    parser.add_argument("-fblock", action="append")
     parser.add_argument("-extraCond", action="append")
     parser.add_argument("-ffield", action="append")
     parser.add_argument("-basePath")
