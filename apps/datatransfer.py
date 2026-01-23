@@ -353,7 +353,7 @@ def filter_number_tab():
                     dmc.Text("diaSource., ", fw=700, inherit=True, span=True),
                     dmc.Text("diaObject., ", fw=700, inherit=True, span=True),
                     dmc.Text("mpc_orbits., ", fw=700, inherit=True, span=True),
-                    "and a list will available fields will trigger. Note that you can also use the name of existing blocks, and extra function such as `flux2mag`. You can share your block by submitting the JSON file at ",
+                    "and a list will available fields will trigger. Note that you can also use the name of existing blocks, and extra function such as `flux2mag`. You can share your block by submitting your YAML configuration file at ",
                     html.A(
                         "fink-filters",
                         href="https://github.com/astrolabsoftware/fink-filters",
@@ -1110,16 +1110,15 @@ def layout():
 
     helper = """
     The Fink data transfer service allows you to select and transfer Fink-processed alert data at scale.
-    We provide access to alert data from ZTF (over 200 million alerts as of 2025), from the DESC/ELASTiCC data
-    challenge (over 50 million alerts), and soon from the Rubin Observatory.
+    We provide access to alert data produced by the Rubin Observatory, and enriched by Fink.
 
-    Follow these steps: (1) select observing nights, (2) apply filters to focus on relevant alerts and reduce the
-    volume of data, and (3) select only the relevant alert fields for your analysis. Note that we provide estimates on
+    Follow these steps: (1) upload a previous configuration file if any (2) select observing nights, (3) apply filters and blocks to focus on relevant alerts and reduce the
+    volume of data, and (4) select only the relevant alert fields for your analysis. Note that we provide estimates (upper limits) on
     the number of alerts to transfer and the data volume.
 
     Once ready, submit your job on the Fink Apache Spark and Kafka clusters to retrieve your data wherever you like.
     To access the data, you need to create an account. See the [fink-client](https://github.com/astrolabsoftware/fink-client) and
-    the [documentation](https://fink-broker.readthedocs.io/en/latest/services/data_transfer) for more information. The data is available
+    the [documentation](https://doc.lsst.fink-broker.org/en/latest/services/data_transfer) for more information. The data is available
     for download for 7 days.
     """
 
