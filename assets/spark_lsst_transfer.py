@@ -387,6 +387,66 @@ def sanitize_fields(cnames):
     return cnames
 
 
+def apply_filter_or_block(df, names, is_filter=False, is_block=False, logger=None):
+    """Wrapper to apply a function by its name on the flatten dataframe
+
+    Parameters
+    ----------
+    df: Spark DataFrame
+        Flatten Spark DataFrame
+    names: list of str
+        List of filter or blocks names (function names)
+    is_filter: bool
+        If True, assumes `names` are filters
+    is_blocks: bool
+        If True, assumes `names` are blocks
+
+    Returns
+    -------
+    out: Spark DataFrame
+        Filtered Spark DataFrame
+    """
+    if (not is_filter) and (not is_block):
+        if logger is not None:
+            logger.warning("You need to set one of is_filter or is_block")
+
+    if is_filter and is_block:
+        if logger is not None:
+            logger.warning("You need to set at most one of is_filter or is_block")
+
+    for userfilter in names:
+        if userfilter == "":
+            continue
+        if logger is not None:
+            logger.info("Applying user-defined filter {}...".format(userfilter))
+        if userfilter.startswith("NOT"):
+            reverse = True
+            tag = userfilter.split("NOT")[-1].strip()
+        else:
+            reverse = False
+            tag = userfilter.strip()
+        base_module = "fink_filters.rubin"
+
+        if is_filter:
+            function_name = "{}.livestream.filter_{}.filter.{}".format(
+                base_module, tag, tag
+            )
+        elif is_block:
+            function_name = "{}.blocks.{}".format(base_module, tag)
+        filter_func, colnames = expand_function_from_string(df, function_name)
+        fink_filter = FinkUDF(
+            filter_func,
+            BooleanType(),
+            tag,
+        )
+        if reverse:
+            df = df.filter(~fink_filter.for_spark(*colnames))
+        else:
+            df = df.filter(fink_filter.for_spark(*colnames))
+
+    return df
+
+
 def main(args):
     spark = SparkSession.builder.getOrCreate()
 
@@ -425,31 +485,11 @@ def main(args):
 
     # UDF (filters)
     if args.ffilter is not None:
-        for userfilter in args.ffilter:
-            if userfilter == "":
-                continue
-            log.info("Applying user-defined filter {}...".format(userfilter))
-            if userfilter.startswith("NOT"):
-                reverse = True
-                tag = userfilter.split("NOT")[-1].strip()
-            else:
-                reverse = False
-                tag = userfilter.strip()
-            base_module = "fink_filters.rubin.livestream.filter_{}.filter.{}".format(
-                tag, tag
-            )
-            filter_func, colnames = expand_function_from_string(df, base_module)
-            fink_filter = FinkUDF(
-                filter_func,
-                BooleanType(),
-                tag,
-            )
-            if reverse:
-                df = df.filter(~fink_filter.for_spark(*colnames))
-            else:
-                df = df.filter(fink_filter.for_spark(*colnames))
+        df = apply_filter_or_block(df, args.ffilter, is_filter=True, logger=log)
 
     # UDF (blocks)
+    if args.fblock is not None:
+        df = apply_filter_or_block(df, args.fblock, is_block=True, logger=log)
 
     # Define content
     if args.ffield is None:
