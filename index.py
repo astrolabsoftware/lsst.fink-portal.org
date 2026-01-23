@@ -242,7 +242,11 @@ component = dmc.Box([
 # embedding the navigation bar
 app.layout = dmc.MantineProvider(
     [
-        dmc.NotificationContainer(id="notification-container"),
+        dmc.NotificationContainer(
+            id="notification-container",
+            position="top-right",
+            notificationMaxHeight="500px",
+        ),
         dcc.Location(id="url", refresh=False),
         dmc.AppShell(
             children=[
