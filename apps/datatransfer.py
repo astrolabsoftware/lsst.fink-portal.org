@@ -1079,16 +1079,21 @@ instructions = """
 
 You are about to submit a job on the Fink Apache Spark & Kafka clusters.
 Review your parameters, and take into account the estimated number of
-alerts before hitting submission! Note that the estimation takes into account
-the days requested and the classes, but not the extra conditions (which could reduce the
+alerts before hitting submission! Note that the estimation takes into account the number
+of alerts between the selected dates, but not the effect of the filters and blocks applied (which could reduce the
 number of alerts).
 
-#### 2. Register
+#### 2. DOwnload your configuration file
+
+Hit the `Download configuration` button to export your configuration as a YAML file. This way you can upload later
+to re-submit the same job.
+
+#### 3. Register
 
 To retrieve the data, you need to get an account. See [fink-client](https://github.com/astrolabsoftware/fink-client) and
 the [documentation](https://fink-broker.readthedocs.io/en/latest/services/data_transfer) for more information.
 
-#### 3. Retrieve
+#### 4. Retrieve
 
 Once data has started to flow in the topic, you can easily download your alerts using the [fink-client](https://github.com/astrolabsoftware/fink-client).
 Install the latest version and use e.g.
