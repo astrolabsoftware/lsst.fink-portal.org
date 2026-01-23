@@ -1085,8 +1085,7 @@ number of alerts).
 
 #### 2. Download your configuration file
 
-Hit the `Download configuration` button to export your configuration as a YAML file. This way you can upload later
-to re-submit the same job.
+Hit the `Download configuration` button to export your configuration as a YAML file. This way you will be able to upload it later to re-submit the same job.
 
 #### 3. Register
 
