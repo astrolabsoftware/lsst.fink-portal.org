@@ -957,7 +957,8 @@ def draw_lightcurve_preview(
             mean_values = pdf[idx].groupby("id")[flux_name].mean().reset_index()
             if len(mean_values) > 1:
                 arr = (
-                    mean_values.sort_values("id", ascending=False)
+                    mean_values
+                    .sort_values("id", ascending=False)
                     .head(2)[flux_name]
                     .to_numpy()
                 )
@@ -1115,7 +1116,7 @@ def draw_lightcurve(
         },
     )
     pdf = pd.read_json(io.StringIO(object_data))
-    if "r:mpcDesignation" in pdf.columns:
+    if "r:packed_primary_provisional_designation" in pdf.columns:
         is_sso = True
     else:
         is_sso = False
@@ -1752,7 +1753,7 @@ def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
     if "RA" not in pdf.columns:
         return dbc.Alert(
             "No ephemerides available for {}".format(
-                pdf["r:mpcDesignation"].to_numpy()[0]
+                pdf["r:packed_primary_provisional_designation"].to_numpy()[0]
             ),
             color="danger",
         )
@@ -1885,7 +1886,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
     if "r:psfMag_red" not in pdf.columns:
         return dbc.Alert(
             "No ephemerides available for {}".format(
-                pdf["f:mpcDesignation"].to_numpy()[0]
+                pdf["f:packed_primary_provisional_designation"].to_numpy()[0]
             ),
             color="danger",
         )
@@ -1983,7 +1984,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
         bounds=bounds,
         model=switch_func,
         normalise_to_V=False,
-        ssnamenr=pdf["r:mpcDesignation"].to_numpy()[0],
+        ssnamenr=pdf["r:packed_primary_provisional_designation"].to_numpy()[0],
     )
     if outdic["fit"] != 0:
         return dbc.Alert("The fitting procedure could not converge.", color="danger")

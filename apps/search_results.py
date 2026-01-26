@@ -233,15 +233,19 @@ def display_skymap(data, columns, is_open):
         label = "MPC designation"
         # get data for all sso sources and overwrite
         endpoint = "/api/v1/sso"
-        columns = "r:ra,r:dec,r:midpointMjdTai,r:diaSourceId,r:mpcDesignation"
-        # FIXME: row["r:mpcDesignation"] is not enough if multiple SSOs in pdf
+        columns = "r:ra,r:dec,r:midpointMjdTai,r:diaSourceId,r:packed_primary_provisional_designation"
+        # FIXME: row["r:packed_primary_provisional_designation"] is not enough if multiple SSOs in pdf
         pdf = request_api(
-            endpoint, json={"n_or_d": row["r:mpcDesignation"], "columns": columns}
+            endpoint,
+            json={
+                "n_or_d": row["r:packed_primary_provisional_designation"],
+                "columns": columns,
+            },
         )
 
         titles = [
             link.format(config_args["SITEURL"], i, i)
-            for i in pdf["r:mpcDesignation"].to_numpy()
+            for i in pdf["r:packed_primary_provisional_designation"].to_numpy()
         ]
         classes = ["SSO"] * len(pdf)
         n_alert_per_class = {"SSO": len(pdf)}
@@ -529,7 +533,8 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
     # prevent_initial_call=True
     prevent_initial_call="initial_duplicate",
     # FIXME: Hum, why this one is needed?
-    _allow_dynamic_callbacks=True,
+    # _allow_dynamic_callbacks=True,
+    running=[(Output("search_bar_submit", "loading"), True, False)],
 )
 def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_table):
     """Parse the search string and query the database"""
@@ -581,8 +586,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
     if not query or not query["action"]:
         return None, no_update, no_update, no_update
 
-    if query["action"] != "class" and "trend" in query["params"]:
-        msg = "trend is experimental and can only be used with class search. Add the keyword `class=` to your search."
+    if query["action"] != "tag" and "trend" in query["params"]:
+        msg = "trend is experimental and can only be used with tag search. Add the keyword `tag=` to your search."
         return (
             dbc.Alert(msg, color="warning", className="shadow-sm"),
             no_update,
@@ -591,7 +596,9 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         )
 
     if "last" in query["params"] and query["action"] == "unknown":
-        msg = "last must be used with class search. Add the keyword `class=` to your search."
+        msg = (
+            "last must be used with tag search. Add the keyword `tag=` to your search."
+        )
         return (
             dbc.Alert(msg, color="warning", className="shadow-sm"),
             no_update,
@@ -698,15 +705,15 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
             # "v:lapse": "Time variation (day)",
         }
 
-    elif query["action"] == "class":
+    elif query["action"] == "tag":
         # Class-based search
-        alert_class = query["params"].get("class")
+        alert_tag = query["params"].get("tag")
 
         n_last = int(query["params"].get("last", 100))
 
-        msg = "Last {} objects with class '{}'".format(n_last, alert_class)
+        msg = "Last {} objects with tag '{}'".format(n_last, alert_tag)
 
-        payload = {"class": alert_class, "n": n_last}
+        payload = {"tag": alert_tag, "n": n_last}
 
         if "after" in query["params"]:
             startdate = isoify_time(query["params"]["after"])
@@ -722,11 +729,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
             payload["stopdate"] = stopdate
 
-        if "trend" in query["params"]:
-            msg += " and {} trend".format(query["params"]["trend"])
-            payload["trend"] = query["params"]["trend"]
-
-        endpoint = "/api/v1/latests"
+        endpoint = "/api/v1/tags"
         pdf = request_api(endpoint, json=payload)
         main_id = "r:diaObjectId"
 

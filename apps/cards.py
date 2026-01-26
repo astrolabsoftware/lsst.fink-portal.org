@@ -66,6 +66,7 @@ def card_search_result(row, i):
     main_id, is_sso = is_row_static_or_moving(row)
     diasourceid = row["r:diaSourceId"]
 
+    # FIXME: should be a call to the tag resolver, with all tags printed here.
     cdsxmatch = row.get("f:xm_simbad_otype")
     if cdsxmatch not in BAD_VALUES:
         badges.append(
@@ -164,7 +165,9 @@ def card_search_result(row, i):
         )
     else:
         # FIXME: replace with MPCORB values when they will be up
-        sso_data = rocks.Rock(row["r:mpcDesignation"], skip_id_check=False)
+        sso_data = rocks.Rock(
+            row["r:packed_primary_provisional_designation"], skip_id_check=False
+        )
         semi_major = sso_data.a.value
         eccentricity = sso_data.e.value
         inclination = sso_data.i.value
@@ -1165,9 +1168,9 @@ def card_id_left(object_data):
         dtype={"r:diaObjectId": np.int64, "r:diaSourceId": np.int64},
     )
 
-    if "r:mpcDesignation" in pdf.columns:
+    if "r:packed_primary_provisional_designation" in pdf.columns:
         is_sso = True
-        main_id = "r:mpcDesignation"
+        main_id = "r:packed_primary_provisional_designation"
     else:
         is_sso = False
         main_id = "r:diaObjectId"

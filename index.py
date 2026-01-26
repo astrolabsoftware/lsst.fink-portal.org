@@ -36,8 +36,10 @@ from apps.configuration import extract_configuration
 from apps.searchbar import fink_search_bar
 import apps.search_results  # noqa: F401
 from apps.plotting import generate_rgb_color_sequence
+from apps.sso.utils import is_packed_designation
 
 from apps import summary
+from apps import datatransfer
 
 # from apps import summary, about, statistics, query_cluster, gw, xmatch
 
@@ -240,6 +242,11 @@ component = dmc.Box([
 # embedding the navigation bar
 app.layout = dmc.MantineProvider(
     [
+        dmc.NotificationContainer(
+            id="notification-container",
+            position="top-right",
+            notificationMaxHeight="500px",
+        ),
         dcc.Location(id="url", refresh=False),
         dmc.AppShell(
             children=[
@@ -501,12 +508,14 @@ def display_page(pathname):
         if pathname[1:].isdigit():
             # diaObject
             is_sso = False
-        elif pathname[1:].startswith("K"):
+        elif is_packed_designation(pathname[1:]):
             # ssObject
             is_sso = True
         elif pathname == "/gw":
             # GW
             return gw.layout(), "home"
+        elif pathname == "/download":
+            return datatransfer.layout(), "home"
         elif pathname == "/stats":
             # statistics
             return statistics.layout(), "home"

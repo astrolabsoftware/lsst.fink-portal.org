@@ -39,6 +39,7 @@ from apps.observability.utils import additional_observatories
 from apps.utils import loading
 from apps.plotting import CONFIG_PLOT
 from apps.sso.cards import card_sso_right
+from apps.sso.utils import is_packed_designation
 from apps.utils import flux_to_mag
 from apps.plotting import DEFAULT_FINK_COLORS
 
@@ -247,7 +248,7 @@ def tab_ssobject(pdf):
         mpcdesignation = "null"
         sso_name = "null"
     else:
-        mpcdesignation = pdf["r:mpcDesignation"].to_numpy()[0]
+        mpcdesignation = pdf["r:packed_primary_provisional_designation"].to_numpy()[0]
         sso_name = pdf["f:sso_name"].to_numpy()[0]
 
     msg = """
@@ -467,7 +468,7 @@ def store_query(name):
                 "r:diaSourceId": np.int64,
             },
         )
-    elif oid.startswith("K"):
+    elif is_packed_designation(oid):
         # ssObjectId
         pdf = request_api(
             "/api/v1/sso",
@@ -534,7 +535,7 @@ def store_ephemerides(object_data):
     https://dash.plotly.com/sharing-data-between-callbacks
     """
     pdf = pd.read_json(io.StringIO(object_data))
-    if "r:mpcDesignation" in pdf.columns:
+    if "r:packed_primary_provisional_designation" in pdf.columns:
         # get ephemerides
         ssnamenrs = np.unique(pdf["f:sso_name"].to_numpy())
         infos = []
@@ -611,7 +612,7 @@ def store_ztf_data(n_clicks, object_data):
 
     # FIXME: refactor to have is_sso function everywhere instead of
     # check columns each time
-    if "r:mpcDesignation" in pdf.columns:
+    if "r:packed_primary_provisional_designation" in pdf.columns:
         # FIXME: take all names!
         sso_name = pdf["f:sso_name"].to_numpy()[0]
 
@@ -625,23 +626,54 @@ def store_ztf_data(n_clicks, object_data):
                 "output-format": "json",
             },
         )
+
+        if r.status_code != 200:
+            return no_update, "No ZTF alerts for SSO {} (error {})".format(
+                sso_name, r.status_code
+            )
     else:
         ra = pdf["r:ra"].mean()
         dec = pdf["r:dec"].mean()
 
-        # get data for 2021RZ105
         r = requests.post(
             "https://api.fink-portal.org/api/v1/conesearch",
             json={
                 "ra": ra,
                 "dec": dec,
                 "radius": 1.5,
+                "columns": "i:objectId",
                 "output-format": "json",
             },
         )
 
-    if r.status_code != 200:
-        return no_update, "No ZTF alerts (error {})".format(r.status_code)
+        if r.status_code != 200:
+            return no_update, "No ZTF alerts (error {})".format(r.status_code)
+        elif isinstance(r.json(), list):
+            if len(r.json()) == 0:
+                # just propagate r
+                pass
+            elif len(r.json()) == 1:
+                # overwrite r
+                r = requests.post(
+                    "https://api.fink-portal.org/api/v1/objects",
+                    json={
+                        "objectId": r.json()[0]["i:objectId"],
+                        "output-format": "json",
+                    },
+                )
+
+                if r.status_code != 200:
+                    return no_update, "No ZTF alerts (error {})".format(r.status_code)
+            else:
+                # catch and show error
+                # FIXME: better message
+                # FIXME: maybe an alert instead of the button message?
+                return (
+                    no_update,
+                    "{} objects found within 1.5''. Please report to contact@fink-broker.org".format(
+                        len(r.json())
+                    ),
+                )
 
     # Format output in a DataFrame
     pdf_ztf = pd.read_json(io.BytesIO(r.content))

@@ -53,9 +53,10 @@ docutils==0.21.2
 executing==2.1.0
 faust-cchardet==2.1.19
 fink-client==9.2
-fink-filters==7.0
+#fink-filters==7.13
+git+https://github.com/astrolabsoftware/fink-filters@7.15-rc2
 fink-spins==0.3.8
-fink-utils==0.48.0
+fink-utils==0.52.0
 finufft==2.3.1
 Flask==3.0.3
 Flask-Compress==1.17
@@ -140,7 +141,7 @@ regex==2024.11.6
 requests==2.32.3
 retrying==1.3.4
 rich==13.9.4
-ruff==0.8.4
+ruff==0.14.13
 sbpy==0.5.0
 scikit-learn==1.6.0
 scipy==1.14.1
@@ -183,4 +184,4 @@ xyzservices==2024.9.0
 yarl==1.18.3
 zipp==3.21.0
 zstandard==0.23.0
-git+https://github.com/astrolabsoftware/fink-science@8.25.0
+git+https://github.com/astrolabsoftware/fink-science@8.30.0

@@ -1,4 +1,4 @@
-# Copyright 2019-2025 AstroLab Software
+# Copyright 2019-2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Definition of labels from TNS, SIMBAD and Fink"""
+"""Definition of labels from user-defined filters, SIMBAD, and TNS"""
 
 from fink_utils.xmatch.simbad import get_simbad_labels
+from apps.api import request_api
 
 import pandas as pd
 
@@ -27,21 +28,11 @@ simbad_types = get_simbad_labels("old_and_new")
 simbad_types = sorted(simbad_types, key=lambda s: s.lower())
 
 # Fink
-fink_classes = [
-    # "Anomaly",
-    "Unknown",
-    # Fink derived classes
-    # "Early SN Ia candidate",
-    # "SN candidate",
-    # "Kilonova candidate",
-    # "Microlensing candidate",
-    # "Solar System MPC",
-    # "Solar System candidate",
-    # "Tracklet",
-    # "Ambiguous",
-    # "(CTA) Blazar",
-    # TNS classified data
-    *["(TNS) " + t for t in tns_types],
-    # Simbad crossmatch
-    *["(SIMBAD) " + t for t in simbad_types],
-]
+fink_tags = request_api("/api/v1/tags", output="json", method="GET")
+fink_blocks = request_api("/api/v1/blocks", output="json", method="GET")
+
+# [
+#     "Unknown",
+#     *["(TNS) " + t for t in tns_types],
+#     *["(SIMBAD) " + t for t in simbad_types],
+# ]
