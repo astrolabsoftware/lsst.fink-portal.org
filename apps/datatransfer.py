@@ -241,19 +241,19 @@ def filter_number_tab():
     schema_sources = request_api(
         endpoint="/api/v1/schema", json={"endpoint": "/api/v1/sources"}, output="json"
     )
-    field_sources = list(schema_sources["Rubin original fields (r:)"].keys())
+    field_sources = list(schema_sources["LSST original fields (r:)"].keys())
 
     schema_objects_static = request_api(
         endpoint="/api/v1/schema", json={"endpoint": "/api/v1/objects"}, output="json"
     )
     field_objects_static = list(
-        schema_objects_static["Rubin original fields (r:)"].keys()
+        schema_objects_static["LSST original fields (r:)"].keys()
     )
 
     schema_objects_sso = request_api(
         endpoint="/api/v1/schema", json={"endpoint": "/api/v1/sso"}, output="json"
     )
-    field_objects_sso = list(schema_objects_sso["Rubin original fields (r:)"].keys())
+    field_objects_sso = list(schema_objects_sso["LSST original fields (r:)"].keys())
 
     options = html.Div(
         [
