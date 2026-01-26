@@ -457,7 +457,8 @@ def layout():
             ),
             html.Div(id="schema_versions"),
         ],
-        justify="space-between",
+        className="indicator_schema",
+        style={"padding": "20px"},
     )
 
     return dmc.Container(

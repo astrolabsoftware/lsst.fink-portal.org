@@ -1317,7 +1317,11 @@ def layout():
                                     dmc.Button(
                                         "Back", id="back-basic-usage", variant="default"
                                     ),
-                                    dmc.Button("Next step", id="next-basic-usage"),
+                                    dmc.Button(
+                                        "Next step",
+                                        id="next-basic-usage",
+                                        color=DEFAULT_FINK_COLORS[0],
+                                    ),
                                 ],
                             ),
                             dcc.Store(data=n_alert_total, id="alert-stats"),
