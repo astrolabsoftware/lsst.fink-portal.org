@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from dash import html, Output, Input
+from dash import html, Output, Input, no_update
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
@@ -293,6 +293,45 @@ def get_versions(night):
     )
 
 
+@app.callback(
+    Output("api", "children"),
+    Input("url", "pathname"),
+    background=True,
+    prevent_initial_call=False,
+)
+def get_api_background(url):
+    if url != "/schemas":
+        return no_update
+    api = dmc.Accordion(
+        id="api_schema",
+        disableChevronRotation=False,
+        chevronPosition="left",
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "/api/v1/{}".format(i),
+                    ),
+                    dmc.AccordionPanel(
+                        create_api_schema_table(endpoint="/api/v1/{}".format(i))
+                    ),
+                ],
+                value="/api/v1/{}".format(i),
+            )
+            for i in [
+                "sources",
+                "objects",
+                "sso",
+                "conesearch",
+                "tags",
+                "cutouts",
+                "statistics",
+            ]
+        ],
+    )
+    return api
+
+
 def layout():
     filters_and_blocks = dmc.Accordion(
         id="filters_and_blocks_schema",
@@ -365,34 +404,6 @@ def layout():
         ],
     )
 
-    api = dmc.Accordion(
-        id="api_schema",
-        disableChevronRotation=False,
-        chevronPosition="left",
-        children=[
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
-                        "/api/v1/{}".format(i),
-                    ),
-                    dmc.AccordionPanel(
-                        create_api_schema_table(endpoint="/api/v1/{}".format(i))
-                    ),
-                ],
-                value="/api/v1/{}".format(i),
-            )
-            for i in [
-                "sources",
-                "objects",
-                "sso",
-                "conesearch",
-                "tags",
-                "cutouts",
-                "statistics",
-            ]
-        ],
-    )
-
     observing_nights = sorted(get_all_observing_nights())[::-1]
 
     layout = dmc.Accordion(
@@ -408,7 +419,12 @@ def layout():
                             width=20,
                         ),
                     ),
-                    dmc.AccordionPanel(api),
+                    dmc.AccordionPanel(
+                        html.Div(
+                            dmc.Skeleton(height="20pc", mb="xl"),
+                            id="api",
+                        ),
+                    ),
                 ],
                 value="api",
             ),
