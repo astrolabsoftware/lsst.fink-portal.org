@@ -40,6 +40,7 @@ from apps.sso.utils import is_packed_designation
 
 from apps import summary
 from apps import datatransfer
+from apps import schema
 
 # from apps import summary, about, statistics, query_cluster, gw, xmatch
 
@@ -113,6 +114,7 @@ navbar = html.Div(
                         ),
                         make_navlink("MMA", "ion:infinite-outline", "/gw"),
                         make_navlink("Statistics", "ion:stats-chart-outline", "/stats"),
+                        make_navlink("Schema", "ion:book-outline", "/schemas"),
                     ],
                 ),
             ],
@@ -147,11 +149,12 @@ navbar = html.Div(
         Output("navbar_button_/xmatch", "color"),
         Output("navbar_button_/gw", "color"),
         Output("navbar_button_/stats", "color"),
+        Output("navbar_button_/schemas", "color"),
     ],
     Input("url", "pathname"),
 )
 def change_color(pathname):
-    buttons = ["/", "/download", "/xmatch", "/gw", "/stats"]
+    buttons = ["/", "/download", "/xmatch", "/gw", "/stats", "/schemas"]
     colors = ["#F5622E" if i == pathname else "gray" for i in buttons]
 
     if np.all([i == "gray" for i in colors]):
@@ -519,6 +522,9 @@ def display_page(pathname):
         elif pathname == "/stats":
             # statistics
             return statistics.layout(), "home"
+        elif pathname == "/schemas":
+            # schema page
+            return schema.layout(), "home"
         return summary.layout(pathname, is_sso=is_sso), "home"
     else:
         # Home page

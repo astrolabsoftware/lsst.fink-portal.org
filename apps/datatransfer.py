@@ -33,14 +33,12 @@ from apps.mining.utils import (
     upload_file_hdfs,
 )
 from apps.configuration import extract_configuration
-from apps.utils import format_field_for_data_transfer
-from apps.utils import create_datatransfer_schema_table
+from apps.schema import predefined_fields_for_data_transfer
+from apps.schema import create_datatransfer_schema_table
 from apps.utils import query_and_order_statistics
 from apps.api import request_api
 from apps.dataclasses import fink_tags, fink_blocks
 
-
-# from apps.utils import create_datatransfer_livestream_table
 from apps.plotting import DEFAULT_FINK_COLORS
 
 import datetime
@@ -452,6 +450,7 @@ pred.is_cataloged;
 
 
 def filter_content_tab():
+    custom_fields, _ = predefined_fields_for_data_transfer()
     options = html.Div(
         [
             dmc.MultiSelect(
@@ -459,7 +458,7 @@ def filter_content_tab():
                 description="Select all fields you like! Default is all fields.",
                 placeholder="start typing...",
                 id="field_select",
-                data=format_field_for_data_transfer(),
+                data=custom_fields,
                 searchable=True,
                 clearable=True,
             ),

@@ -33,17 +33,12 @@ from plotly.subplots import make_subplots
 
 dcc.Location(id="url", refresh=False)
 
-dic_names = {
-    "f:night": "Observation date in the form YYYYMMDD",
-    "f:alerts": "Number of alerts processed",
-    "f:alerts_<band>": "Number of alerts processed per band <band>",
-    "f:objects": "Number of objects",
-    "f:is_sso": "Number of alerts associated to a Solar System objects",
-    "f:is_first": "Number of alerts with first detection",
-    "f:is_cataloged": "Number of alerts with a counterpart in SIMBAD or Gaia DR3.",
-    "f:visits": "Number of visits",
-    "f:simbad_<class>": "Number of alerts with a counterpart <class> in SIMBAD.",
-}
+schema_stats = request_api(
+    "/api/v1/schema",
+    json={"endpoint": "/api/v1/statistics"},
+    method="POST",
+    output="json",
+)
 
 stat_doc = """
 This page shows various statistics concerning Fink processed data.
@@ -103,10 +98,7 @@ pdf = pd.read_json(io.BytesIO(r.content))
 ```
 
 Note `date` can be either a given night (YYYYMMDD), month (YYYYMM), year (YYYY), or eveything (empty string).
-The schema of the dataframe is the following:
-
-{}.
-""".format(pd.DataFrame([dic_names]).T.rename(columns={0: "description"}).to_markdown())
+"""
 
 
 def make_date_dash(indate):
@@ -206,6 +198,7 @@ def create_stat_generic(pdf):
     # n_alert_tot = np.sum(pdf["f:alerts"].to_numpy())
     n_alert_sso = np.sum(pdf["f:is_sso"].to_numpy())
     n_alert_cat = np.sum(pdf["f:is_cataloged"].to_numpy())
+    n_alert_tns = np.sum(pdf["f:in_tns"].to_numpy())
     # n_alert_classified = n_alert_sso + n_alert_cat
     # n_alert_unclassified = n_alert_tot - n_alert_classified
 
@@ -220,7 +213,7 @@ def create_stat_generic(pdf):
     ]
 
     c5 = [
-        html.H3(html.B(f"{n_alert_cat:,}")),
+        html.H3(html.B(f"{n_alert_tns:,}")),
         html.P("In TNS"),
     ]
 
@@ -280,10 +273,9 @@ def plot_stat_evolution(data, param_name, switch_cumulative, switch_percentage):
         Time(make_date_dash(x)).datetime for x in pdf.index.astype(str).to_numpy()
     ]
 
-    if param_name in dic_names:
-        newcol = dic_names[param_name]
-    else:
-        newcol = param_name.replace("class", "SIMBAD")
+    long_description = schema_stats["Fink science module outputs (f:)"][
+        param_name.split(":")[-1]
+    ]["doc"]
 
     if switch_cumulative:
         pdf[param_name] = pdf[param_name].astype(int).cumsum()
@@ -294,13 +286,13 @@ def plot_stat_evolution(data, param_name, switch_cumulative, switch_percentage):
             pdf[param_name].astype(int) / pdf["f:alerts"].astype(int) * 100
         )
 
-    pdf = pdf.rename(columns={param_name: newcol})
+    pdf = pdf.rename(columns={param_name: long_description})
 
     fig = px.bar(
         pdf,
-        y=newcol,
+        y=long_description,
         x="date",
-        text=newcol,
+        text=long_description,
     )
     fig.update_traces(
         textposition="outside",
@@ -342,7 +334,7 @@ def plot_stat_evolution(data, param_name, switch_cumulative, switch_percentage):
     )
     fig.update_layout(layout)
 
-    CONFIG_PLOT["toImageButtonOptions"]["filename"] = newcol.replace(" ", "_")
+    CONFIG_PLOT["toImageButtonOptions"]["filename"] = long_description.replace(" ", "_")
     graph = dcc.Graph(
         figure=fig,
         style={
@@ -373,34 +365,35 @@ def generate_year_list():
 
 def generate_col_list():
     """Generate the list of available columns"""
-    pdf = request_api(
-        "/api/v1/statistics",
-        json={
-            "output-format": "json",
-            "date": "",
-            "schema": True,
-        },
-    )
-    schema_list = list(pdf["schema"])
+    to_avoid = [
+        "night",
+        "fink_broker_version",
+        "fink_science_version",
+        "lsst_schema_version",
+    ]
+    labels = [
+        kv[1]["doc"]
+        for kv in schema_stats["Fink science module outputs (f:)"].items()
+        if kv[0] not in to_avoid
+    ]
+    values = [
+        "f:" + kv[0]
+        for kv in schema_stats["Fink science module outputs (f:)"].items()
+        if kv[0] not in to_avoid
+    ]
 
-    labels = [i if i not in dic_names else dic_names[i] for i in schema_list]
-
-    # Sort them for better readability
     idx = np.argsort(labels)
     labels = np.array(labels)[idx]
-    schema_list = np.array(schema_list)[idx]
+    values = np.array(values)[idx]
 
     dropdown = dmc.Select(
         data=[
-            *[
-                {"label": label, "value": value}
-                for label, value in zip(labels, schema_list)
-            ],
+            *[{"label": label, "value": value} for label, value in zip(labels, values)],
         ],
         id="dropdown_params",
         searchable=True,
         clearable=False,
-        # value="f:alerts",
+        value="f:alerts",
         w=300,
         placeholder="Choose a columns",
     )
