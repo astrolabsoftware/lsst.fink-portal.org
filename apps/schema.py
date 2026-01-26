@@ -114,7 +114,6 @@ def create_datatransfer_schema_table(provenance="LSST", caption=""):
 
 def create_api_schema_table(endpoint="/api/v1/objects", caption=""):
     """ """
-    print(endpoint)
     schema = request_api(
         "/api/v1/schema", json={"endpoint": endpoint}, method="POST", output="json"
     )
