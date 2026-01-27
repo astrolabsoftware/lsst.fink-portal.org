@@ -959,8 +959,8 @@ def draw_lightcurve_preview(
 
         # initialise icon
         icon_indicator = DashIconify(
-            icon="material-symbols:close-rounded",
-            color=dmc.DEFAULT_THEME["colors"]["dark"][6],
+            icon="ion:close-sharp",
+            color="grey",
             width=20,
         )
         if len(pdf[idx]) > 1:
@@ -978,13 +978,13 @@ def draw_lightcurve_preview(
                     # going up
                     icon_indicator = DashIconify(
                         icon="tabler:arrow-up-right",
-                        color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        color=DEFAULT_FINK_COLORS[-1],
                         width=20,
                     )
                 elif diff <= 0:
                     icon_indicator = DashIconify(
                         icon="tabler:arrow-down-right",
-                        color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                        color=DEFAULT_FINK_COLORS[0],
                         width=20,
                     )
 
@@ -1024,8 +1024,8 @@ def draw_lightcurve_preview(
                         placement="top",
                     ),
                     DashIconify(
-                        icon="tabler:square-rounded-filled",
-                        color=dmc.DEFAULT_THEME["colors"]["red"][6],
+                        icon="ion:close-sharp",
+                        color=DEFAULT_FINK_COLORS[-1],
                         width=20,
                         id="{}_{}".format(main_id, col),
                     ),
@@ -1042,8 +1042,8 @@ def draw_lightcurve_preview(
                         placement="top",
                     ),
                     DashIconify(
-                        icon="tabler:square-rounded-filled",
-                        color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                        icon="ion:checkmark-sharp",
+                        color=DEFAULT_FINK_COLORS[0],
                         width=20,
                         id="{}_{}".format(main_id, col),
                     ),
