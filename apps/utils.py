@@ -288,7 +288,21 @@ def create_button_for_external_conesearch(
     width: int, optional
         dbc.Col width parameter. Default is 4.
     """
-    if kind == "asas-sn-variable":
+    if kind == "fink-ztf":
+        if radius is None:
+            radius = 0.5
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/Fink_SecondaryLogo_WEB.png)",
+                    "background-color": "white",
+                },
+                title="FINK-ZTF",
+                href=f"https://ztf.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r={radius}",
+            ),
+            width=width,
+        )
+    elif kind == "asas-sn-variable":
         if radius is None:
             radius = 0.5
         button = dbc.Col(

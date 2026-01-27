@@ -1579,21 +1579,18 @@ def create_external_conesearches(ra0, dec0):
     dec0: float
         DEC for the conesearch center
     """
-    width = 3
+    width = 4
     buttons = [
         dbc.Row(
             [
+                create_button_for_external_conesearch(
+                    kind="fink-ztf", ra0=ra0, dec0=dec0, radius=1.5, width=width
+                ),
                 create_button_for_external_conesearch(
                     kind="tns", ra0=ra0, dec0=dec0, radius=5, width=width
                 ),
                 create_button_for_external_conesearch(
                     kind="simbad", ra0=ra0, dec0=dec0, radius=0.08, width=width
-                ),
-                create_button_for_external_conesearch(
-                    kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
-                ),
-                create_button_for_external_conesearch(
-                    kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
                 ),
             ],
             justify="around",
@@ -1601,8 +1598,19 @@ def create_external_conesearches(ra0, dec0):
         dbc.Row(
             [
                 create_button_for_external_conesearch(
+                    kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
+                ),
+                create_button_for_external_conesearch(
                     kind="ned", ra0=ra0, dec0=dec0, radius=1.0, width=width
                 ),
+            ],
+            justify="around",
+        ),
+        dbc.Row(
+            [
                 create_button_for_external_conesearch(
                     kind="sdss", ra0=ra0, dec0=dec0, width=width
                 ),
@@ -1615,6 +1623,7 @@ def create_external_conesearches(ra0, dec0):
             ],
             justify="around",
         ),
+        dmc.Space(h=10),
     ]
     return buttons
 
