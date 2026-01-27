@@ -40,7 +40,7 @@ def predefined_fields_for_data_transfer():
 
 
 def create_datatransfer_schema_table(provenance="LSST", caption=""):
-    """ """
+    """Create table for datatransfer"""
     rows = []
 
     if provenance == "custom":
@@ -73,21 +73,29 @@ def create_datatransfer_schema_table(provenance="LSST", caption=""):
         # Need a function
         pass
     elif provenance == "lsst":
-        msg = dmc.Text([
-            "LSST fields can be browsed at ",
-            html.A(
-                "https://sdm-schemas.lsst.io/apdb.html",
-                href="https://sdm-schemas.lsst.io/apdb.html",
-                target="_blank",
-            ),
-            r" or downloaded as Avro schema from ",
-            html.A(
-                "https://github.com/lsst/alert_packet/tree/main/python/lsst/alert/packet/schema/10/0",
-                href="https://github.com/lsst/alert_packet/tree/main/python/lsst/alert/packet/schema/10/0",
-                target="_blank",
-            ),
-        ])
-        return msg
+        buttons = dmc.Center(
+            dmc.Group([
+                dmc.Button(
+                    html.A(
+                        "LSST online schemas",
+                        href="https://sdm-schemas.lsst.io/apdb.html",
+                        target="_blank",
+                    ),
+                    variant="outline",
+                    color=DEFAULT_FINK_COLORS[0],
+                ),
+                dmc.Button(
+                    html.A(
+                        "LSST AVRO schemas",
+                        href="https://github.com/lsst/alert_packet/tree/main/python/lsst/alert/packet/schema",
+                        target="_blank",
+                    ),
+                    variant="outline",
+                    color=DEFAULT_FINK_COLORS[0],
+                ),
+            ])
+        )
+        return buttons
 
     head = dmc.TableThead(
         dmc.TableTr([
