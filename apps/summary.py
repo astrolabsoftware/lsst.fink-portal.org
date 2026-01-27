@@ -659,9 +659,10 @@ def store_ztf_data(n_clicks, object_data):
             elif len(r.json()) == 1:
                 # overwrite r
                 r = requests.post(
-                    "https://api.fink-portal.org/api/v1/objects",
+                    "https://api.ztf.fink-portal.org/api/v1/objects",
                     json={
                         "objectId": r.json()[0]["i:objectId"],
+                        "withupperlim": True,
                         "output-format": "json",
                     },
                 )

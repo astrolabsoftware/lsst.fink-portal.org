@@ -925,7 +925,7 @@ def draw_lightcurve_preview(
                 marker={
                     "size": 8,
                     "color": color,
-                    "symbol": DEFAULT_FINK_MARKERS[fname],
+                    "symbol": DEFAULT_FINK_MARKERS[bands[fid - 1]],
                 },
                 xaxis="x",
                 yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
