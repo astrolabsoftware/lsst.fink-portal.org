@@ -22,6 +22,12 @@ from apps.dataclasses import fink_tags, fink_blocks
 from apps.api import request_api
 from apps.plotting import DEFAULT_FINK_COLORS
 
+CONV_NAMES = {
+    "LSST original fields (r:)": "LSST",
+    "LSST original cutouts (b:)": "LSST",
+    "Fink science module outputs (f:)": "Fink",
+}
+
 
 def predefined_fields_for_data_transfer():
     """Get schema from API, and make it suitable for Data Transfer"""
@@ -32,15 +38,34 @@ def predefined_fields_for_data_transfer():
     # high level
     packet = {
         "group": "Pre-defined schema",
-        "items": [{"value": v, "label": v} for v in fields],
+        "items": fields,
     }
     data.append(packet)
 
     return data, fields
 
 
-def create_datatransfer_schema_table(provenance="LSST", caption=""):
-    """Create table for datatransfer"""
+def fields_for_data_transfer():
+    """Return only field names"""
+    schema_lsst = request_api(
+        endpoint="/api/v1/schema",
+        json={"endpoint": "/datatransfer/lsst"},
+        output="json",
+    )
+    all_lsst_fields = list(schema_lsst["LSST"].keys())
+
+    schema_fink = request_api(
+        endpoint="/api/v1/schema",
+        json={"endpoint": "/datatransfer/fink"},
+        output="json",
+    )
+    all_fink_fields = list(schema_fink["Fink"].keys())
+
+    return all_lsst_fields, all_fink_fields
+
+
+def create_datatransfer_schema_table(provenance="lsst", caption=""):
+    """Create a table for datatransfer"""
     rows = []
 
     if provenance == "custom":
@@ -50,7 +75,7 @@ def create_datatransfer_schema_table(provenance="LSST", caption=""):
                 dmc.TableTd(custom_fields[0]),
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
-                dmc.TableTd("All LSST and Fink content"),
+                dmc.TableTd("All LSST original content, and Fink added values"),
             ])
         )
         rows.append(
@@ -58,7 +83,9 @@ def create_datatransfer_schema_table(provenance="LSST", caption=""):
                 dmc.TableTd(custom_fields[1]),
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
-                dmc.TableTd("All LSST and Fink content without cutouts"),
+                dmc.TableTd(
+                    "All LSST original content without the cutouts, and Fink added values"
+                ),
             ])
         )
         rows.append(
@@ -66,46 +93,39 @@ def create_datatransfer_schema_table(provenance="LSST", caption=""):
                 dmc.TableTd(custom_fields[2]),
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
-                dmc.TableTd("Selection of LSST & Fink fields for lightcurve analysis"),
-            ])
-        )
-    elif provenance == "fink":
-        # Need a function
-        pass
-    elif provenance == "lsst":
-        buttons = dmc.Center(
-            dmc.Group([
-                dmc.Button(
-                    html.A(
-                        "LSST online schemas",
-                        href="https://sdm-schemas.lsst.io/apdb.html",
-                        target="_blank",
-                    ),
-                    variant="outline",
-                    color=DEFAULT_FINK_COLORS[0],
-                ),
-                dmc.Button(
-                    html.A(
-                        "LSST AVRO schemas",
-                        href="https://github.com/lsst/alert_packet/tree/main/python/lsst/alert/packet/schema",
-                        target="_blank",
-                    ),
-                    variant="outline",
-                    color=DEFAULT_FINK_COLORS[0],
+                dmc.TableTd(
+                    "Selection of LSST & Fink fields for lightcurve analysis (a dozen of fields)"
                 ),
             ])
         )
-        return buttons
 
-    head = dmc.TableThead(
-        dmc.TableTr([
-            dmc.TableTh("Name", w="25%"),
-            dmc.TableTh("From", w="15%"),
-            dmc.TableTh("Type", w="15%"),
-            dmc.TableTh("Documentation"),
-        ])
-    )
-    body = dmc.TableTbody(rows)
+        head = dmc.TableThead(
+            dmc.TableTr([
+                dmc.TableTh("Name", w="25%"),
+                dmc.TableTh("From", w="15%"),
+                dmc.TableTh("Type", w="15%"),
+                dmc.TableTh("Documentation"),
+            ])
+        )
+        body = dmc.TableTbody(rows)
+    elif provenance == "fink":
+        schema = request_api(
+            "/api/v1/schema",
+            json={"endpoint": "/datatransfer/fink"},
+            method="POST",
+            output="json",
+        )
+
+        head, body = make_table_body_from_schema(schema)
+    elif provenance == "lsst":
+        schema = request_api(
+            "/api/v1/schema",
+            json={"endpoint": "/datatransfer/lsst"},
+            method="POST",
+            output="json",
+        )
+
+        head, body = make_table_body_from_schema(schema)
 
     table_candidate = dmc.TableScrollContainer(
         dmc.Table(
@@ -114,39 +134,31 @@ def create_datatransfer_schema_table(provenance="LSST", caption=""):
             highlightOnHover=True,
         ),
         maxHeight=300,
-        minWidth=0,
+        minWidth=1000,
         type="scrollarea",
     )
     return table_candidate
 
 
-def create_api_schema_table(endpoint="/api/v1/objects", caption=""):
+def format_type(t):
+    if isinstance(t, list):
+        if isinstance(t[-1], dict):
+            # e.g. 'type': ['null', {'logicalType': 'timestamp-micros', 'type': 'long'}]}
+            return t[-1]["type"]
+        return t[-1]
+    else:
+        return t
+
+
+def make_table_body_from_schema(schema):
     """ """
-    schema = request_api(
-        "/api/v1/schema", json={"endpoint": endpoint}, method="POST", output="json"
-    )
-
     provenances = sorted(list(schema.keys()))
-
-    conv_names = {
-        "LSST original fields (r:)": "LSST",
-        "LSST original cutouts (b:)": "LSST",
-        "Fink science module outputs (f:)": "Fink",
-    }
-
-    def format_type(t):
-        if isinstance(t, list):
-            return t[-1]
-        else:
-            return t
-
     rows = []
-
     for prov in provenances:
         # Table candidates
 
         labels = [k for k in schema[prov].keys()]
-        if conv_names[prov] == "Fink":
+        if CONV_NAMES.get(prov, prov) == "Fink":
             fink_broker_version = [
                 v["fink_broker_version"] for k, v in schema[prov].items()
             ]
@@ -169,7 +181,7 @@ def create_api_schema_table(endpoint="/api/v1/objects", caption=""):
             rows.append(
                 dmc.TableTr([
                     dmc.TableTd(label),
-                    dmc.TableTd(conv_names[prov]),
+                    dmc.TableTd(CONV_NAMES.get(prov, prov)),
                     dmc.TableTd(type_),
                     dmc.TableTd(doc),
                 ])
@@ -186,6 +198,16 @@ def create_api_schema_table(endpoint="/api/v1/objects", caption=""):
         ])
     )
     body = dmc.TableTbody(rows)
+    return head, body
+
+
+def create_schema_table(endpoint="/api/v1/objects", caption=""):
+    """ """
+    schema = request_api(
+        "/api/v1/schema", json={"endpoint": endpoint}, method="POST", output="json"
+    )
+
+    head, body = make_table_body_from_schema(schema)
 
     table_candidate = dmc.TableScrollContainer(
         dmc.Table(
@@ -209,6 +231,8 @@ def create_user_filterblocks_description(kind="filters"):
     elif kind == "blocks":
         items = fink_blocks
     for tag, description in items.items():
+        if kind == "filters":
+            tag = "fink_" + tag + "_lsst"
         rows.append(
             dmc.TableTr([
                 dmc.TableTd(tag),
@@ -231,7 +255,7 @@ def create_user_filterblocks_description(kind="filters"):
             highlightOnHover=True,
         ),
         maxHeight=300,
-        minWidth=0,
+        minWidth=1000,
         type="scrollarea",
     )
     return table_candidate
@@ -321,7 +345,7 @@ def get_api_background(url):
                         "/api/v1/{}".format(i),
                     ),
                     dmc.AccordionPanel(
-                        create_api_schema_table(endpoint="/api/v1/{}".format(i))
+                        create_schema_table(endpoint="/api/v1/{}".format(i))
                     ),
                 ],
                 value="/api/v1/{}".format(i),
@@ -379,10 +403,45 @@ def layout():
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
+                        "Pre-defined packet contents",
+                    ),
+                    dmc.AccordionPanel(
+                        create_datatransfer_schema_table(provenance="custom")
+                    ),
+                ],
+                value="custom",
+            ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
                         "LSST fields",
                     ),
                     dmc.AccordionPanel(
-                        create_datatransfer_schema_table(provenance="lsst")
+                        dmc.Group([
+                            dmc.Center(
+                                dmc.Group([
+                                    dmc.Button(
+                                        html.A(
+                                            "LSST online schemas",
+                                            href="https://sdm-schemas.lsst.io/apdb.html",
+                                            target="_blank",
+                                        ),
+                                        variant="outline",
+                                        color=DEFAULT_FINK_COLORS[0],
+                                    ),
+                                    dmc.Button(
+                                        html.A(
+                                            "LSST AVRO schemas",
+                                            href="https://github.com/lsst/alert_packet/tree/main/python/lsst/alert/packet/schema",
+                                            target="_blank",
+                                        ),
+                                        variant="outline",
+                                        color=DEFAULT_FINK_COLORS[0],
+                                    ),
+                                ])
+                            ),
+                            create_datatransfer_schema_table(provenance="lsst"),
+                        ])
                     ),
                 ],
                 value="fink",
@@ -397,17 +456,6 @@ def layout():
                     ),
                 ],
                 value="lsst",
-            ),
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
-                        "Pre-defined packet contents",
-                    ),
-                    dmc.AccordionPanel(
-                        create_datatransfer_schema_table(provenance="custom")
-                    ),
-                ],
-                value="custom",
             ),
         ],
     )

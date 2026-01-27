@@ -33,10 +33,8 @@ from apps.mining.utils import (
     upload_file_hdfs,
 )
 from apps.configuration import extract_configuration
-from apps.schema import predefined_fields_for_data_transfer
-from apps.schema import create_datatransfer_schema_table
+from apps.schema import predefined_fields_for_data_transfer, fields_for_data_transfer
 from apps.utils import query_and_order_statistics
-from apps.api import request_api
 from apps.dataclasses import fink_tags, fink_blocks
 
 from apps.plotting import DEFAULT_FINK_COLORS
@@ -238,23 +236,7 @@ def filter_number_tab():
     -------
     out: Div
     """
-    schema_sources = request_api(
-        endpoint="/api/v1/schema", json={"endpoint": "/api/v1/sources"}, output="json"
-    )
-    field_sources = list(schema_sources["LSST original fields (r:)"].keys())
-
-    schema_objects_static = request_api(
-        endpoint="/api/v1/schema", json={"endpoint": "/api/v1/objects"}, output="json"
-    )
-    field_objects_static = list(
-        schema_objects_static["LSST original fields (r:)"].keys()
-    )
-
-    schema_objects_sso = request_api(
-        endpoint="/api/v1/schema", json={"endpoint": "/api/v1/sso"}, output="json"
-    )
-    field_objects_sso = list(schema_objects_sso["LSST original fields (r:)"].keys())
-
+    all_lsst_fields, all_fink_fields = fields_for_data_transfer()
     options = html.Div(
         [
             dmc.Space(h=10),
@@ -316,26 +298,6 @@ def filter_number_tab():
                 )
                 for index, fink_block in enumerate(list(fink_blocks.keys()))
             ],
-            # dmc.Space(h=10),
-            # dmc.Accordion(
-            #     id="extra_cond_description",
-            #     children=[
-            #         dmc.AccordionItem(
-            #             [
-            #                 dmc.AccordionControl(
-            #                     "Filters description",
-            #                     icon=DashIconify(
-            #                         icon="tabler:help",
-            #                         color=dmc.DEFAULT_THEME["colors"]["blue"][6],
-            #                         width=20,
-            #                     ),
-            #                 ),
-            #                 dmc.AccordionPanel(create_userfilter_description()),
-            #             ],
-            #             value="info",
-            #         ),
-            #     ],
-            # ),
             dmc.Space(h=20),
             dmc.Text("Write your own block", size="sm"),
             dmc.Text(
@@ -344,12 +306,25 @@ def filter_number_tab():
                     dmc.Text("diaSource., ", fw=700, inherit=True, span=True),
                     dmc.Text("diaObject., ", fw=700, inherit=True, span=True),
                     dmc.Text("mpc_orbits., ", fw=700, inherit=True, span=True),
-                    "and a list will available fields will trigger. Note that you can also use the name of existing blocks, and extra function such as `flux2mag`. You can share your block by submitting your YAML configuration file at ",
+                    dmc.Text("ssSource., ", fw=700, inherit=True, span=True),
+                    "for LSST and ",
+                    dmc.Text("xm., ", fw=700, inherit=True, span=True),
+                    dmc.Text("clf., ", fw=700, inherit=True, span=True),
+                    dmc.Text("misc., ", fw=700, inherit=True, span=True),
+                    dmc.Text("pred., ", fw=700, inherit=True, span=True),
+                    "for Fink added values and a list with available fields will trigger. Note that you can also use the name of existing blocks, and extra function such as `flux2mag`. You can share your block by submitting your YAML configuration file at ",
                     html.A(
                         "fink-filters",
                         href="https://github.com/astrolabsoftware/fink-filters",
                         target="_blank",
                     ),
+                    r". See the ",
+                    html.A(
+                        "schema page",
+                        href="https://lsst.fink-portal.org/schemas",
+                        target="_blank",
+                    ),
+                    r" for description of available fields.",
                 ],
                 size="xs",
                 c="gray",
@@ -370,14 +345,46 @@ def filter_number_tab():
                     "pred.",
                 ],
                 options={
-                    "diaSource.": field_sources,
-                    "ssSource.": [],
-                    "mpc_orbits.": field_objects_sso,
-                    "diaObject.": field_objects_static,
-                    "xm.": [],
-                    "clf.": [],
-                    "misc.": [],
-                    "pred.": [],
+                    "diaSource.": [
+                        k.split("diaSource.")[-1]
+                        for k in all_lsst_fields
+                        if k.startswith("diaSource.")
+                    ],
+                    "ssSource.": [
+                        k.split("ssSource.")[-1]
+                        for k in all_lsst_fields
+                        if k.startswith("ssSource.")
+                    ],
+                    "mpc_orbits.": [
+                        k.split("mpc_orbits.")[-1]
+                        for k in all_lsst_fields
+                        if k.startswith("mpc_orbits.")
+                    ],
+                    "diaObject.": [
+                        k.split("diaObject.")[-1]
+                        for k in all_lsst_fields
+                        if k.startswith("diaObject.")
+                    ],
+                    "xm.": [
+                        k.split("xm.")[-1]
+                        for k in all_fink_fields
+                        if k.startswith("xm.")
+                    ],
+                    "clf.": [
+                        k.split("clf.")[-1]
+                        for k in all_fink_fields
+                        if k.startswith("clf.")
+                    ],
+                    "misc.": [
+                        k.split("misc.")[-1]
+                        for k in all_fink_fields
+                        if k.startswith("misc.")
+                    ],
+                    "pred.": [
+                        k.split("pred.")[-1]
+                        for k in all_fink_fields
+                        if k.startswith("pred.")
+                    ],
                 },
                 maxOptions=0,
                 className="inputbar form-control border-0",
@@ -451,35 +458,37 @@ pred.is_cataloged;
 
 def filter_content_tab():
     custom_fields, _ = predefined_fields_for_data_transfer()
+    all_lsst_fields, all_fink_fields = fields_for_data_transfer()
+    data = [
+        custom_fields[0],
+        {"group": "Fink added values", "items": all_fink_fields},
+        {"group": "LSST original fields", "items": all_lsst_fields},
+    ]
     options = html.Div(
         [
             dmc.MultiSelect(
                 label="Alert fields",
-                description="Select all fields you like! Default is all fields.",
+                description=dmc.Text(
+                    [
+                        dmc.Text(
+                            "Select all fields you like! Default is all fields. Schema page is at ",
+                            span=True,
+                            inherit=True,
+                        ),
+                        html.A(
+                            "https://lsst.fink-portal.org/schemas",
+                            href="https://lsst.fink-portal.org/schemas",
+                            target="_blank",
+                        ),
+                    ],
+                    size="xs",
+                    c="gray",
+                ),
                 placeholder="start typing...",
                 id="field_select",
-                data=custom_fields,
+                data=data,
                 searchable=True,
                 clearable=True,
-            ),
-            dmc.Accordion(
-                id="accordion-schema",
-                children=[
-                    dmc.AccordionItem(
-                        [
-                            dmc.AccordionControl(
-                                "Alert schema",
-                                icon=DashIconify(
-                                    icon="tabler:help",
-                                    color=dmc.DEFAULT_THEME["colors"]["blue"][6],
-                                    width=20,
-                                ),
-                            ),
-                            dmc.AccordionPanel(create_datatransfer_schema_table()),
-                        ],
-                        value="info",
-                    ),
-                ],
             ),
             dmc.Space(h=10),
         ],
