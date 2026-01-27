@@ -189,6 +189,19 @@ a:hover {
     inset 0 0 2px rgba(0, 0, 0, 0.2);
 }
 
+.indicator_schema {
+  display: flex;
+  justify-content: space-between;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  padding-right: 10px;
+  padding-left: 10px;
+  box-shadow:
+    0 0 2px rgba(0, 0, 0, 0.3),
+    inset 0 0 2px rgba(0, 0, 0, 0.2);
+}
+
 /* used for both CheckboxCard and RadioCard*/
 .checkboxcard-root {
     position: relative;

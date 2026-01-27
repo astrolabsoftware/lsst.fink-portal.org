@@ -43,6 +43,7 @@ from apps.utils import (
     markdownify_objectid,
     simbad_types,
 )
+from apps.plotting import DEFAULT_FINK_COLORS
 
 
 args = extract_configuration("config.yml")
@@ -262,10 +263,10 @@ def card_explanation():
     - $\texttt{Number of measurements}$: Number of available measurements, at the time of the match.
     - $\texttt{Delay}$: Time delay in days between the GW trigger time $t_0$ and the first alert emission time ($\texttt{firstDiaSourceMjdTai}^*$).
 
-    Note that only alerts that started varying within the time boundaries 
+    Note that only alerts that started varying within the time boundaries
     $$
     [t_0 - \text{1 day}, t_0 + \text{6 days}]
-    $$ 
+    $$
     are considered,
     where $t_0$ is the GW trigger time.Finally we provide a visualisation of the alerts on the sky using Aladin Lite, along with a Multi-Ordered Coverage ([MOC](https://arxiv.org/abs/2201.05191)) of the GW event.
 
@@ -570,7 +571,7 @@ def layout():
                 ),
                 loaderProps={"variant": "dots", "color": "orange"},
                 variant="outline",
-                color="indigo",
+                color=DEFAULT_FINK_COLORS[0],
             ),
         ],
         className="mb-4",
