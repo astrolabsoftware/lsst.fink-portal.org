@@ -97,6 +97,15 @@ BANDS = ["u", "g", "r", "i", "z", "y"]
 
 DEFAULT_FINK_COLORS = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#f5622e"]
 
+DEFAULT_FINK_MARKERS = {
+    "u": "circle",  # Matplotlib 'o' -> Plotly 'circle'
+    "g": "triangle-up",  # Matplotlib '^' -> Plotly 'triangle-up'
+    "r": "triangle-down",  # Matplotlib 'v' -> Plotly 'triangle-down'
+    "i": "square",  # Matplotlib 's' -> Plotly 'square'
+    "z": "star",  # Matplotlib '*' -> Plotly 'star'
+    "y": "pentagon",  # Matplotlib 'p' -> Plotly 'pentagon'
+}
+
 default_radio_options = ["Total flux", "Difference flux", "Magnitude"]
 all_radio_options = {v: default_radio_options for v in default_radio_options}
 
@@ -116,6 +125,8 @@ def generate_rgb_color_sequence(color_scale: str = "Fink", n_colors: int = 6):
         return DEFAULT_FINK_COLORS
     if color_scale == "Fink":
         colors = DEFAULT_FINK_COLORS
+    elif color_scale == "Rubin":
+        colors = ["#1600EA", "#31DE1F", "#B52626", "#370201", "#BA52FF", "#61A2B3"]
     else:
         # Generate the list of colors - discrete
         colors = getattr(plotly.colors.qualitative, color_scale)[:6]
@@ -843,7 +854,7 @@ def draw_lightcurve_preview(
             marker={
                 "size": 12,
                 "color": color,
-                "symbol": "circle",
+                "symbol": DEFAULT_FINK_MARKERS[fname],
             },
             xaxis="x",
             yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
@@ -914,7 +925,7 @@ def draw_lightcurve_preview(
                 marker={
                     "size": 8,
                     "color": color,
-                    "symbol": "square",
+                    "symbol": DEFAULT_FINK_MARKERS[fname],
                 },
                 xaxis="x",
                 yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
@@ -1186,7 +1197,11 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
                 pdf["r:midpointMjdTai"][pdf["r:midpointMjdTai"] == 1], format="mjd"
             ).iso,
             "hovertemplate": hovertemplate,
-            "marker": {"size": 6, "color": color, "symbol": "o"},
+            "marker": {
+                "size": 6,
+                "color": color,
+                "symbol": DEFAULT_FINK_MARKERS[fname],
+            },
         })
 
     layout = dict(
@@ -1344,7 +1359,7 @@ def integrate_aladin_lite(object_data):
     img = f"""
     var aladin = A.aladin('#aladin-lite-div',
               {{
-                survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
+                survey: 'https://alasky.cds.unistra.fr/DESI-legacy-surveys/DR10/CDS_P_DESI-Legacy-Surveys_DR10_color/',
                 fov: 0.025,
                 target: '{ra0} {dec0}',
                 reticleColor: '#e89070',
@@ -1828,7 +1843,7 @@ def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
             marker={
                 "size": 12,
                 "color": color,
-                "symbol": "circle",
+                "symbol": DEFAULT_FINK_MARKERS[fname],
             },
             xaxis="x",
             yaxis="y",
@@ -2090,7 +2105,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
             marker={
                 "size": 12,
                 "color": color,
-                "symbol": "circle",
+                "symbol": DEFAULT_FINK_MARKERS[fname],
             },
             xaxis="x",
             yaxis="y",
