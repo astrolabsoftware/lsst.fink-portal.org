@@ -639,46 +639,6 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0):
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
-                        "Add other datasets",
-                    ),
-                    dmc.AccordionPanel(
-                        dmc.Stack([
-                            dmc.Group(
-                                [
-                                    dmc.Button(
-                                        "Add Fink/ZTF alert photometry",
-                                        id={
-                                            "type": "lightcurve_request_ztf_fink",
-                                            "name": "main",
-                                        },
-                                        variant="outline",
-                                        color="gray",
-                                        radius="xl",
-                                        size="xs",
-                                    ),
-                                    dmc.Button(
-                                        "ZTF DR photometry",
-                                        id={
-                                            "type": "lightcurve_request_release",
-                                            "name": "main",
-                                        },
-                                        variant="outline",
-                                        color="gray",
-                                        radius="xl",
-                                        size="xs",
-                                    ),
-                                ],
-                                justify="center",
-                                align="center",
-                            ),
-                        ]),
-                    ),
-                ],
-                value="datasets",
-            ),
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
                         "Help",
                     ),
                     dmc.AccordionPanel(
@@ -725,6 +685,59 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0):
             ),
             html.Div(id="indicator_lc", className="indicator"),
             html.Div(id="flags_lc", className="indicator"),
+            html.Div([
+                dbc.Popover(
+                    "Add ZTF/Fink alerts at the same sky position, if any.",
+                    target="request-ztf-alert",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                dmc.Button(
+                    "Fink/ZTF alerts",
+                    leftSection=DashIconify(icon="ion:plus"),
+                    size="xs",
+                    radius="xl",
+                    variant="outline",
+                    # mb=10,
+                    id="request-ztf-alert",
+                    color=DEFAULT_FINK_COLORS[0],
+                    style={"margin": "0px"},
+                ),
+            ]),
+            html.Div([
+                dbc.Popover(
+                    "Run a conesearch of 10'' inside the Fink/LSST alert database to see nearby objects",
+                    target="conesearch_summary",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                dmc.Button(
+                    [
+                        html.A(
+                            dmc.Group(
+                                [
+                                    DashIconify(
+                                        icon="ion:arrow-up-right-box-outline", width=15
+                                    ),
+                                    " Conesearch",
+                                ],
+                                justify="flex-start",
+                            ),
+                            href=f"https://lsst.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r=10.0",
+                            target="_blank",
+                            style={"text-decoration": "none"},
+                        ),
+                    ],
+                    radius="xl",
+                    size="xs",
+                    variant="outline",
+                    id="conesearch_summary",
+                    color=DEFAULT_FINK_COLORS[1],
+                    style={"margin": "0px"},
+                ),
+            ]),
         ]),
         dmc.Space(h=15),
         loading(
@@ -738,29 +751,47 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0):
                 className="mb-2 rounded-5",
             ),
         ),
-        dmc.Group(
-            [
-                dmc.Button(
-                    "Add Fink/ZTF alerts",
-                    id="request-ztf-alert",
-                    variant="outline",
-                    color=DEFAULT_FINK_COLORS[0],
-                    style={"margin": "0px"},
-                ),
-                dmc.Button(
-                    html.A(
-                        "Conesearch",
-                        href=f"https://lsst.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r=10.0",
-                        target="_blank",
-                        style={"text-decoration": None},
-                    ),
-                    variant="outline",
-                    color=DEFAULT_FINK_COLORS[1],
-                    style={"margin": "0px", "text-decoration": "none;"},
-                ),
-            ],
-            justify="space-around",
-        ),
+        # dmc.Group(
+        #     [
+        #         html.Div(
+        #             [
+        #                 dbc.Popover(
+        #                     "Run a conesearch to add ZTF/Fink alerts.",
+        #                     target="request-ztf-alert",
+        #                     body=True,
+        #                     trigger="hover",
+        #                     placement="bottom",
+        #                 ),
+        #                 dmc.Button(
+        #                     "Fink/ZTF alerts",
+        #                     leftSection=DashIconify(icon="ion:plus"),
+        #                     radius="xl",
+        #                     variant="outline",
+        #                     mb=10,
+        #                     id="request-ztf-alert",
+        #                     color=DEFAULT_FINK_COLORS[0],
+        #                     style={"margin": "0px"},
+        #                 ),
+        #             ]
+        #         ),
+        #         dmc.Button(
+        #             [
+        #                 html.A(
+        #                     [DashIconify(icon="ion:arrow-up-right-box-outline"), " Conesearch"],
+        #                     href=f"https://lsst.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r=10.0",
+        #                     target="_blank",
+        #                     style={"text-decoration": "none"},
+        #                 ),
+        #             ],
+        #             radius="xl",
+        #             variant="outline",
+        #             mb=10,
+        #             color=DEFAULT_FINK_COLORS[1],
+        #             style={"margin": "0px"},
+        #         ),
+        #     ],
+        #     justify="space-around",
+        # ),
         accordions,
     ])
     return card
