@@ -618,7 +618,7 @@ def get_multi_labels(pdf, colname, default=None, to_avoid=None):
         return default
 
 
-def card_lightcurve_summary(diaObjectId):
+def card_lightcurve_summary(diaObjectId, ra0, dec0):
     """Add a card containing the lightcurve
 
     Returns
@@ -738,21 +738,30 @@ def card_lightcurve_summary(diaObjectId):
                 className="mb-2 rounded-5",
             ),
         ),
-        dmc.Center(
-            dmc.Button(
-                "Add Fink/ZTF alerts",
-                id="request-ztf-alert",
-                variant="outline",
-                color=DEFAULT_FINK_COLORS[0],
-            )
+        dmc.Group(
+            [
+                dmc.Button(
+                    "Add Fink/ZTF alerts",
+                    id="request-ztf-alert",
+                    variant="outline",
+                    color=DEFAULT_FINK_COLORS[0],
+                    style={"margin": "0px"},
+                ),
+                dmc.Button(
+                    html.A(
+                        "Conesearch",
+                        href=f"https://lsst.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r=10.0",
+                        target="_blank",
+                        style={"text-decoration": None},
+                    ),
+                    variant="outline",
+                    color=DEFAULT_FINK_COLORS[1],
+                    style={"margin": "0px", "text-decoration": "none;"},
+                ),
+            ],
+            justify="space-around",
         ),
         accordions,
-        # dmc.Grid(
-        #     children=[
-        #         dmc.GridCol(accordions, span=6),
-        #         dmc.GridCol(radar, span=6),
-        #     ]
-        # ),
     ])
     return card
 

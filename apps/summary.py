@@ -226,7 +226,11 @@ def tab_diaobject(pdf):
             [
                 dbc.Col(
                     children=[
-                        card_lightcurve_summary(pdf["r:diaObjectId"].to_numpy()[0])
+                        card_lightcurve_summary(
+                            pdf["r:diaObjectId"].to_numpy()[0],
+                            pdf["r:ra"].mean(),
+                            pdf["r:dec"].mean(),
+                        )
                     ],
                     md=8,
                 ),
