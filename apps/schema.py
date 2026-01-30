@@ -84,7 +84,7 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
                 dmc.TableTd(
-                    "All LSST original content without the cutouts, and Fink added values"
+                    "All LSST original content and Fink added values without the cutouts."
                 ),
             ])
         )
