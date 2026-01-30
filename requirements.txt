@@ -53,8 +53,7 @@ docutils==0.21.2
 executing==2.1.0
 faust-cchardet==2.1.19
 fink-client==9.2
-#fink-filters==7.13
-git+https://github.com/astrolabsoftware/fink-filters@7.17
+fink-filters==7.18
 fink-spins==0.3.8
 fink-utils==0.53.0
 finufft==2.3.1
