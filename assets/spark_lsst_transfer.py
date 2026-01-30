@@ -351,9 +351,6 @@ def sanitize_fields(cnames):
     #         "explode(array(prv_diaSource.)) as prv_diaSource."
     #     )
 
-    # if "diaSource. in cnames:
-    #     cnames[cnames.index("diaSource.)] = "struct(diaSource.*) as diaSource.
-
     # for lc_features in ["lc_features_g", "lc_features_r"]:
     #     if lc_features in cnames:
     #         cnames[cnames.index(lc_features)] = "struct({}.*) as {}".format(
@@ -414,11 +411,16 @@ def apply_filter_or_block(df, names, is_filter=False, is_block=False, logger=Non
         if logger is not None:
             logger.warning("You need to set at most one of is_filter or is_block")
 
+    if is_block:
+        name = "block"
+    else:
+        name = "filter"
+
     for userfilter in names:
         if userfilter == "":
             continue
         if logger is not None:
-            logger.info("Applying user-defined filter {}...".format(userfilter))
+            logger.info("Applying user-defined {} {}...".format(name, userfilter))
         if userfilter.startswith("NOT"):
             reverse = True
             tag = userfilter.split("NOT")[-1].strip()

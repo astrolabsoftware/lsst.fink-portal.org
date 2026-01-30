@@ -902,7 +902,9 @@ def update_code_block(topic_name):
         # FIXME: introduce partitioning?
         # This is done by time by default
         code_block = f"""
+# Requires fink-client>=10.0-rc0
 fink_datatransfer \\
+    -survey lsst \\
     -topic {topic_name} \\
     -outdir {topic_name} \\
     --verbose

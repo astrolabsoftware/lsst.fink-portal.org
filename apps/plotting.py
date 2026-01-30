@@ -99,8 +99,8 @@ DEFAULT_FINK_COLORS = ["#15284f", "#626d84", "#afb2b9", "#dbbeb2", "#e89070", "#
 
 DEFAULT_FINK_MARKERS = {
     "u": "circle",  # Matplotlib 'o' -> Plotly 'circle'
-    "g": "triangle-up",  # Matplotlib '^' -> Plotly 'triangle-up'
-    "r": "triangle-down",  # Matplotlib 'v' -> Plotly 'triangle-down'
+    "g": "triangle-left",
+    "r": "triangle-right",
     "i": "square",  # Matplotlib 's' -> Plotly 'square'
     "z": "star",  # Matplotlib '*' -> Plotly 'star'
     "y": "pentagon",  # Matplotlib 'p' -> Plotly 'pentagon'
