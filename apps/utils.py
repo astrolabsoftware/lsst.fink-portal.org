@@ -213,6 +213,7 @@ def cats_type_converter():
         Mapping int -> name
     """
     mapping_cats_general = {
+        -1: "Unknown",  # not enough points
         11: "SN-like",  # SN-like
         12: "Fast",  # Fast: KN, ulens, Novae, ...
         13: "Long",  # Long: SLSN, TDE, PISN, ...
