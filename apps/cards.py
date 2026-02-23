@@ -15,43 +15,40 @@
 """Various cards in the portal"""
 
 import io
-from dash import html, dcc, Output, Input, dash_table, no_update
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
-
-
 import numpy as np
 import pandas as pd
-
+import rocks
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-
-
-from apps.api import request_api
-from apps.utils import class_colors
-from apps.utils import convert_time
-from apps.utils import loading
-from apps.utils import cats_type_converter
-
-from apps.utils import get_first_value, is_row_static_or_moving
-from apps.utils import demarkdownify_objectid
-from apps.utils import create_button_for_external_conesearch
-from apps.plotting import make_modal_stamps
-from apps.helpers import help_popover, lc_help
+from dash import Input, Output, dash_table, dcc, html, no_update
 from dash_iconify import DashIconify
 
-# Callbacks
-from apps.plotting import draw_lightcurve  # noqa: F401
-from apps.plotting import draw_cutouts  # noqa: F401
-from apps.plotting import CONFIG_PLOT
-from apps.plotting import DEFAULT_FINK_COLORS
-
-from apps.configuration import extract_configuration
-
 from app import app
+from apps.api import request_api
+from apps.configuration import extract_configuration
+from apps.helpers import help_popover, lc_help
 
-import rocks
+# Callbacks
+from apps.plotting import (
+    CONFIG_PLOT,
+    DEFAULT_FINK_COLORS,
+    draw_cutouts,  # noqa: F401
+    draw_lightcurve,  # noqa: F401
+    make_modal_stamps,
+)
+from apps.utils import (
+    cats_type_converter,
+    class_colors,
+    convert_time,
+    create_button_for_external_conesearch,
+    demarkdownify_objectid,
+    get_first_value,
+    is_row_static_or_moving,
+    loading,
+)
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
@@ -235,13 +232,7 @@ def card_search_result(row, i):
                                                             className="subtitle3",
                                                         ),
                                                         dmc.Text(
-                                                            "a={}, e={}, incl={}{}, t0={}".format(
-                                                                semi_major,
-                                                                eccentricity,
-                                                                inclination,
-                                                                inclination_unit,
-                                                                ref_epoch,
-                                                            ),
+                                                            f"a={semi_major}, e={eccentricity}, incl={inclination}{inclination_unit}, t0={ref_epoch}",
                                                             className="subtitle2",
                                                         ),
                                                         dmc.Space(h=5),
@@ -1107,7 +1098,10 @@ curl -H "Content-Type: application/json" -X POST \\
     prevent_initial_call=True,
 )
 def alert_properties(object_data, clickData):
-    pdf_ = pd.read_json(io.StringIO(object_data), dtype={"r:diaObjectId": str, "r:diaSourceId": str},)
+    pdf_ = pd.read_json(
+        io.StringIO(object_data),
+        dtype={"r:diaObjectId": str, "r:diaSourceId": str},
+    )
 
     if clickData is not None:
         time0 = clickData["points"][0]["x"]

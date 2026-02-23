@@ -12,24 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import datetime
 import io
+
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
-from dash import Input, Output, dcc, html, no_update
-
 import numpy as np
 import pandas as pd
-import datetime
+import plotly.express as px
+import plotly.graph_objects as go
 from astropy.time import Time
+from dash import Input, Output, dcc, html, no_update
+from plotly.subplots import make_subplots
 
 from app import app
-from apps.utils import query_and_order_statistics
 from apps.api import request_api
 from apps.plotting import CONFIG_PLOT
-
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
+from apps.utils import query_and_order_statistics
 
 dcc.Location(id="url", refresh=False)
 

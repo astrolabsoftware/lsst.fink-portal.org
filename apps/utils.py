@@ -14,20 +14,16 @@
 # limitations under the License.
 """Collection of utilities for the portal"""
 
-from dash import html
-import dash_mantine_components as dmc
 import dash_bootstrap_components as dbc
-
+import dash_mantine_components as dmc
 import numpy as np
 import pandas as pd
-
 from astropy.time import Time
 from astroquery.mpc import MPC
-
-from apps.api import request_api
-
+from dash import html
 from fink_utils.xmatch.simbad import get_simbad_labels
 
+from apps.api import request_api
 
 # Colors for the Sky map & badges
 class_colors = {

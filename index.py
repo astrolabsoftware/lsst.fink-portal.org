@@ -12,35 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 import numpy as np
 from dash import (
-    html,
-    dcc,
     Input,
     Output,
+    dcc,
+    html,
 )
-
-import dash_bootstrap_components as dbc
-
-import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
-
-from app import server
-from app import app
-from apps import gw
-from apps import statistics
-from apps import __version__
-
-from apps.configuration import extract_configuration
-from apps.searchbar import fink_search_bar
 import apps.search_results  # noqa: F401
+from app import app, server
+from apps import __version__, datatransfer, gw, schema, statistics, summary
+from apps.configuration import extract_configuration
 from apps.plotting import generate_rgb_color_sequence
+from apps.searchbar import fink_search_bar
 from apps.sso.utils import is_packed_designation
-
-from apps import summary
-from apps import datatransfer
-from apps import schema
 
 # from apps import summary, about, statistics, query_cluster, gw, xmatch
 
@@ -67,7 +56,7 @@ def make_navlink(label, icon, href, target="_self"):
             size=30,
             variant="outline",
             color="gray",
-            id="navbar_button_{}".format(href),
+            id=f"navbar_button_{href}",
         ),
         variant="subtle",
         active="exact",
@@ -124,7 +113,7 @@ navbar = html.Div(
             justify="space-between",
             children=dmc.Stack(
                 make_navlink(
-                    "v{}".format(__version__),
+                    f"v{__version__}",
                     "tabler:tag",
                     "https://github.com/astrolabsoftware/lsst.fink-portal.org",
                     target="_blank",

@@ -14,10 +14,10 @@
 # limitations under the License.
 """Definition of labels from user-defined filters, SIMBAD, and TNS"""
 
-from fink_utils.xmatch.simbad import get_simbad_labels
-from apps.api import request_api
-
 import pandas as pd
+from fink_utils.xmatch.simbad import get_simbad_labels
+
+from apps.api import request_api
 
 # TNS
 tns_types = pd.read_csv("assets/tns_types.csv", header=None)[0].to_numpy()

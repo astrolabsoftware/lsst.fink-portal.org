@@ -14,10 +14,10 @@
 # limitations under the License.
 """Collections of functions and messages to help users"""
 
-from dash import html
 import dash_bootstrap_components as dbc
-from apps.configuration import extract_configuration
+from dash import html
 
+from apps.configuration import extract_configuration
 
 config_args = extract_configuration("config.yml")
 
@@ -74,32 +74,34 @@ The button `Sky Map` will open a popup with embedded Aladin sky map showing the 
 """.format(config_args["APIURL"])
 
 message_help = """
-You may search for different kinds of data depending on what you enter. Below you will find the description of syntax rules and some examples.
+You may search for different kinds of data depending on what you enter.
+Below you will find the description of syntax rules and some examples.
 
-The search is defined by the set of search terms (object names or coordinates) and options (e.g. search radius, number of returned entries, etc). The latters may be entered either manually or by using the `Quick fields` above the search bar. Supported formats for the options are both `name=value` and `name:value`, where `name` is case-insensitive, and `value` may use quotes to represent multi-word sentences. For some of the options, interactive drop-down menu will be shown with possible values.
+The search is defined by the set of search terms (object names, coordinates, tag names) and options
+(e.g. search radius, number of returned entries, etc). The latters may be entered either manually or by using
+the `Quick fields` above the search bar. Supported formats for the options are both `name=value` and `name:value`,
+where `name` is case-insensitive, and `value` may use quotes to represent multi-word sentences. For some of the options,
+interactive drop-down menu will be shown with possible values.
 
-The search bar has a button (on the left) to show you the list of your latest search queries so that you may re-use them, and a switch (on the right, right above the search field) to choose the format of results - either card-based (default, shows the previews of object latest cutout and light curve), or tabular (allows to see all the fields of objects).
+The search bar has a button (on the left) to show you the list of your latest search queries so that you may re-use them, and
+a switch (on the right, right above the search field) to choose the format of results - either card-based (default,
+shows the previews of object latest cutout and light curve), or tabular (allows to see all the fields of objects).
 
-##### Search for specific ZTF objects
+##### Search for specific LSST objects
 
-To search for specific object, just use its name, or just a part of it. In the latter case, all objects with the names starting with this pattern will be returned.
-
-Supported name patterns are as follows:
-- `ZTFyyccccccc` for ZTF objects, i.e. ZTF followed with 2 digits for the year, and 7 characters after that
-- `TRCK_YYYYMMDD_HHMMSS_NN` for tracklets detected at specific moment of time
+To search for specific object, just use its name.
 
 Examples:
-- `ZTF21abfmbix` - search for exact ZTF object
-- `ZTF21abfmb` - search for partially matched ZTF object name
-- `TRCK_20231213_133612_00` - search for all objects associated with specific tracklet
-- `TRCK_20231213` - search for all tracklet events from the night of Dec 13, 2023
+- `169830580431093809`
+- `169641483810373761`
+- `169645855518228577`
 
 ##### Search around known astronomical objects
 
 You can run a conesearch around a known astronomical name. Examples:
-- Extended objects: M31
-- Catalog names: TXS 0506+056
-- TNS names: AT 2019qiz, SN 2024aaj
+- Extended objects: XX
+- Catalog names: `ESO 250-8 r=60`, `WISE J041028.04-465835.9 r=60`
+- TNS names: SN 2022and
 
 By default, the conesearch radius is 10 arcseconds. You can change the radius by specifying `r=<number>` after the name, e.g. `Crab Nebula r=10m` (see the section Cone Search below).
 

@@ -12,14 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from dash import html, Output, Input, no_update
 import dash_mantine_components as dmc
+from dash import Input, Output, html, no_update
 from dash_iconify import DashIconify
 
 from app import app
-
-from apps.dataclasses import fink_tags, fink_blocks
 from apps.api import request_api
+from apps.dataclasses import fink_blocks, fink_tags
 from apps.plotting import DEFAULT_FINK_COLORS
 
 CONV_NAMES = {
@@ -342,13 +341,11 @@ def get_api_background(url):
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
-                        "/api/v1/{}".format(i),
+                        f"/api/v1/{i}",
                     ),
-                    dmc.AccordionPanel(
-                        create_schema_table(endpoint="/api/v1/{}".format(i))
-                    ),
+                    dmc.AccordionPanel(create_schema_table(endpoint=f"/api/v1/{i}")),
                 ],
-                value="/api/v1/{}".format(i),
+                value=f"/api/v1/{i}",
             )
             for i in [
                 "sources",

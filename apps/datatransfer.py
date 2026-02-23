@@ -12,35 +12,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dash_mantine_components as dmc
+import base64
+import datetime
+import io
 import textwrap
 
+import dash_mantine_components as dmc
 import numpy as np
 import requests
 import yaml
-import base64
-import io
-
-from dash import Input, Output, State, html, dcc, ctx, callback, no_update, MATCH, ALL
-from dash_iconify import DashIconify
+from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update
 from dash_autocomplete_input import AutocompleteInput
+from dash_iconify import DashIconify
 
 from app import app
+from apps.configuration import extract_configuration
+from apps.dataclasses import fink_blocks, fink_tags
 from apps.mining.utils import (
     estimate_alert_number_lsst,
     estimate_size_gb_lsst,
     submit_spark_job,
     upload_file_hdfs,
 )
-from apps.configuration import extract_configuration
-from apps.schema import predefined_fields_for_data_transfer, fields_for_data_transfer
-from apps.utils import query_and_order_statistics
-from apps.dataclasses import fink_tags, fink_blocks
-
 from apps.plotting import DEFAULT_FINK_COLORS
-
-import datetime
-
+from apps.schema import fields_for_data_transfer, predefined_fields_for_data_transfer
+from apps.utils import query_and_order_statistics
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
@@ -531,17 +527,11 @@ def download_yaml(
     if nclicks is None:
         return no_update, no_update
 
-    if date_range_picker is None:
-        return no_update, [
-            dict(
-                title="Ooops",
-                id="show-notify",
-                action="show",
-                message="You need to specify dates at least!",
-                color="red",
-            )
-        ]
-    elif isinstance(date_range_picker, list) and None in date_range_picker:
+    if (
+        date_range_picker is None
+        or isinstance(date_range_picker, list)
+        and None in date_range_picker
+    ):
         return no_update, [
             dict(
                 title="Ooops",
@@ -575,9 +565,7 @@ def download_yaml(
     # Format the date and time
     formatted_date = now.strftime("%Y%m%d_%H%M%S")
 
-    return dict(
-        content=yaml_string, filename="datatransfer_{}.yml".format(formatted_date)
-    ), [
+    return dict(content=yaml_string, filename=f"datatransfer_{formatted_date}.yml"), [
         dict(
             title="Success",
             id="show-notify",
@@ -637,7 +625,7 @@ def upload_yaml(content, filename):
     else:
         outNotifications = [
             dict(
-                title="Previous configuration loaded from {}".format(filename),
+                title=f"Previous configuration loaded from {filename}",
                 color="green",
             )
         ]
@@ -716,7 +704,7 @@ def validate_yaml(dic):
         if key not in dic.keys():
             outNotifications = [
                 dict(
-                    title="Missing field {} in the configuration file".format(key),
+                    title=f"Missing field {key} in the configuration file",
                     color="red",
                 )
             ]
@@ -739,9 +727,7 @@ def validate_yaml(dic):
         if not isinstance(value, default_fields[key]) and (value is not None):
             outNotifications = [
                 dict(
-                    title="{} should be a {} or unset. Did you forget a hyphen (-) in your YAML?".format(
-                        key, default_fields[key]
-                    ),
+                    title=f"{key} should be a {default_fields[key]} or unset. Did you forget a hyphen (-) in your YAML?",
                     color="red",
                 )
             ]
@@ -773,14 +759,11 @@ def gauge_meter(
     extra_cond,
 ):
     """ """
-    if date_range_picker is None:
-        return (
-            [{"value": 0, "color": "grey", "tooltip": "0%"}],
-            dmc.Text("No dates", ta="center"),
-            [{"value": 0, "color": "grey", "tooltip": "0%"}],
-            dmc.Text("No dates", ta="center"),
-        )
-    elif isinstance(date_range_picker, list) and None in date_range_picker:
+    if (
+        date_range_picker is None
+        or isinstance(date_range_picker, list)
+        and None in date_range_picker
+    ):
         return (
             [{"value": 0, "color": "grey", "tooltip": "0%"}],
             dmc.Text("No dates", ta="center"),
@@ -821,7 +804,7 @@ def gauge_meter(
             align="center",
             children=[
                 dmc.Text(
-                    "{:,} alerts".format(int(count)),
+                    f"{int(count):,} alerts",
                     c=DEFAULT_FINK_COLORS[0],
                     ta="center",
                 ),
@@ -849,7 +832,7 @@ def gauge_meter(
             {
                 "value": count / total * 100,
                 "color": color,
-                "tooltip": "{:.2f}%".format(count / total * 100),
+                "tooltip": f"{count / total * 100:.2f}%",
             }
         ]
 
@@ -857,7 +840,7 @@ def gauge_meter(
             align="center",
             children=[
                 dmc.Text(
-                    "{:.2f}GB".format(count * sizeGb),
+                    f"{count * sizeGb:.2f}GB",
                     c=DEFAULT_FINK_COLORS[0],
                     ta="center",
                 ),
@@ -885,7 +868,7 @@ def gauge_meter(
             {
                 "value": sizeGb / defaultGb * 100,
                 "color": color_size,
-                "tooltip": "{:.2f}%".format(sizeGb / defaultGb * 100),
+                "tooltip": f"{sizeGb / defaultGb * 100:.2f}%",
             }
         ]
 

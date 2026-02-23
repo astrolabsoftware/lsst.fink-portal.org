@@ -15,43 +15,42 @@
 """All functionalities for displaying results on the search page"""
 
 import io
+import urllib
+
 import dash
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
+import numpy as np
+import pandas as pd
 from dash import (
-    html,
-    dcc,
+    ALL,
+    MATCH,
     Input,
     Output,
     State,
-    no_update,
     clientside_callback,
     dash_table,
-    ALL,
-    MATCH,
+    dcc,
+    html,
+    no_update,
 )
 from dash.exceptions import PreventUpdate
-import dash_mantine_components as dmc
-import dash_bootstrap_components as dbc
-
-import urllib
-import numpy as np
-import pandas as pd
 from dash_iconify import DashIconify
 
+from app import app
+from apps.api import request_api
+from apps.cards import card_search_result
 from apps.configuration import extract_configuration
+from apps.dataclasses import simbad_types
 from apps.helpers import help_popover, msg_info
 from apps.parse import parse_query
-from apps.dataclasses import simbad_types
-from apps.api import request_api
-from apps.utils import markdownify_objectid
-from apps.utils import class_colors
-from apps.utils import isoify_time
-from apps.utils import is_row_static_or_moving
-from apps.cards import card_search_result
-from apps.plotting import draw_cutouts_quickview
-from apps.plotting import draw_lightcurve_preview
-from apps.plotting import CONFIG_PLOT
-
-from app import app
+from apps.plotting import CONFIG_PLOT, draw_cutouts_quickview, draw_lightcurve_preview
+from apps.utils import (
+    class_colors,
+    is_row_static_or_moving,
+    isoify_time,
+    markdownify_objectid,
+)
 
 
 def display_table_results(table, endpoint):
@@ -90,7 +89,7 @@ def display_table_results(table, endpoint):
             # {"label": "Fink additional values", "disabled": True, "value": "None"},
             # *[{"label": field, "value": field} for field in fink_additional_fields],
             {
-                "label": "Original Rubin fields ({})".format(endpoint),
+                "label": f"Original Rubin fields ({endpoint})",
                 "disabled": True,
                 "value": "None",
             },
@@ -274,10 +273,10 @@ def display_skymap(data, columns, is_open):
     img = """var container = document.getElementById('aladin-lite-div-skymap');var txt = ''; container.innerHTML = txt;"""
 
     # Aladin lite
-    img += """
+    img += f"""
     var a = A.aladin('#aladin-lite-div-skymap',
     {{
-        target: '{} {}',
+        target: '{ras[0]} {decs[0]}',
         survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
         showReticle: true,
         allowFullZoomout: true,
@@ -286,33 +285,29 @@ def display_skymap(data, columns, is_open):
         fov: 360
         }}
     );
-    """.format(ras[0], decs[0])
+    """
 
     cats = []
     for ra, dec, time_, title, class_ in zip(ras, decs, times, titles, classes):
         if class_ in simbad_types:
-            cat = "cat_{}".format(simbad_types.index(class_))
+            cat = f"cat_{simbad_types.index(class_)}"
             color = class_colors["Simbad"]
         elif class_ in class_colors.keys():
             cat = "cat_{}".format(class_.replace(" ", "_"))
             color = class_colors[class_]
         else:
             # Sometimes SIMBAD mess up names :-)
-            cat = "cat_{}".format(class_)
+            cat = f"cat_{class_}"
             color = class_colors["Simbad"]
 
         if cat not in cats:
-            img += """var {} = A.catalog({{name: '{}', sourceSize: 15, shape: 'circle', color: '{}', onClick: 'showPopup', limit: 1000}});""".format(
-                cat, class_, color
-            )
+            img += f"""var {cat} = A.catalog({{name: '{class_}', sourceSize: 15, shape: 'circle', color: '{color}', onClick: 'showPopup', limit: 1000}});"""
             cats.append(cat)
 
-        img += """{}.addSources([A.source({}, {}, {{'{}': '{}', 'Last alert': '{}', 'Fink label': '{}'}})]);""".format(
-            cat, ra, dec, label, title, time_, class_
-        )
+        img += f"""{cat}.addSources([A.source({ra}, {dec}, {{'{label}': '{title}', 'Last alert': '{time_}', 'Fink label': '{class_}'}})]);"""
 
     for cat in sorted(cats):
-        img += """a.addCatalog({});""".format(cat)
+        img += f"""a.addCatalog({cat});"""
 
     # img cannot be executed directly because of formatting
     # We split line-by-line and remove comments
@@ -609,7 +604,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
     if query["action"] == "unknown":
         return (
             dbc.Alert(
-                "Query not recognized: {}".format(value),
+                f"Query not recognized: {value}",
                 color="danger",
                 className="shadow-sm",
             ),
@@ -662,9 +657,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         sr = min(float(query["params"].get("r", 10)), 18000)
 
         msg = (
-            "Cone search with center at {:.4f} {:.3f} and radius {:.1f} arcsec".format(
-                ra, dec, sr
-            )
+            f"Cone search with center at {ra:.4f} {dec:.3f} and radius {sr:.1f} arcsec"
         )
 
         payload = {
@@ -676,21 +669,21 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         if "after" in query["params"]:
             startdate = isoify_time(query["params"]["after"])
 
-            msg += " after {}".format(startdate)
+            msg += f" after {startdate}"
 
             payload["startdate"] = startdate
 
         if "before" in query["params"]:
             stopdate = isoify_time(query["params"]["before"])
 
-            msg += " before {}".format(stopdate)
+            msg += f" before {stopdate}"
 
             payload["stopdate"] = stopdate
 
         elif "window" in query["params"]:
             window = query["params"]["window"]
 
-            msg += " window {} days".format(window)
+            msg += f" window {window} days"
 
             payload["window"] = window
 
@@ -712,21 +705,21 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
 
         n_last = int(query["params"].get("last", 100))
 
-        msg = "Last {} objects with tag '{}'".format(n_last, alert_tag)
+        msg = f"Last {n_last} objects with tag '{alert_tag}'"
 
         payload = {"tag": alert_tag, "n": n_last}
 
         if "after" in query["params"]:
             startdate = isoify_time(query["params"]["after"])
 
-            msg += " after {}".format(startdate)
+            msg += f" after {startdate}"
 
             payload["startdate"] = startdate
 
         if "before" in query["params"]:
             stopdate = isoify_time(query["params"]["before"])
 
-            msg += " before {}".format(stopdate)
+            msg += f" before {stopdate}"
 
             payload["stopdate"] = stopdate
 
@@ -738,21 +731,21 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         # Anomaly search
         n_last = int(query["params"].get("last", 100))
 
-        msg = "Last {} anomalies".format(n_last)
+        msg = f"Last {n_last} anomalies"
 
         payload = {"n": n_last}
 
         if "after" in query["params"]:
             startdate = isoify_time(query["params"]["after"])
 
-            msg += " after {}".format(startdate)
+            msg += f" after {startdate}"
 
             payload["start_date"] = startdate
 
         if "before" in query["params"]:
             stopdate = isoify_time(query["params"]["before"])
 
-            msg += " before {}".format(stopdate)
+            msg += f" before {stopdate}"
 
             payload["stop_date"] = stopdate
 
@@ -763,7 +756,7 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
     else:
         return (
             dbc.Alert(
-                "Unhandled query: {}".format(query),
+                f"Unhandled query: {query}",
                 color="danger",
                 className="shadow-sm",
             ),

@@ -12,58 +12,49 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
+import gzip
+import io
+
+import astropy.units as u
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
+import nifty_ls  # noqa: F401
+import numpy as np
+import pandas as pd
+import plotly.colors
+import plotly.graph_objects as go
+from astropy.coordinates import EarthLocation, Latitude, Longitude, SkyCoord
+from astropy.io import fits
+from astropy.time import Time
+from astropy.visualization import AsymmetricPercentileInterval, simple_norm
 from dash import (
+    Input,
+    Output,
+    State,
+    clientside_callback,
+    dash_table,
     dcc,
     html,
-    Output,
-    Input,
     no_update,
-    clientside_callback,
-    State,
-    dash_table,
 )
 from dash.exceptions import PreventUpdate
 from dash_iconify import DashIconify
-import dash_bootstrap_components as dbc
-import dash_mantine_components as dmc
-
-import plotly.graph_objects as go
-import plotly.colors
-from plotly.subplots import make_subplots
-
-import io
-import gzip
-import copy
-
-from astropy.visualization import AsymmetricPercentileInterval, simple_norm
-from astropy.coordinates import SkyCoord
-from astropy.coordinates import EarthLocation
-from astropy.coordinates import Latitude, Longitude
-import astropy.units as u
-from astropy.time import Time
-from astropy.io import fits
-
-import numpy as np
-import pandas as pd
-
-import nifty_ls  # noqa: F401
 from fink_utils.sso.spins import (
     estimate_sso_params,
     func_hg,
     func_hg1g2,
-    func_shg1g2,
     func_hg12,
+    func_shg1g2,
 )
+from plotly.subplots import make_subplots
+
+import apps.observability.utils as observability
 
 # from apps import __file__
 from app import app
 from apps.api import request_api
-from apps.utils import convert_time
-from apps.utils import flux_to_mag
-from apps.utils import loading
-from apps.utils import hex_to_rgba, rgb_to_rgba
-import apps.observability.utils as observability
-
+from apps.utils import convert_time, flux_to_mag, hex_to_rgba, loading, rgb_to_rgba
 
 PIXEL_SIZE = 0.2  # arcsec/pixel
 
@@ -146,14 +137,14 @@ def draw_cutouts_quickview(name, kinds=None):
     figs = []
     sizes = []
     for kind in kinds:
-        try:  # noqa: PERF203
+        try:
             # We may manually construct the payload to avoid extra API call
             object_data = f'{{"r:diaSourceId":{{"0": "{name}"}}}}'
             data = extract_cutout(object_data, None, kind=kind)
             shape = data.shape
             figs.append(draw_cutout(data, kind, zoom=False))
-            sizes.append("{}px / {:.1f}''".format(shape[0], shape[0] * PIXEL_SIZE))
-        except OSError:  # noqa: PERF203
+            sizes.append(f"{shape[0]}px / {shape[0] * PIXEL_SIZE:.1f}''")
+        except OSError:
             data = dcc.Markdown("Load fail, refresh the page")
             figs.append(data)
             sizes.append("")
@@ -364,7 +355,7 @@ def draw_cutouts(clickData, object_data):
     """Draw cutouts data based on lightcurve data"""
     if clickData is not None:
         jd0 = clickData["points"][0]["x"]
-        title = "Alert cutouts ({})".format(jd0)
+        title = f"Alert cutouts ({jd0})"
     else:
         jd0 = None
         title = "Last alert cutouts"
@@ -857,7 +848,7 @@ def draw_lightcurve_preview(
                 "symbol": DEFAULT_FINK_MARKERS[fname],
             },
             xaxis="x",
-            yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
+            yaxis="y" if switch_layout == "plain" else f"y{fid}",
         )
 
         if switch_layout == "plain":
@@ -928,7 +919,7 @@ def draw_lightcurve_preview(
                     "symbol": DEFAULT_FINK_MARKERS[bands[fid - 1]],
                 },
                 xaxis="x",
-                yaxis="y" if switch_layout == "plain" else "y{}".format(fid),
+                yaxis="y" if switch_layout == "plain" else f"y{fid}",
             )
 
             if switch_layout == "plain":
@@ -991,7 +982,7 @@ def draw_lightcurve_preview(
         indicators.append(
             dmc.Flex(
                 children=[
-                    "{}".format(fname),
+                    f"{fname}",
                     icon_indicator,
                 ],
                 align="center",
@@ -1017,8 +1008,8 @@ def draw_lightcurve_preview(
             flags.append(
                 html.Div([
                     dbc.Popover(
-                        "{}".format(doc.capitalize()),
-                        target="{}_{}".format(main_id, col),
+                        f"{doc.capitalize()}",
+                        target=f"{main_id}_{col}",
                         body=True,
                         trigger="hover",
                         placement="top",
@@ -1027,7 +1018,7 @@ def draw_lightcurve_preview(
                         icon="ion:close-sharp",
                         color=DEFAULT_FINK_COLORS[-1],
                         width=20,
-                        id="{}_{}".format(main_id, col),
+                        id=f"{main_id}_{col}",
                     ),
                 ])
             )
@@ -1035,8 +1026,8 @@ def draw_lightcurve_preview(
             flags.append(
                 html.Div([
                     dbc.Popover(
-                        "No {}".format(doc),
-                        target="{}_{}".format(main_id, col),
+                        f"No {doc}",
+                        target=f"{main_id}_{col}",
                         body=True,
                         trigger="hover",
                         placement="top",
@@ -1045,7 +1036,7 @@ def draw_lightcurve_preview(
                         icon="ion:checkmark-sharp",
                         color=DEFAULT_FINK_COLORS[0],
                         width=20,
-                        id="{}_{}".format(main_id, col),
+                        id=f"{main_id}_{col}",
                     ),
                 ])
             )
@@ -1193,7 +1184,7 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
             "x": deltaRAcosDEC[pdf["r:band"] == fname],
             "y": deltaDEC[pdf["r:band"] == fname],
             "mode": "markers",
-            "name": "{} band".format(fname),
+            "name": f"{fname} band",
             "customdata": Time(
                 pdf["r:midpointMjdTai"][pdf["r:midpointMjdTai"] == 1], format="mjd"
             ).iso,
@@ -2010,23 +2001,21 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
     if switch_func == "sfHG1G2":
         # H mean for each filter
         for f in filts:
-            outdic["<H>_{}".format(f)] = np.mean([
-                outdic["H{}_{}".format(a, f)]
-                for a in range(outdic["n_app_{}".format(f)])
+            outdic[f"<H>_{f}"] = np.mean([
+                outdic[f"H{a}_{f}"] for a in range(outdic[f"n_app_{f}"])
             ])
 
             # assuming uncorrelated and random, which is obviously wrong
-            outdic["err_<H>_{}".format(f)] = np.sqrt(
+            outdic[f"err_<H>_{f}"] = np.sqrt(
                 np.sum([
-                    outdic["err_H{}_{}".format(a, f)] ** 2
-                    for a in range(outdic["n_app_{}".format(f)])
+                    outdic[f"err_H{a}_{f}"] ** 2 for a in range(outdic[f"n_app_{f}"])
                 ])
             )
 
     if switch_func == "sfHG1G2":
         dd = {
             "": [
-                f + " band ({} apparitions)".format(int(outdic["n_app_{}".format(f)]))
+                f + " band ({} apparitions)".format(int(outdic[f"n_app_{f}"]))
                 for f in filts
             ]
         }
@@ -2179,7 +2168,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
     if switch_func == "sfHG1G2":
         title = "Reduced &#967;<sup>2</sup>: "
         for f in filts:
-            title += " {}:{:.2f} ".format(f, outdic["chi2red_{}".format(f)])
+            title += " {}:{:.2f} ".format(f, outdic[f"chi2red_{f}"])
     elif ~np.isnan(outdic["chi2red"]) and outdic["chi2red"] is not None:
         title = "Reduced &#967;<sup>2</sup>: {:.2f}".format(outdic["chi2red"])
     else:

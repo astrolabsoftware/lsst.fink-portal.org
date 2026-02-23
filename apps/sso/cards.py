@@ -17,17 +17,14 @@ import textwrap
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import rocks
+from astropy.time import Time
 from dash import Input, Output, dcc, html
 from dash_iconify import DashIconify
 
 from app import app
-from apps.utils import convert_mpc_type, help_popover, query_mpc
-from astropy.time import Time
-
 from apps.configuration import extract_configuration
-from apps.plotting import DEFAULT_FINK_COLORS
-from apps.plotting import make_modal_stamps
-from apps.utils import loading
+from apps.plotting import DEFAULT_FINK_COLORS, make_modal_stamps
+from apps.utils import convert_mpc_type, help_popover, loading, query_mpc
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
@@ -619,9 +616,7 @@ def card_sso_rocks_params(data):
 
     text += "\n"
     text += "---\n"
-    text += '<i><small>Best estimates of the dynamical and physical properties of the object from the <a href="https://ssp.imcce.fr/forms/ssocard/{}" target="_blank">ssoCard</a> compiled by the <a href="https://ssp.imcce.fr/webservices/ssodnet/" target="_blank">SsODNet</a> service.</small></i>'.format(
-        data.id_
-    )
+    text += f'<i><small>Best estimates of the dynamical and physical properties of the object from the <a href="https://ssp.imcce.fr/forms/ssocard/{data.id_}" target="_blank">ssoCard</a> compiled by the <a href="https://ssp.imcce.fr/webservices/ssodnet/" target="_blank">SsODNet</a> service.</small></i>'
 
     card = html.Div(
         dcc.Markdown(
