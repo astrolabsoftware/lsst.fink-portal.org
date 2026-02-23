@@ -1107,7 +1107,7 @@ curl -H "Content-Type: application/json" -X POST \\
     prevent_initial_call=True,
 )
 def alert_properties(object_data, clickData):
-    pdf_ = pd.read_json(io.StringIO(object_data))
+    pdf_ = pd.read_json(io.StringIO(object_data), dtype={"r:diaObjectId": str, "r:diaSourceId": str},)
 
     if clickData is not None:
         time0 = clickData["points"][0]["x"]
@@ -1120,7 +1120,6 @@ def alert_properties(object_data, clickData):
             return no_update
 
     pdf = pdf_.head(1)
-    print(pdf)
     pdf = pd.DataFrame({"Name": pdf.columns, "Value": pdf.to_numpy()[0]})
     columns = [
         {
@@ -1129,7 +1128,6 @@ def alert_properties(object_data, clickData):
             # 'hideable': True,
             "presentation": "input",
             "type": "text" if c == "Name" else "numeric",
-            "format": dash_table.Format.Format(precision=8),
         }
         for c in pdf.columns
     ]
@@ -1371,7 +1369,7 @@ def card_id_left(object_data):
         if pd.isnull(simbad_class) or simbad_class in BAD_VALUES:
             simbad_class = "N/A"
 
-        tns_class = pdf["f:xm_tns_type"].to_numpy()[0]
+        tns_class = pdf["f:xm_tns_fullname"].to_numpy()[0]
         if pd.isnull(tns_class) or tns_class in BAD_VALUES:
             tns_class = "N/A"
 
@@ -1402,24 +1400,6 @@ def card_id_left(object_data):
                                 html.Span(children=tns_class, className="big-text"),
                                 html.Span(
                                     children="TNS",
-                                    className="regular-text",
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-                html.Div(
-                    className="row row1",
-                    children=[
-                        html.Div(
-                            className="item",
-                            children=[
-                                html.Span(
-                                    children=cats_class,
-                                    className="big-text",
-                                ),
-                                html.Span(
-                                    children="CATS",
                                     className="regular-text",
                                 ),
                             ],
