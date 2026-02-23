@@ -902,7 +902,7 @@ def draw_lightcurve_preview(
                     else rgb_to_rgba(color, 0.5),
                 },
                 mode="markers",
-                name=f"{bands[fid - 1]}",
+                name=f"{bands[fid - 1]}-ztf",
                 customdata=np.stack(
                     (
                         pdf_ztf["i:fid"][idx].apply(lambda x: bands[x]),

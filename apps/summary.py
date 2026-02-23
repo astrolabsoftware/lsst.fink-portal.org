@@ -657,7 +657,7 @@ def store_ztf_data(n_clicks, object_data):
                         "https://api.ztf.fink-portal.org/api/v1/objects",
                         json={
                             "objectId": r.json()[0]["i:objectId"],
-                            "withupperlim": True,
+                            "withupperlim": False,
                             "output-format": "json",
                         },
                     )
