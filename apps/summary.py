@@ -656,29 +656,31 @@ def store_ztf_data(n_clicks, object_data):
             if len(r.json()) == 0:
                 # just propagate r
                 pass
-            elif len(r.json()) == 1:
-                # overwrite r
-                r = requests.post(
-                    "https://api.ztf.fink-portal.org/api/v1/objects",
-                    json={
-                        "objectId": r.json()[0]["i:objectId"],
-                        "withupperlim": True,
-                        "output-format": "json",
-                    },
-                )
+            elif len(r.json()) >= 1:
+                objectids = [i["i:objectId"] for i in r.json()]
+                if len(np.unique(objectids)) == 1:
+                    # overwrite r
+                    r = requests.post(
+                        "https://api.ztf.fink-portal.org/api/v1/objects",
+                        json={
+                            "objectId": r.json()[0]["i:objectId"],
+                            "withupperlim": True,
+                            "output-format": "json",
+                        },
+                    )
 
-                if r.status_code != 200:
-                    return no_update, "No ZTF alerts (error {})".format(r.status_code)
-            else:
-                # catch and show error
-                # FIXME: better message
-                # FIXME: maybe an alert instead of the button message?
-                return (
-                    no_update,
-                    "{} objects found within 1.5''. Please report to contact@fink-broker.org".format(
-                        len(r.json())
-                    ),
-                )
+                    if r.status_code != 200:
+                        return no_update, "No ZTF alerts (error {})".format(r.status_code)
+                else:
+                    # catch and show error
+                    # FIXME: better message
+                    # FIXME: maybe an alert instead of the button message?
+                    return (
+                        no_update,
+                        "{} different objects found within 1.5''. Check https://ztf.fink-portal.org/?action=conesearch&ra={}&dec={}&r=5 and please report to contact@fink-broker.org".format(
+                            len(r.json()), ra, dec
+                        ),
+                    )
 
     # Format output in a DataFrame
     pdf_ztf = pd.read_json(io.BytesIO(r.content))
