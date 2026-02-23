@@ -1234,7 +1234,7 @@ def card_id_left(object_data):
                         className="big-text",
                     ),
                     html.Span(
-                        children="Discovery",
+                        children="First detection",
                         className="regular-text",
                     ),
                 ],
