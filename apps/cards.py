@@ -238,7 +238,7 @@ def card_search_result(row, i):
                                                             className="subtitle3",
                                                         ),
                                                         dmc.Text(
-                                                            f"a={semi_major}, e={eccentricity}, incl={inclination}{inclination_unit}, t0={ref_epoch}",
+                                                            f"a={semi_major:.2f}, e={eccentricity:.2f}, incl={inclination:.2f}{inclination_unit}, epoch={ref_epoch}",
                                                             className="subtitle2",
                                                         ),
                                                         dmc.Space(h=5),
