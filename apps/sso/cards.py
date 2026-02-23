@@ -587,18 +587,18 @@ def card_sso_rocks_params(data):
 
     ###### Physical parameters
     Taxonomical class: `{data.parameters.physical.taxonomy.class_.value}`
-    Absolute magnitude (HV mag): `{data.parameters.physical.absolute_magnitude.value}`
-    Diameter (km): `{data.parameters.physical.diameter.value}`
+    Absolute magnitude (HV mag): `{data.parameters.physical.absolute_magnitude.value:.2f}`
+    Diameter (km): `{data.parameters.physical.diameter.value:.2f}`
 
     ###### Dynamical parameters (Epoch: {ref_epoch})
-    a (AU): `{semi_major_axis}`
-    e: `{data.parameters.dynamical.orbital_elements.eccentricity.value}`
-    i (deg): `{data.parameters.dynamical.orbital_elements.inclination.value}`
-    Omega (deg): `{data.parameters.dynamical.orbital_elements.node_longitude.value}`
-    argPeri (deg): `{data.parameters.dynamical.orbital_elements.periapsis_distance.value}`
-    Mean motion (deg/day): `{data.parameters.dynamical.orbital_elements.mean_motion.value}`
-    Orbital period (day): `{data.parameters.dynamical.orbital_elements.orbital_period.value}`
-    Jupiter Tisserand parameter: `{data.parameters.dynamical.tisserand_parameters.jupiter.value}`
+    a (AU): `{semi_major_axis:.2f}`
+    e: `{data.parameters.dynamical.orbital_elements.eccentricity.value:.2f}`
+    i (deg): `{data.parameters.dynamical.orbital_elements.inclination.value:.2f}`
+    Omega (deg): `{data.parameters.dynamical.orbital_elements.node_longitude.value:.2f}`
+    argPeri (deg): `{data.parameters.dynamical.orbital_elements.periapsis_distance.value:.2f}`
+    Mean motion (deg/day): `{data.parameters.dynamical.orbital_elements.mean_motion.value:.2f}`
+    Orbital period (day): `{data.parameters.dynamical.orbital_elements.orbital_period.value:.2f}`
+    Jupiter Tisserand parameter: `{data.parameters.dynamical.tisserand_parameters.jupiter.value:.2f}`
     """
     text = textwrap.dedent(text)  # Remove indentation
 
