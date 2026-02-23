@@ -479,7 +479,7 @@ def display_page(pathname):
         # defaultColorScheme="dark"
     )
 
-    if pathname[1:]:
+    if pathname[1:] and len(pathname[1:]) > 0:
         if pathname[1:].isdigit():
             # diaObject
             is_sso = False
