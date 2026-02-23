@@ -1176,6 +1176,7 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
 
     deltaRAcosDEC = (pdf["r:ra"] - mean_ra) * np.cos(np.radians(pdf["r:dec"])) * 3600
     deltaDEC = (pdf["r:dec"] - mean_dec) * 3600
+    customdata = pdf["r:midpointMjdTai"]
 
     hovertemplate = r"""
     <b>%{yaxis.title.text}</b>: %{y:.2f}<br>
