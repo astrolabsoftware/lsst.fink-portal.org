@@ -75,6 +75,12 @@ def card_search_result(row, i):
             ),
         )
 
+    tns_badge = generate_tns_badge(
+        row.get("f:xm_tns_fullname", ""), row.get("f:xm_tns_type", "")
+    )
+    if tns_badge not in BAD_VALUES:
+        badges.append(tns_badge)
+
     badges += generate_generic_badges(row, variant="outline")
 
     coords = SkyCoord(row["r:ra"], row["r:dec"], unit="deg")
@@ -1263,7 +1269,10 @@ def card_id_left(object_data):
     #             ),
     #         )
 
-    # tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
+    # tns_badge = generate_tns_badge(
+    #     get_first_value(pdf, "f:xm_tns_fullname"),
+    #     get_first_value(pdf, "f:xm_tns_type"),
+    # )
     # if tns_badge is not None:
     #     badges.append(tns_badge)
 
@@ -1467,7 +1476,7 @@ def card_id_left(object_data):
     return html.Div(card, style={"padding-top": "10px"})
 
 
-def generate_tns_badge(oid):
+def generate_tns_badge(tns_fullname, tns_type):
     """Generate TNS badge
 
     Parameters
@@ -1479,35 +1488,12 @@ def generate_tns_badge(oid):
     -------
     badge: dmc.Badge or None
     """
-    r = request_api(
-        "/api/v1/resolver",
-        json={
-            "resolver": "tns",
-            "name": str(oid),
-            "reverse": True,
-        },
-        output="json",
-    )
 
-    if r != []:
-        entries = [i["d:fullname"] for i in r]
-        if len(entries) > 1:
-            types = [i.get("type", "") for i in r]
-            # Check if object is classified
-            try:
-                index = [~i.startswith("AT") for i in types].index(True)
-            except ValueError:
-                # no classification in list -- take the last one (most recent)
-                index = -1
+    if tns_fullname not in BAD_VALUES and not pd.isna(tns_fullname):
+        if tns_type not in BAD_VALUES and not pd.isna(tns_type):
+            msg = f"TNS: {tns_fullname} ({tns_type})"
         else:
-            index = 0
-
-        payload = r[index]
-
-        if payload["d:type"] != "nan":
-            msg = "TNS: {} ({})".format(payload["d:fullname"], payload["d:type"])
-        else:
-            msg = "TNS: {}".format(payload["d:fullname"])
+            msg = f"TNS: {tns_fullname}"
         badge = make_badge(
             msg,
             color="red",
