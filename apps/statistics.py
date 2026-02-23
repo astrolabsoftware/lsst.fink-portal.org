@@ -590,8 +590,8 @@ def display_year(
             ygap=3,  # and this is used to make the grid-like apperance
             showscale=False,
             colorscale=colorscale,
-            zmax=100000,  # avoid large peaks
-            zmid=10000,
+            zmax=50000,  # avoid large peaks
+            zmid=5000,
             zmin=0,
         ),
     ]
