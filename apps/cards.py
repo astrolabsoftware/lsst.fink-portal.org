@@ -755,7 +755,7 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
                                 ],
                                 justify="flex-start",
                             ),
-                            href=f"https://ssp.imcce.fr/webservices/skybot/api/conesearch.php?-ep={date_iso}&-ra={ra0}&-dec={dec0}&-rs=10&-mime=text&-output=object&-observer=X05&-filter=5&-objFilter=111&-refsys=EQJ2000&-from=fink-portal",
+                            href=f"https://ssp.imcce.fr/webservices/skybot/api/conesearch.php?-ep={date_iso}&-ra={ra0}&-dec={dec0}&-rs=10&-mime=html&-output=object&-observer=X05&-filter=5&-objFilter=111&-refsys=EQJ2000&-from=fink-portal",
                             target="_blank",
                             style={"text-decoration": "none"},
                         ),
