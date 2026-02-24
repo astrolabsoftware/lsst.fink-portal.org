@@ -615,7 +615,7 @@ def get_multi_labels(pdf, colname, default=None, to_avoid=None):
         return default
 
 
-def card_lightcurve_summary(diaObjectId, ra0, dec0):
+def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
     """Add a card containing the lightcurve
 
     Returns
@@ -731,6 +731,39 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0):
                     size="xs",
                     variant="outline",
                     id="conesearch_summary",
+                    color=DEFAULT_FINK_COLORS[1],
+                    style={"margin": "0px"},
+                ),
+            ]),
+            html.Div([
+                dbc.Popover(
+                    "Use the Skybot to search for nearby asteroids.",
+                    target="skybot_check",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                dmc.Button(
+                    [
+                        html.A(
+                            dmc.Group(
+                                [
+                                    DashIconify(
+                                        icon="ion:arrow-up-right-box-outline", width=15
+                                    ),
+                                    " SkyBot",
+                                ],
+                                justify="flex-start",
+                            ),
+                            href=f"https://ssp.imcce.fr/webservices/skybot/api/conesearch.php?-ep={date_iso}&-ra={ra0}&-dec={dec0}&-rs=10&-mime=text&-output=object&-observer=X05&-filter=5&-objFilter=111&-refsys=EQJ2000&-from=fink-portal",
+                            target="_blank",
+                            style={"text-decoration": "none"},
+                        ),
+                    ],
+                    radius="xl",
+                    size="xs",
+                    variant="outline",
+                    id="skybot_check",
                     color=DEFAULT_FINK_COLORS[1],
                     style={"margin": "0px"},
                 ),
@@ -1619,6 +1652,14 @@ def create_external_conesearches(ra0, dec0):
                 ),
                 create_button_for_external_conesearch(
                     kind="vsx", ra0=ra0, dec0=dec0, radius=0.1, width=width
+                ),
+            ],
+            justify="around",
+        ),
+        dbc.Row(
+            [
+                create_button_for_external_conesearch(
+                    kind="casda", ra0=ra0, dec0=dec0, radius=5 ,width=width
                 ),
             ],
             justify="around",

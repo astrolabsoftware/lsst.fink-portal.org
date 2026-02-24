@@ -222,6 +222,9 @@ def tab_diaobject(pdf):
                             pdf["r:diaObjectId"].to_numpy()[0],
                             pdf["r:ra"].mean(),
                             pdf["r:dec"].mean(),
+                            Time(
+                                pdf["r:midpointMjdTai"].max(), format="mjd", scale="tai"
+                            ).utc.iso,
                         )
                     ],
                     md=8,
