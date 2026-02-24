@@ -40,54 +40,32 @@ schema_stats = request_api(
 )
 
 stat_doc = """
-This page shows various statistics concerning Fink processed data.
-These statistics are updated once a day, after the LSST observing night.
-Click on the different tabs to explore data.
+This page shows various statistics concerning Fink processed data.These statistics are updated once a day, after the LSST observing night.
 
 ## Heatmap
 
-The `Heatmap` tab shows the number of alerts processed by Fink for each night
-since the beginning of our operations (2025/09/06). The graph is color coded,
-dark cells represent a low number of processed alerts, while bright cells represent
-a high number of processed alerts.
-
-## Daily statistics
-
-The `Daily statistics` tab shows various statistics for a given observing night. By default,
-we show the last observing night. You can change the night by using the dropdown button.
-
-The first row shows histograms for various indicators:
-- Quality cuts: difference between number of received alerts versus number of processed alerts. The difference is simmply due to the quality cuts in Fink selecting only the best quality alerts.
-- Classification: Number of alerts that receive a tag by Fink, either from the Machine Learning classifiers, or from a crossmatch with catalogs. The rest is "unclassified".
-- External catalogs: Number of alerts that have a counterpart either in the MPC catalog or in the SIMBAD database.
-- Selected candidates: Number of alerts for a subset of classes: early type Ia supernova (SN Ia), supernovae or core-collapse (SNe), Kilonova, or Solar System candidates.
-
-The second row shows the number of alerts for all labels in Fink (from classifiers or crossmatch).
-Since there are many labels available, do not hesitate to zoom in to see more details!
+The `Heatmap` tab shows the number of alerts processed by Fink for each night since the beginning of our commissioning (2025/10/25). The graph is color coded, dark cells represent a low number of processed alerts, while bright cells represent a high number of processed alerts.
 
 ## Timelines
 
-The `Timelines` tab shows the evolution of several parameters over time. By default, we show the number of
-processed alerts per night, since the beginning of operations. You can change the parameter to
-show by using the dropdown button. Fields starting with `SIMBAD:` are labels from the SIMBAD database.
+The `Timelines` tab shows the evolution of several parameters over time. By default, we show the number of processed alerts per night, since the beginning of operations. You can change the parameter to show by using the dropdown button.
 
 Note that you can also show the cumulative number of alerts over time by switching the button on the top right :-)
 
 ## REST API
 
-If you want to explore more statistics, or create your own dashboard based on Fink data,
-you can do all of these yourself using the REST API. Here is an example using Python:
+If you want to explore more statistics, or create your own dashboard based on Fink data, you can do all of these yourself using the REST API. Here is an example using Python:
 
 ```python
 import io
 import requests
 import pandas as pd
 
-# get stats for all the year 2025
+# get stats for all the year 2026
 r = requests.post(
   'https://api.lsst.fink-portal.org/api/v1/statistics',
   json={{
-    'date': '2025',
+    'date': '2026',
     'output-format': 'json'
   }}
 )
@@ -96,7 +74,7 @@ r = requests.post(
 pdf = pd.read_json(io.BytesIO(r.content))
 ```
 
-Note `date` can be either a given night (YYYYMMDD), month (YYYYMM), year (YYYY), or eveything (empty string).
+Note `date` can be either a given night (YYYYMMDD), month (YYYYMM), year (YYYY), or empty string (request everything).
 """
 
 

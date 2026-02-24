@@ -92,7 +92,7 @@ def date_tab():
             numberOfColumns=2,
             dropdownType="modal",
             modalProps={"centered": True},
-            minDate="2025-12-10",
+            minDate="2025-10-25",
             maxDate=datetime.datetime.now().date(),
             allowSingleDateInRange=True,
             required=True,
