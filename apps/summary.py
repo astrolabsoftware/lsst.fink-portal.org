@@ -266,6 +266,26 @@ def tab_ssobject(pdf):
                 ),
                 html.Div(id="indicator_lc", className="indicator"),
                 html.Div(id="flags_lc", className="indicator"),
+                html.Div([
+                    dbc.Popover(
+                        "Add ZTF/Fink alerts at the same sky position, if any.",
+                        target="request-ztf-alert",
+                        body=True,
+                        trigger="hover",
+                        placement="top",
+                    ),
+                    dmc.Button(
+                        "Fink/ZTF alerts",
+                        leftSection=DashIconify(icon="ion:plus"),
+                        size="xs",
+                        radius="xl",
+                        variant="outline",
+                        # mb=10,
+                        id="request-ztf-alert",
+                        color=DEFAULT_FINK_COLORS[0],
+                        style={"margin": "0px"},
+                    ),
+                ]),
             ]),
             dmc.Space(h=15),
             loading(
@@ -288,14 +308,6 @@ def tab_ssobject(pdf):
                     dmc.Space(h=10),
                     lc,
                     html.Br(),
-                    dmc.Center(
-                        dmc.Button(
-                            "Add Fink/ZTF alerts",
-                            id="request-ztf-alert",
-                            variant="outline",
-                            color=DEFAULT_FINK_COLORS[0],
-                        )
-                    ),
                     dmc.Accordion(
                         children=[
                             dmc.AccordionItem(
