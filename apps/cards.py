@@ -53,7 +53,7 @@ from apps.utils import (
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
 
-BAD_VALUES = [np.nan, None, "Fail", "nan", ""]
+BAD_VALUES = [np.nan, None, "Fail", "nan", "", "NAN"]
 
 
 def card_search_result(row, i):
@@ -65,7 +65,8 @@ def card_search_result(row, i):
 
     # FIXME: should be a call to the tag resolver, with all tags printed here.
     cdsxmatch = row.get("f:xm_simbad_otype")
-    if cdsxmatch not in BAD_VALUES:
+    if cdsxmatch not in BAD_VALUES and not pd.isna(cdsxmatch):
+        print(cdsxmatch, type(cdsxmatch))
         badges.append(
             make_badge(
                 f"SIMBAD: {cdsxmatch}",
