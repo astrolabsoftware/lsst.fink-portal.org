@@ -141,7 +141,7 @@ navbar = html.Div(
     [
         Output("navbar_button_/", "color"),
         Output("navbar_button_/download", "color"),
-        Output("navbar_button_/xmatch", "color"),
+        #Output("navbar_button_/xmatch", "color"),
         Output("navbar_button_/gw", "color"),
         Output("navbar_button_/stats", "color"),
         Output("navbar_button_/schemas", "color"),
@@ -149,7 +149,7 @@ navbar = html.Div(
     Input("url", "pathname"),
 )
 def change_color(pathname):
-    buttons = ["/", "/download", "/xmatch", "/gw", "/stats", "/schemas"]
+    buttons = ["/", "/download", "/gw", "/stats", "/schemas"] # "/xmatch"
     colors = ["#F5622E" if i == pathname else "gray" for i in buttons]
 
     if np.all([i == "gray" for i in colors]):
