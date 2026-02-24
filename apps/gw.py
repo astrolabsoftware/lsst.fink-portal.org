@@ -373,7 +373,7 @@ def display_skymap_gw_callback(
         var a = A.aladin('#aladin-lite-div-skymap-gw',
             {{
                 target: '{ra0} {dec0}',
-                survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
+                survey: 'https://alasky.cds.unistra.fr/DESI-legacy-surveys/DR10/CDS_P_DESI-Legacy-Surveys_DR10_color/',
                 projection: 'AIT',
                 showReticle: true,
                 allowFullZoomout: true,
