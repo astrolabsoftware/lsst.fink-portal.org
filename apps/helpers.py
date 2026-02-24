@@ -122,7 +122,7 @@ Examples:
 
 ##### Solar System objects
 
-To search for all LSST alerts associated with specific SSO, you may either directly specify `sso` keyword, which can be any name, number or designation. Under the hood we resolve names using [quaero](https://ssp.imcce.fr/webservices/ssodnet/api/quaero/). So you may e.g. search for: `2015 BC557`, `713454`, `J96T28C`, `K15Bt7C`, etc.
+To search for all LSST alerts associated with specific SSO, you may either directly specify `sso` keyword, which can be any name, number or designation. Under the hood we resolve names using [quaero](https://ssp.imcce.fr/webservices/ssodnet/api/quaero/). So you may e.g. search for: `2015 BC557`, `713454`, `J96T28C`, `K15Bt7C`, `Ukyounodaibu`, etc.
 
 ##### Tag-based search
 
