@@ -308,7 +308,7 @@ def filter_number_tab():
                     dmc.Text("clf., ", fw=700, inherit=True, span=True),
                     dmc.Text("misc., ", fw=700, inherit=True, span=True),
                     dmc.Text("pred., ", fw=700, inherit=True, span=True),
-                    "for Fink added values and a list with available fields will trigger. Note that you can also use the name of existing blocks, and extra function such as `flux2mag`. You can share your block by submitting your YAML configuration file at ",
+                    "for Fink added values and a list with available fields will trigger. You can share your block by submitting your YAML configuration file at ",
                     html.A(
                         "fink-filters",
                         href="https://github.com/astrolabsoftware/fink-filters",
@@ -885,7 +885,7 @@ def update_code_block(topic_name):
         # FIXME: introduce partitioning?
         # This is done by time by default
         code_block = f"""
-# Requires fink-client>=10.0-rc0
+# Requires fink-client>=10.0
 fink_datatransfer \\
     -survey lsst \\
     -topic {topic_name} \\
