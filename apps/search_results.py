@@ -277,7 +277,7 @@ def display_skymap(data, columns, is_open):
     var a = A.aladin('#aladin-lite-div-skymap',
     {{
         target: '{ras[0]} {decs[0]}',
-        survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
+        survey: 'https://alasky.cds.unistra.fr/DESI-legacy-surveys/DR10/CDS_P_DESI-Legacy-Surveys_DR10_color/',
         showReticle: true,
         allowFullZoomout: true,
         showContextMenu: true,
