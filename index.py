@@ -98,9 +98,9 @@ navbar = html.Div(
                         make_navlink(
                             "Transfer", "ion:cloud-download-outline", "/download"
                         ),
-                        make_navlink(
-                            "Xmatch", "material-symbols:join-right", "/xmatch"
-                        ),
+                        # make_navlink(
+                        #     "Xmatch", "material-symbols:join-right", "/xmatch"
+                        # ),
                         make_navlink("MMA", "ion:infinite-outline", "/gw"),
                         make_navlink("Statistics", "ion:stats-chart-outline", "/stats"),
                         make_navlink("Schema", "ion:book-outline", "/schemas"),
