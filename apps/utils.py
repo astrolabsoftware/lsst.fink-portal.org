@@ -291,7 +291,7 @@ def create_button_for_external_conesearch(
         button = dbc.Col(
             template_button_for_external_conesearch(
                 style={
-                    "background-image": "url(/assets/Fink_SecondaryLogo_WEB.png)",
+                    "background-image": "url(/assets/buttons/ztf.ico)",
                     "background-color": "white",
                 },
                 title="FINK-ZTF",
