@@ -1683,7 +1683,7 @@ def create_external_links_brokers(objectId):
                     id="alerce",
                     title="ALeRCE",
                     target="_blank",
-                    href=f"https://alerce.online/object/{objectId}",
+                    href=f"https://lsst.alerce.online/object/{objectId}?survey=lsst&page=1&page_size=20&count=false&selected_oid={objectId}",
                 ),
             ),
             # dbc.Col(
@@ -1707,7 +1707,7 @@ def create_external_links_brokers(objectId):
                     id="lasair",
                     title="Lasair",
                     target="_blank",
-                    href=f"https://lasair-lsst.lsst.ac.uk/objects/{objectId}",
+                    href=f"https://lasair.lsst.ac.uk/objects/{objectId}",
                 ),
             ),
         ],
