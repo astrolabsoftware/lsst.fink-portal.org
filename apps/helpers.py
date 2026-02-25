@@ -147,7 +147,7 @@ The y axis unit can also be changed in the configuration. We expose several opti
 - Difference magnitude/flux: magnitude/flux estimated from the difference image (science image - reference image).
 - Total magnitude/flux: magnitude/flux estimated from the science image.
 
-If the flux estimate is negative, corresponding magnitudes will not be computed. Note that we display the flux in milli-Jansky.
+If the flux estimate is negative, corresponding magnitudes will not be computed. Note that we display the flux in micro-Jansky.
 
 ##### Adding forced photometry estimates
 

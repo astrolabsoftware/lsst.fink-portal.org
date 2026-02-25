@@ -730,15 +730,15 @@ def draw_lightcurve_preview(
     -------
     figure: dict
     """
-    # shortcuts -- in milliJansky
+    # shortcuts -- in microJansky
     if measurement == "total":
         flux_name = "r:scienceFlux"
         flux_err_name = "r:scienceFluxErr"
-        layout["yaxis"]["title"] = "Total flux (milliJansky)"
+        layout["yaxis"]["title"] = "Total flux (microJansky)"
     elif measurement == "differential":
         flux_name = "r:psfFlux"
         flux_err_name = "r:psfFluxErr"
-        layout["yaxis"]["title"] = "Difference flux (milliJansky)"
+        layout["yaxis"]["title"] = "Difference flux (microJansky)"
 
     # Get data if necessary
     if pdf is None and isinstance(main_id, str):
@@ -789,7 +789,7 @@ def draw_lightcurve_preview(
             layout["yaxis"]["title"] = "Magnitude"
 
     if units == "flux":
-        # milli-jansky
+        # micro-jansky
         flux = flux * 1e-3
         flux_err = flux_err * 1e-3
 
