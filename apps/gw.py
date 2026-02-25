@@ -25,7 +25,6 @@ import healpy as hp
 import numpy as np
 import pandas as pd
 import visdcc
-
 from astropy.io import fits
 from dash import Input, Output, State, dash_table, dcc, html
 from dash import callback_context as ctx
@@ -36,6 +35,7 @@ from mocpy import MOC
 from app import app
 from apps.api import request_api
 from apps.configuration import extract_configuration
+from apps.plotting import DEFAULT_FINK_COLORS
 from apps.utils import (
     class_colors,
     convert_time,
@@ -43,8 +43,6 @@ from apps.utils import (
     markdownify_objectid,
     simbad_types,
 )
-from apps.plotting import DEFAULT_FINK_COLORS
-
 
 args = extract_configuration("config.yml")
 SITEURL = args["SITEURL"]
@@ -375,7 +373,7 @@ def display_skymap_gw_callback(
         var a = A.aladin('#aladin-lite-div-skymap-gw',
             {{
                 target: '{ra0} {dec0}',
-                survey: 'https://alasky.cds.unistra.fr/Skymapper/DR4/CDS_P_Skymapper_DR4_color/',
+                survey: 'https://alasky.cds.unistra.fr/DESI-legacy-surveys/DR10/CDS_P_DESI-Legacy-Surveys_DR10_color/',
                 projection: 'AIT',
                 showReticle: true,
                 allowFullZoomout: true,
@@ -415,13 +413,11 @@ def display_skymap_gw_callback(
 
             if cat not in cats:
                 img += """var {} = A.catalog({{name: '{}', sourceSize: 15, shape: 'circle', color: '{}', onClick: 'showPopup', limit: 1000}});""".format(
-                    cat, class_ + " ({})".format(n_alert_per_class[class_]), color
+                    cat, class_ + f" ({n_alert_per_class[class_]})", color
                 )
                 cats.append(cat)
 
-            img += """{}.addSources([A.source({}, {}, {{'diaObjectId': '{}', 'Last alert': '{}', 'Fink label': '{}'}})]);""".format(
-                cat, ra, dec, title, time_, class_
-            )
+            img += f"""{cat}.addSources([A.source({ra}, {dec}, {{'diaObjectId': '{title}', 'Last alert': '{time_}', 'Fink label': '{class_}'}})]);"""
 
         for cat in sorted(cats):
             img += f"""a.addCatalog({cat});"""

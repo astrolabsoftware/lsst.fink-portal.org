@@ -17,17 +17,14 @@ import textwrap
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import rocks
+from astropy.time import Time
 from dash import Input, Output, dcc, html
 from dash_iconify import DashIconify
 
 from app import app
-from apps.utils import convert_mpc_type, help_popover, query_mpc
-from astropy.time import Time
-
 from apps.configuration import extract_configuration
-from apps.plotting import DEFAULT_FINK_COLORS
-from apps.plotting import make_modal_stamps
-from apps.utils import loading
+from apps.plotting import DEFAULT_FINK_COLORS, make_modal_stamps
+from apps.utils import convert_mpc_type, help_popover, loading, query_mpc
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
@@ -590,18 +587,18 @@ def card_sso_rocks_params(data):
 
     ###### Physical parameters
     Taxonomical class: `{data.parameters.physical.taxonomy.class_.value}`
-    Absolute magnitude (HV mag): `{data.parameters.physical.absolute_magnitude.value}`
-    Diameter (km): `{data.parameters.physical.diameter.value}`
+    Absolute magnitude (HV mag): `{data.parameters.physical.absolute_magnitude.value:.2f}`
+    Diameter (km): `{data.parameters.physical.diameter.value:.2f}`
 
     ###### Dynamical parameters (Epoch: {ref_epoch})
-    a (AU): `{semi_major_axis}`
-    e: `{data.parameters.dynamical.orbital_elements.eccentricity.value}`
-    i (deg): `{data.parameters.dynamical.orbital_elements.inclination.value}`
-    Omega (deg): `{data.parameters.dynamical.orbital_elements.node_longitude.value}`
-    argPeri (deg): `{data.parameters.dynamical.orbital_elements.periapsis_distance.value}`
-    Mean motion (deg/day): `{data.parameters.dynamical.orbital_elements.mean_motion.value}`
-    Orbital period (day): `{data.parameters.dynamical.orbital_elements.orbital_period.value}`
-    Jupiter Tisserand parameter: `{data.parameters.dynamical.tisserand_parameters.jupiter.value}`
+    a (AU): `{semi_major_axis:.2f}`
+    e: `{data.parameters.dynamical.orbital_elements.eccentricity.value:.2f}`
+    i (deg): `{data.parameters.dynamical.orbital_elements.inclination.value:.2f}`
+    Omega (deg): `{data.parameters.dynamical.orbital_elements.node_longitude.value:.2f}`
+    argPeri (deg): `{data.parameters.dynamical.orbital_elements.periapsis_distance.value:.2f}`
+    Mean motion (deg/day): `{data.parameters.dynamical.orbital_elements.mean_motion.value:.2f}`
+    Orbital period (day): `{data.parameters.dynamical.orbital_elements.orbital_period.value:.2f}`
+    Jupiter Tisserand parameter: `{data.parameters.dynamical.tisserand_parameters.jupiter.value:.2f}`
     """
     text = textwrap.dedent(text)  # Remove indentation
 
@@ -619,9 +616,7 @@ def card_sso_rocks_params(data):
 
     text += "\n"
     text += "---\n"
-    text += '<i><small>Best estimates of the dynamical and physical properties of the object from the <a href="https://ssp.imcce.fr/forms/ssocard/{}" target="_blank">ssoCard</a> compiled by the <a href="https://ssp.imcce.fr/webservices/ssodnet/" target="_blank">SsODNet</a> service.</small></i>'.format(
-        data.id_
-    )
+    text += f'<i><small>Best estimates of the dynamical and physical properties of the object from the <a href="https://ssp.imcce.fr/forms/ssocard/{data.id_}" target="_blank">ssoCard</a> compiled by the <a href="https://ssp.imcce.fr/webservices/ssodnet/" target="_blank">SsODNet</a> service.</small></i>'
 
     card = html.Div(
         dcc.Markdown(

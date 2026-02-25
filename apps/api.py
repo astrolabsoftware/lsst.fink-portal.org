@@ -15,9 +15,10 @@
 """Wrapper for the Fink REST API"""
 
 import io
-import requests
 import urllib
+
 import pandas as pd
+import requests
 
 from apps.configuration import extract_configuration
 
@@ -56,9 +57,7 @@ def request_api(endpoint, json=None, output="pandas", method="POST", **kwargs):
             URL += "?"
             for k, v in json.items():
                 # encode reserved characters
-                ARGS += "{}={}&".format(
-                    urllib.parse.quote_plus(k), urllib.parse.quote_plus(v)
-                )
+                ARGS += f"{urllib.parse.quote_plus(k)}={urllib.parse.quote_plus(v)}&"
         r = requests.get(URL + ARGS)
 
     if output == "json":

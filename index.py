@@ -12,35 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 import numpy as np
 from dash import (
-    html,
-    dcc,
     Input,
     Output,
+    dcc,
+    html,
 )
-
-import dash_bootstrap_components as dbc
-
-import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
-
-from app import server
-from app import app
-from apps import gw
-from apps import statistics
-from apps import __version__
-
-from apps.configuration import extract_configuration
-from apps.searchbar import fink_search_bar
 import apps.search_results  # noqa: F401
+from app import app, server
+from apps import __version__, datatransfer, gw, schema, statistics, summary
+from apps.configuration import extract_configuration
 from apps.plotting import generate_rgb_color_sequence
+from apps.searchbar import fink_search_bar
 from apps.sso.utils import is_packed_designation
-
-from apps import summary
-from apps import datatransfer
-from apps import schema
 
 # from apps import summary, about, statistics, query_cluster, gw, xmatch
 
@@ -67,7 +56,7 @@ def make_navlink(label, icon, href, target="_self"):
             size=30,
             variant="outline",
             color="gray",
-            id="navbar_button_{}".format(href),
+            id=f"navbar_button_{href}",
         ),
         variant="subtle",
         active="exact",
@@ -109,12 +98,18 @@ navbar = html.Div(
                         make_navlink(
                             "Transfer", "ion:cloud-download-outline", "/download"
                         ),
-                        make_navlink(
-                            "Xmatch", "material-symbols:join-right", "/xmatch"
-                        ),
+                        # make_navlink(
+                        #     "Xmatch", "material-symbols:join-right", "/xmatch"
+                        # ),
                         make_navlink("MMA", "ion:infinite-outline", "/gw"),
                         make_navlink("Statistics", "ion:stats-chart-outline", "/stats"),
                         make_navlink("Schema", "ion:book-outline", "/schemas"),
+                        make_navlink(
+                            "Citing",
+                            "ion:share-social",
+                            "https://fink-broker.org/cite/",
+                            target="_blank",
+                        ),
                     ],
                 ),
             ],
@@ -124,7 +119,7 @@ navbar = html.Div(
             justify="space-between",
             children=dmc.Stack(
                 make_navlink(
-                    "v{}".format(__version__),
+                    f"v{__version__}",
                     "tabler:tag",
                     "https://github.com/astrolabsoftware/lsst.fink-portal.org",
                     target="_blank",
@@ -146,7 +141,7 @@ navbar = html.Div(
     [
         Output("navbar_button_/", "color"),
         Output("navbar_button_/download", "color"),
-        Output("navbar_button_/xmatch", "color"),
+        # Output("navbar_button_/xmatch", "color"),
         Output("navbar_button_/gw", "color"),
         Output("navbar_button_/stats", "color"),
         Output("navbar_button_/schemas", "color"),
@@ -154,7 +149,7 @@ navbar = html.Div(
     Input("url", "pathname"),
 )
 def change_color(pathname):
-    buttons = ["/", "/download", "/xmatch", "/gw", "/stats", "/schemas"]
+    buttons = ["/", "/download", "/gw", "/stats", "/schemas"]  # "/xmatch"
     colors = ["#F5622E" if i == pathname else "gray" for i in buttons]
 
     if np.all([i == "gray" for i in colors]):
@@ -181,44 +176,16 @@ def make_radiocard(color_scale):
 
 plotly_color_sets = [
     "Fink",
-    "Alphabet",
-    "Alphabet_r",
+    "Rubin",
     "Antique",
-    "Antique_r",
     "Bold",
-    "Bold_r",
-    "D3",
-    "D3_r",
     "Dark2",
-    "Dark24",
-    "Dark24_r",
-    "Dark2_r",
-    "G10",
-    "G10_r",
-    "Light24",
-    "Light24_r",
     "Pastel",
-    "Pastel1",
-    "Pastel1_r",
-    "Pastel2",
-    "Pastel2_r",
-    "Pastel_r",
     "Plotly",
-    "Plotly_r",
     "Prism",
-    "Prism_r",
     "Safe",
-    "Safe_r",
     "Set1",
-    "Set1_r",
-    "Set2",
-    "Set2_r",
-    "Set3",
-    "Set3_r",
-    "T10",
-    "T10_r",
     "Vivid",
-    "Vivid_r",
 ]
 
 
@@ -507,7 +474,7 @@ def display_page(pathname):
         # defaultColorScheme="dark"
     )
 
-    if pathname[1:]:
+    if pathname[1:] and len(pathname[1:]) > 0:
         if pathname[1:].isdigit():
             # diaObject
             is_sso = False

@@ -13,34 +13,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import argparse
+import logging
+import sys
+from logging import Logger
+
+# from fink_science.ztf.ad_features.processor import extract_features_ad
+from time import time
+
+import numpy as np
+import pandas as pd
+import pyspark.sql.functions as F
+import requests
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from fink_utils.spark import schema_converter
+from fink_utils.spark.utils import (
+    FinkUDF,
+    expand_function_from_string,
+)
 from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.column import Column, _to_java_column
-import pyspark.sql.functions as F
-from pyspark.sql.functions import struct, lit
-from pyspark.sql.functions import pandas_udf, PandasUDFType
-from pyspark.sql.types import StringType, BooleanType
-
-from fink_utils.spark import schema_converter
-from fink_utils.spark.utils import (
-    expand_function_from_string,
-    FinkUDF,
-)
-
-# from fink_science.ztf.ad_features.processor import extract_features_ad
-
-from time import time
-import pandas as pd
-import numpy as np
-from astropy.coordinates import SkyCoord
-from astropy import units as u
-
-import sys
-import argparse
-import requests
-
-import logging
-from logging import Logger
+from pyspark.sql.functions import PandasUDFType, lit, pandas_udf, struct
+from pyspark.sql.types import BooleanType, StringType
 
 
 def get_fink_logger(name: str = "test", log_level: str = "INFO") -> Logger:
@@ -82,7 +78,7 @@ def get_fink_logger(name: str = "test", log_level: str = "INFO") -> Logger:
 
 
 def add_classification(spark, df, path_to_tns):
-    """Add classification from Fink & TNS
+    """Recompute classification from TNS
 
     Notes
     -----
@@ -123,7 +119,7 @@ def add_classification(spark, df, path_to_tns):
         )
 
         # cross-match
-        idx, d2d, d3d = catalog_tns.match_to_catalog_sky(catalog_lsst)
+        idx, d2d, d3d = catalog_tns.match_to_catalog_sky(catalog_lsst)  # noqa: RUF059
 
         sub_pdf = pd.DataFrame({
             "diaobjectId": diaobjectid.to_numpy(),
@@ -132,7 +128,7 @@ def add_classification(spark, df, path_to_tns):
         })
 
         # cross-match
-        idx2, d2d2, d3d2 = catalog_lsst.match_to_catalog_sky(catalog_tns)
+        idx2, d2d2, _ = catalog_lsst.match_to_catalog_sky(catalog_tns)
 
         # set separation length
         sep_constraint2 = d2d2.degree < 1.5 / 3600
@@ -140,7 +136,7 @@ def add_classification(spark, df, path_to_tns):
         sub_pdf["TNS"] = ["Unknown"] * len(sub_pdf)
         sub_pdf["TNS"][sep_constraint2] = type2.to_numpy()[idx2[sep_constraint2]]
 
-        to_return = diaobjectid.apply(
+        return diaobjectid.apply(
             lambda x: (
                 "Unknown"
                 if x not in sub_pdf["diaobjectId"].to_numpy()
@@ -148,16 +144,12 @@ def add_classification(spark, df, path_to_tns):
             )
         )
 
-        return to_return
-
-    df = df.withColumn(
+    return df.withColumn(
         "tns_type_recomputed",
         crossmatch_with_tns(
             df["diaObject.diaObjectId"], df["diaSource.ra"], df["diaSource.dec"]
         ),
     )
-
-    return df
 
 
 def to_avro(dfcol: Column) -> Column:
@@ -270,10 +262,7 @@ def check_path_exist(dateToCheck):
             "output-format": "json",
         },
     )
-    if r.json() == []:
-        return False
-    else:
-        return True
+    return r.json() != []
 
 
 def generate_spark_paths(startDate, stopDate, basePath):
@@ -322,9 +311,7 @@ def cast_long_to_str(df):
             if field in df.select(section).columns:
                 df = df.withColumn(
                     section,
-                    F.col(field).withField(
-                        field, df["{}.{}".format(section, field)].cast("str")
-                    ),
+                    F.col(field).withField(field, df[f"{section}.{field}"].cast("str")),
                 )
     return df
 
@@ -351,9 +338,6 @@ def sanitize_fields(cnames):
     #         "explode(array(prv_diaSource.)) as prv_diaSource."
     #     )
 
-    # if "diaSource. in cnames:
-    #     cnames[cnames.index("diaSource.)] = "struct(diaSource.*) as diaSource.
-
     # for lc_features in ["lc_features_g", "lc_features_r"]:
     #     if lc_features in cnames:
     #         cnames[cnames.index(lc_features)] = "struct({}.*) as {}".format(
@@ -372,7 +356,7 @@ def sanitize_fields(cnames):
         "mpc_orbits",
     ]:
         if col in cnames:
-            cnames[cnames.index(col)] = "struct({}.*) as {}".format(col, col)
+            cnames[cnames.index(col)] = f"struct({col}.*) as {col}"
 
     for ts in [
         "timestamp",
@@ -381,7 +365,7 @@ def sanitize_fields(cnames):
         "brokerIngestTimestamp",
     ]:
         if ts in cnames:
-            cnames[cnames.index(ts)] = "cast({} as string) as {}".format(ts, ts)
+            cnames[cnames.index(ts)] = f"cast({ts} as string) as {ts}"
 
     # not needed actually as cnames is changed in-place
     return cnames
@@ -414,11 +398,16 @@ def apply_filter_or_block(df, names, is_filter=False, is_block=False, logger=Non
         if logger is not None:
             logger.warning("You need to set at most one of is_filter or is_block")
 
+    if is_block:
+        name = "block"
+    else:
+        name = "filter"
+
     for userfilter in names:
         if userfilter == "":
             continue
         if logger is not None:
-            logger.info("Applying user-defined filter {}...".format(userfilter))
+            logger.info(f"Applying user-defined {name} {userfilter}...")
         if userfilter.startswith("NOT"):
             reverse = True
             tag = userfilter.split("NOT")[-1].strip()
@@ -428,11 +417,9 @@ def apply_filter_or_block(df, names, is_filter=False, is_block=False, logger=Non
         base_module = "fink_filters.rubin"
 
         if is_filter:
-            function_name = "{}.livestream.filter_{}.filter.{}".format(
-                base_module, tag, tag
-            )
+            function_name = f"{base_module}.livestream.filter_{tag}.filter.{tag}"
         elif is_block:
-            function_name = "{}.blocks.{}".format(base_module, tag)
+            function_name = f"{base_module}.blocks.{tag}"
         filter_func, colnames = expand_function_from_string(df, function_name)
         fink_filter = FinkUDF(
             filter_func,
@@ -458,11 +445,7 @@ def main(args):
     log.info("Generating data paths...")
     paths = generate_spark_paths(args.startDate, args.stopDate, args.basePath)
     if paths == []:
-        log.info(
-            "No alert data found in between {} and {}".format(
-                args.startDate, args.stopDate
-            )
-        )
+        log.info(f"No alert data found in between {args.startDate} and {args.stopDate}")
         spark.stop()
         sys.exit(1)
 
@@ -495,14 +478,14 @@ def main(args):
     if args.ffield is None:
         content = ["Full packet"]
     elif not isinstance(args.ffield, list):
-        log.warning("Content has not been defined: {}".format(args.ffield))
+        log.warning(f"Content has not been defined: {args.ffield}")
         log.warning("Exiting.")
         spark.stop()
         sys.exit(1)
     else:
         content = args.ffield
 
-    log.info("Selecting content {}...".format(content))
+    log.info(f"Selecting content {content}...")
 
     if "Full packet" in content:
         # Cast fields to ease the distribution
@@ -565,7 +548,7 @@ def main(args):
 
     # create a fake dataframe with 100 entries
     df_schema = spark.createDataFrame(
-        pd.DataFrame({"schema": ["new_schema_{}.avsc".format(time())] * 1000})
+        pd.DataFrame({"schema": [f"new_schema_{time()}.avsc"] * 1000})
     )
 
     log.info("Sending the schema to Kafka...")
@@ -580,7 +563,7 @@ def main(args):
         args.topic_name + "_schema",
     )
 
-    log.info("Starting to send data to topic {}".format(args.topic_name))
+    log.info(f"Starting to send data to topic {args.topic_name}")
 
     write_to_kafka(
         df,
@@ -591,7 +574,7 @@ def main(args):
         args.topic_name,
     )
 
-    log.info("Data available at topic: {}".format(args.topic_name))
+    log.info(f"Data available at topic: {args.topic_name}")
     log.info("End.")
 
 

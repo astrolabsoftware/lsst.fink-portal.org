@@ -13,38 +13,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import io
-import requests
+from datetime import datetime
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
-from dash_iconify import DashIconify
-import visdcc
-
 import numpy as np
 import pandas as pd
-from datetime import datetime
+import requests
+import visdcc
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
-
-from dash import Input, Output, State, dcc, html, no_update, ALL
+from dash import ALL, Input, Output, State, dcc, html, no_update
 from dash.exceptions import PreventUpdate
-
+from dash_iconify import DashIconify
 from fink_utils.sso.miriade import query_miriade
 
 from app import app
-
 from apps.api import request_api
-from apps.cards import card_lightcurve_summary, card_id
+from apps.cards import card_id, card_lightcurve_summary
 from apps.observability.cards import card_explanation_observability
 from apps.observability.utils import additional_observatories
-from apps.utils import loading
-from apps.plotting import CONFIG_PLOT
+from apps.plotting import CONFIG_PLOT, DEFAULT_FINK_COLORS
 from apps.sso.cards import card_sso_right
 from apps.sso.utils import is_packed_designation
-from apps.utils import flux_to_mag
-from apps.plotting import DEFAULT_FINK_COLORS
-
-from astropy.coordinates import EarthLocation
-
+from apps.utils import flux_to_mag, loading
 
 dcc.Location(id="url", refresh=False)
 
@@ -226,7 +218,14 @@ def tab_diaobject(pdf):
             [
                 dbc.Col(
                     children=[
-                        card_lightcurve_summary(pdf["r:diaObjectId"].to_numpy()[0])
+                        card_lightcurve_summary(
+                            pdf["r:diaObjectId"].to_numpy()[0],
+                            pdf["r:ra"].mean(),
+                            pdf["r:dec"].mean(),
+                            Time(
+                                pdf["r:midpointMjdTai"].max(), format="mjd", scale="tai"
+                            ).utc.iso,
+                        )
                     ],
                     md=8,
                 ),
@@ -267,6 +266,26 @@ def tab_ssobject(pdf):
                 ),
                 html.Div(id="indicator_lc", className="indicator"),
                 html.Div(id="flags_lc", className="indicator"),
+                html.Div([
+                    dbc.Popover(
+                        "Add ZTF/Fink alerts at the same sky position, if any.",
+                        target="request-ztf-alert",
+                        body=True,
+                        trigger="hover",
+                        placement="top",
+                    ),
+                    dmc.Button(
+                        "Fink/ZTF alerts",
+                        leftSection=DashIconify(icon="ion:plus"),
+                        size="xs",
+                        radius="xl",
+                        variant="outline",
+                        # mb=10,
+                        id="request-ztf-alert",
+                        color=DEFAULT_FINK_COLORS[0],
+                        style={"margin": "0px"},
+                    ),
+                ]),
             ]),
             dmc.Space(h=15),
             loading(
@@ -289,14 +308,6 @@ def tab_ssobject(pdf):
                     dmc.Space(h=10),
                     lc,
                     html.Br(),
-                    dmc.Center(
-                        dmc.Button(
-                            "Add Fink/ZTF alerts",
-                            id="request-ztf-alert",
-                            variant="outline",
-                            color=DEFAULT_FINK_COLORS[0],
-                        )
-                    ),
                     dmc.Accordion(
                         children=[
                             dmc.AccordionItem(
@@ -628,8 +639,9 @@ def store_ztf_data(n_clicks, object_data):
         )
 
         if r.status_code != 200:
-            return no_update, "No ZTF alerts for SSO {} (error {})".format(
-                sso_name, r.status_code
+            return (
+                no_update,
+                f"No ZTF alerts for SSO {sso_name} (error {r.status_code})",
             )
     else:
         ra = pdf["r:ra"].mean()
@@ -647,33 +659,34 @@ def store_ztf_data(n_clicks, object_data):
         )
 
         if r.status_code != 200:
-            return no_update, "No ZTF alerts (error {})".format(r.status_code)
+            return no_update, f"No ZTF alerts (error {r.status_code})"
         elif isinstance(r.json(), list):
             if len(r.json()) == 0:
                 # just propagate r
                 pass
-            elif len(r.json()) == 1:
-                # overwrite r
-                r = requests.post(
-                    "https://api.fink-portal.org/api/v1/objects",
-                    json={
-                        "objectId": r.json()[0]["i:objectId"],
-                        "output-format": "json",
-                    },
-                )
+            elif len(r.json()) >= 1:
+                objectids = [i["i:objectId"] for i in r.json()]
+                if len(np.unique(objectids)) == 1:
+                    # overwrite r
+                    r = requests.post(
+                        "https://api.ztf.fink-portal.org/api/v1/objects",
+                        json={
+                            "objectId": r.json()[0]["i:objectId"],
+                            "withupperlim": False,
+                            "output-format": "json",
+                        },
+                    )
 
-                if r.status_code != 200:
-                    return no_update, "No ZTF alerts (error {})".format(r.status_code)
-            else:
-                # catch and show error
-                # FIXME: better message
-                # FIXME: maybe an alert instead of the button message?
-                return (
-                    no_update,
-                    "{} objects found within 1.5''. Please report to contact@fink-broker.org".format(
-                        len(r.json())
-                    ),
-                )
+                    if r.status_code != 200:
+                        return no_update, f"No ZTF alerts (error {r.status_code})"
+                else:
+                    # catch and show error
+                    # FIXME: better message
+                    # FIXME: maybe an alert instead of the button message?
+                    return (
+                        no_update,
+                        f"{len(r.json())} different objects found within 1.5''. Check https://ztf.fink-portal.org/?action=conesearch&ra={ra}&dec={dec}&r=5 and please report to contact@fink-broker.org",
+                    )
 
     # Format output in a DataFrame
     pdf_ztf = pd.read_json(io.BytesIO(r.content))
@@ -681,7 +694,7 @@ def store_ztf_data(n_clicks, object_data):
     if pdf_ztf.empty:
         children = "No ZTF data"
     else:
-        children = "Fink/ZTF: {} alerts".format(len(pdf_ztf))
+        children = f"Fink/ZTF: {len(pdf_ztf)} alerts"
     return pdf_ztf.to_json(), children
 
 
@@ -721,7 +734,7 @@ def store_release_photometry(n_clicks, object_data):
     )
 
     if r.status_code != 200:
-        return no_update, "No DR photometry (error {})".format(r.status_code), no_update
+        return no_update, f"No DR photometry (error {r.status_code})", no_update
 
     lc = []
     for v in r.json().values():

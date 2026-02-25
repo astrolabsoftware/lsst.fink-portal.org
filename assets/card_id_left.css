@@ -22,8 +22,11 @@
 }
 
 .card_id_left .top-section {
-  height: 300px;
-  border-radius: 15px;
+  height: 250px;
+  border-bottom-left-radius: 35px;
+  border-bottom-right-radius: 35px;
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
   padding: 0px;
   display: flex;
   flex-direction: column;

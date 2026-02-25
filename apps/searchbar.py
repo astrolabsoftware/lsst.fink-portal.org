@@ -15,27 +15,24 @@
 """Utilities for managing the Fink search bar"""
 
 import dash
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 from dash import (
-    html,
-    dcc,
+    ALL,
     Input,
     Output,
     State,
-    no_update,
     clientside_callback,
-    ALL,
+    dcc,
+    html,
+    no_update,
 )
-
 from dash_autocomplete_input import AutocompleteInput
-import dash_bootstrap_components as dbc
-import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
 from app import app
-
-
-from apps.helpers import help_popover, message_help
 from apps.dataclasses import fink_tags
+from apps.helpers import help_popover, message_help
 from apps.parse import parse_query
 
 # Smart search field
@@ -331,9 +328,7 @@ def update_suggestions(n_submit, n_clicks, s_n_clicks, value):
         ]
 
     if len(params):
-        content += [
-            html.Small(" ".join(["{}={}".format(_, params[_]) for _ in params]))
-        ]
+        content += [html.Small(" ".join([f"{_}={params[_]}" for _ in params]))]
 
     suggestion = dbc.ListGroupItem(
         content,

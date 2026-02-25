@@ -14,20 +14,16 @@
 # limitations under the License.
 """Collection of utilities for the portal"""
 
-from dash import html
-import dash_mantine_components as dmc
 import dash_bootstrap_components as dbc
-
+import dash_mantine_components as dmc
 import numpy as np
 import pandas as pd
-
 from astropy.time import Time
 from astroquery.mpc import MPC
-
-from apps.api import request_api
-
+from dash import html
 from fink_utils.xmatch.simbad import get_simbad_labels
 
+from apps.api import request_api
 
 # Colors for the Sky map & badges
 class_colors = {
@@ -213,6 +209,7 @@ def cats_type_converter():
         Mapping int -> name
     """
     mapping_cats_general = {
+        -1: "Unknown",  # not enough points
         11: "SN-like",  # SN-like
         12: "Fast",  # Fast: KN, ulens, Novae, ...
         13: "Long",  # Long: SLSN, TDE, PISN, ...
@@ -288,7 +285,21 @@ def create_button_for_external_conesearch(
     width: int, optional
         dbc.Col width parameter. Default is 4.
     """
-    if kind == "asas-sn-variable":
+    if kind == "fink-ztf":
+        if radius is None:
+            radius = 0.5
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/buttons/ztf.ico)",
+                    "background-color": "white",
+                },
+                title="FINK-ZTF",
+                href=f"https://ztf.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r={radius}",
+            ),
+            width=width,
+        )
+    elif kind == "asas-sn-variable":
         if radius is None:
             radius = 0.5
         button = dbc.Col(
@@ -393,6 +404,18 @@ def create_button_for_external_conesearch(
                 style={"background-image": "url(/assets/buttons/sdssIVlogo.png)"},
                 title="SDSS",
                 href=f"http://skyserver.sdss.org/dr13/en/tools/chart/navi.aspx?ra={ra0}&dec={dec0}",
+            ),
+            width=width,
+        )
+    elif kind == "casda":
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/buttons/csiro-logo.png)",
+                    "background-color": "black",
+                },
+                title="CASDA",
+                href=f"https://data.csiro.au/domain/casdaCutoutService/results?surveys=RACS-Low&surveys=RACS-Mid&surveys=RACS-High&size={radius}&ra={ra0}&dec={dec0}",
             ),
             width=width,
         )

@@ -12,14 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from astropy.coordinates import SkyCoord, EarthLocation, get_body, Latitude, Longitude
-import numpy as np
+import datetime
+from zoneinfo import ZoneInfo
+
 import astroplan as apl
 import astropy.units as u
+import numpy as np
+from astropy.coordinates import EarthLocation, Latitude, Longitude, SkyCoord, get_body
 from astropy.time import Time
 from timezonefinder import TimezoneFinder
-from zoneinfo import ZoneInfo
-import datetime
 
 night_colors = [
     "rgba(204, 229, 255, 0.5)",
@@ -47,7 +48,7 @@ additional_observatories = {
         lon=Longitude(additional_observatories_data[name]["lon_deg"], unit=u.deg).deg,
         height=additional_observatories_data[name]["height_meter"] * u.m,
     )
-    for name in additional_observatories_data.keys()
+    for name in additional_observatories_data
 }
 
 

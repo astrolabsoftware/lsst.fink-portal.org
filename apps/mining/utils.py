@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
-import requests
+import logging
 from datetime import date
 
-from apps.utils import query_and_order_statistics
+import requests
 
-import logging
+from apps.utils import query_and_order_statistics
 
 # coeffs_per_class = pd.read_parquet("assets/fclass_2022_060708_coeffs.parquet")
 # coeffs_per_filters = pd.read_parquet("assets/ffilters_2025_01_to_06_coeffs.parquet")

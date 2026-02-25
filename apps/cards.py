@@ -15,48 +15,45 @@
 """Various cards in the portal"""
 
 import io
-from dash import html, dcc, Output, Input, dash_table, no_update
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
-
-
 import numpy as np
 import pandas as pd
-
+import rocks
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-
-
-from apps.api import request_api
-from apps.utils import class_colors
-from apps.utils import convert_time
-from apps.utils import loading
-from apps.utils import cats_type_converter
-
-from apps.utils import get_first_value, is_row_static_or_moving
-from apps.utils import demarkdownify_objectid
-from apps.utils import create_button_for_external_conesearch
-from apps.plotting import make_modal_stamps
-from apps.helpers import help_popover, lc_help
+from dash import Input, Output, dash_table, dcc, html, no_update
 from dash_iconify import DashIconify
 
-# Callbacks
-from apps.plotting import draw_lightcurve  # noqa: F401
-from apps.plotting import draw_cutouts  # noqa: F401
-from apps.plotting import CONFIG_PLOT
-from apps.plotting import DEFAULT_FINK_COLORS
-
-from apps.configuration import extract_configuration
-
 from app import app
+from apps.api import request_api
+from apps.configuration import extract_configuration
+from apps.helpers import help_popover, lc_help
 
-import rocks
+# Callbacks
+from apps.plotting import (
+    CONFIG_PLOT,
+    DEFAULT_FINK_COLORS,
+    draw_cutouts,  # noqa: F401
+    draw_lightcurve,  # noqa: F401
+    make_modal_stamps,
+)
+from apps.utils import (
+    cats_type_converter,
+    class_colors,
+    convert_time,
+    create_button_for_external_conesearch,
+    demarkdownify_objectid,
+    get_first_value,
+    is_row_static_or_moving,
+    loading,
+)
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
 
-BAD_VALUES = [np.nan, None, "Fail", "nan", ""]
+BAD_VALUES = [np.nan, None, "Fail", "nan", "", "NAN"]
 
 
 def card_search_result(row, i):
@@ -68,7 +65,8 @@ def card_search_result(row, i):
 
     # FIXME: should be a call to the tag resolver, with all tags printed here.
     cdsxmatch = row.get("f:xm_simbad_otype")
-    if cdsxmatch not in BAD_VALUES:
+    if cdsxmatch not in BAD_VALUES and not pd.isna(cdsxmatch):
+        print(cdsxmatch, type(cdsxmatch))
         badges.append(
             make_badge(
                 f"SIMBAD: {cdsxmatch}",
@@ -77,6 +75,12 @@ def card_search_result(row, i):
                 tooltip="SIMBAD classification",
             ),
         )
+
+    tns_badge = generate_tns_badge(
+        row.get("f:xm_tns_fullname", ""), row.get("f:xm_tns_type", "")
+    )
+    if tns_badge not in BAD_VALUES:
+        badges.append(tns_badge)
 
     badges += generate_generic_badges(row, variant="outline")
 
@@ -235,13 +239,7 @@ def card_search_result(row, i):
                                                             className="subtitle3",
                                                         ),
                                                         dmc.Text(
-                                                            "a={}, e={}, incl={}{}, t0={}".format(
-                                                                semi_major,
-                                                                eccentricity,
-                                                                inclination,
-                                                                inclination_unit,
-                                                                ref_epoch,
-                                                            ),
+                                                            f"a={semi_major:.2f}, e={eccentricity:.2f}, incl={inclination:.2f}{inclination_unit}, epoch={ref_epoch}",
                                                             className="subtitle2",
                                                         ),
                                                         dmc.Space(h=5),
@@ -618,7 +616,7 @@ def get_multi_labels(pdf, colname, default=None, to_avoid=None):
         return default
 
 
-def card_lightcurve_summary(diaObjectId):
+def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
     """Add a card containing the lightcurve
 
     Returns
@@ -636,46 +634,6 @@ def card_lightcurve_summary(diaObjectId):
         radius="xl",
         chevronSize=20,
         children=[
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
-                        "Add other datasets",
-                    ),
-                    dmc.AccordionPanel(
-                        dmc.Stack([
-                            dmc.Group(
-                                [
-                                    dmc.Button(
-                                        "Add Fink/ZTF alert photometry",
-                                        id={
-                                            "type": "lightcurve_request_ztf_fink",
-                                            "name": "main",
-                                        },
-                                        variant="outline",
-                                        color="gray",
-                                        radius="xl",
-                                        size="xs",
-                                    ),
-                                    dmc.Button(
-                                        "ZTF DR photometry",
-                                        id={
-                                            "type": "lightcurve_request_release",
-                                            "name": "main",
-                                        },
-                                        variant="outline",
-                                        color="gray",
-                                        radius="xl",
-                                        size="xs",
-                                    ),
-                                ],
-                                justify="center",
-                                align="center",
-                            ),
-                        ]),
-                    ),
-                ],
-                value="datasets",
-            ),
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
@@ -725,6 +683,92 @@ def card_lightcurve_summary(diaObjectId):
             ),
             html.Div(id="indicator_lc", className="indicator"),
             html.Div(id="flags_lc", className="indicator"),
+            html.Div([
+                dbc.Popover(
+                    "Add ZTF/Fink alerts at the same sky position, if any.",
+                    target="request-ztf-alert",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                dmc.Button(
+                    "Fink/ZTF alerts",
+                    leftSection=DashIconify(icon="ion:plus"),
+                    size="xs",
+                    radius="xl",
+                    variant="outline",
+                    # mb=10,
+                    id="request-ztf-alert",
+                    color=DEFAULT_FINK_COLORS[0],
+                    style={"margin": "0px"},
+                ),
+            ]),
+            html.Div([
+                dbc.Popover(
+                    "Run a conesearch of 10'' inside the Fink/LSST alert database to see nearby objects",
+                    target="conesearch_summary",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                dmc.Button(
+                    [
+                        html.A(
+                            dmc.Group(
+                                [
+                                    DashIconify(
+                                        icon="ion:arrow-up-right-box-outline", width=15
+                                    ),
+                                    " Conesearch",
+                                ],
+                                justify="flex-start",
+                            ),
+                            href=f"https://lsst.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r=10.0",
+                            target="_blank",
+                            style={"text-decoration": "none"},
+                        ),
+                    ],
+                    radius="xl",
+                    size="xs",
+                    variant="outline",
+                    id="conesearch_summary",
+                    color=DEFAULT_FINK_COLORS[1],
+                    style={"margin": "0px"},
+                ),
+            ]),
+            html.Div([
+                dbc.Popover(
+                    "Use the Skybot to search for nearby asteroids.",
+                    target="skybot_check",
+                    body=True,
+                    trigger="hover",
+                    placement="top",
+                ),
+                dmc.Button(
+                    [
+                        html.A(
+                            dmc.Group(
+                                [
+                                    DashIconify(
+                                        icon="ion:arrow-up-right-box-outline", width=15
+                                    ),
+                                    " SkyBot",
+                                ],
+                                justify="flex-start",
+                            ),
+                            href=f"https://ssp.imcce.fr/webservices/skybot/api/conesearch.php?-ep={date_iso}&-ra={ra0}&-dec={dec0}&-rs=10&-mime=html&-output=object&-observer=X05&-filter=5&-objFilter=111&-refsys=EQJ2000&-from=fink-portal",
+                            target="_blank",
+                            style={"text-decoration": "none"},
+                        ),
+                    ],
+                    radius="xl",
+                    size="xs",
+                    variant="outline",
+                    id="skybot_check",
+                    color=DEFAULT_FINK_COLORS[1],
+                    style={"margin": "0px"},
+                ),
+            ]),
         ]),
         dmc.Space(h=15),
         loading(
@@ -738,21 +782,48 @@ def card_lightcurve_summary(diaObjectId):
                 className="mb-2 rounded-5",
             ),
         ),
-        dmc.Center(
-            dmc.Button(
-                "Add Fink/ZTF alerts",
-                id="request-ztf-alert",
-                variant="outline",
-                color=DEFAULT_FINK_COLORS[0],
-            )
-        ),
-        accordions,
-        # dmc.Grid(
-        #     children=[
-        #         dmc.GridCol(accordions, span=6),
-        #         dmc.GridCol(radar, span=6),
-        #     ]
+        # dmc.Group(
+        #     [
+        #         html.Div(
+        #             [
+        #                 dbc.Popover(
+        #                     "Run a conesearch to add ZTF/Fink alerts.",
+        #                     target="request-ztf-alert",
+        #                     body=True,
+        #                     trigger="hover",
+        #                     placement="bottom",
+        #                 ),
+        #                 dmc.Button(
+        #                     "Fink/ZTF alerts",
+        #                     leftSection=DashIconify(icon="ion:plus"),
+        #                     radius="xl",
+        #                     variant="outline",
+        #                     mb=10,
+        #                     id="request-ztf-alert",
+        #                     color=DEFAULT_FINK_COLORS[0],
+        #                     style={"margin": "0px"},
+        #                 ),
+        #             ]
+        #         ),
+        #         dmc.Button(
+        #             [
+        #                 html.A(
+        #                     [DashIconify(icon="ion:arrow-up-right-box-outline"), " Conesearch"],
+        #                     href=f"https://lsst.fink-portal.org/?action=conesearch&ra={ra0}&dec={dec0}&r=10.0",
+        #                     target="_blank",
+        #                     style={"text-decoration": "none"},
+        #                 ),
+        #             ],
+        #             radius="xl",
+        #             variant="outline",
+        #             mb=10,
+        #             color=DEFAULT_FINK_COLORS[1],
+        #             style={"margin": "0px"},
+        #         ),
+        #     ],
+        #     justify="space-around",
         # ),
+        accordions,
     ])
     return card
 
@@ -1067,7 +1138,10 @@ curl -H "Content-Type: application/json" -X POST \\
     prevent_initial_call=True,
 )
 def alert_properties(object_data, clickData):
-    pdf_ = pd.read_json(io.StringIO(object_data))
+    pdf_ = pd.read_json(
+        io.StringIO(object_data),
+        dtype={"r:diaObjectId": str, "r:diaSourceId": str},
+    )
 
     if clickData is not None:
         time0 = clickData["points"][0]["x"]
@@ -1080,7 +1154,6 @@ def alert_properties(object_data, clickData):
             return no_update
 
     pdf = pdf_.head(1)
-    print(pdf)
     pdf = pd.DataFrame({"Name": pdf.columns, "Value": pdf.to_numpy()[0]})
     columns = [
         {
@@ -1089,7 +1162,6 @@ def alert_properties(object_data, clickData):
             # 'hideable': True,
             "presentation": "input",
             "type": "text" if c == "Name" else "numeric",
-            "format": dash_table.Format.Format(precision=8),
         }
         for c in pdf.columns
     ]
@@ -1196,7 +1268,7 @@ def card_id_left(object_data):
                         className="big-text",
                     ),
                     html.Span(
-                        children="Discovery",
+                        children="First detection",
                         className="regular-text",
                     ),
                 ],
@@ -1231,7 +1303,10 @@ def card_id_left(object_data):
     #             ),
     #         )
 
-    # tns_badge = generate_tns_badge(get_first_value(pdf, "r:diaObjectId"))
+    # tns_badge = generate_tns_badge(
+    #     get_first_value(pdf, "f:xm_tns_fullname"),
+    #     get_first_value(pdf, "f:xm_tns_type"),
+    # )
     # if tns_badge is not None:
     #     badges.append(tns_badge)
 
@@ -1331,7 +1406,7 @@ def card_id_left(object_data):
         if pd.isnull(simbad_class) or simbad_class in BAD_VALUES:
             simbad_class = "N/A"
 
-        tns_class = pdf["f:xm_tns_type"].to_numpy()[0]
+        tns_class = pdf["f:xm_tns_fullname"].to_numpy()[0]
         if pd.isnull(tns_class) or tns_class in BAD_VALUES:
             tns_class = "N/A"
 
@@ -1362,24 +1437,6 @@ def card_id_left(object_data):
                                 html.Span(children=tns_class, className="big-text"),
                                 html.Span(
                                     children="TNS",
-                                    className="regular-text",
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-                html.Div(
-                    className="row row1",
-                    children=[
-                        html.Div(
-                            className="item",
-                            children=[
-                                html.Span(
-                                    children=cats_class,
-                                    className="big-text",
-                                ),
-                                html.Span(
-                                    children="CATS",
                                     className="regular-text",
                                 ),
                             ],
@@ -1453,7 +1510,7 @@ def card_id_left(object_data):
     return html.Div(card, style={"padding-top": "10px"})
 
 
-def generate_tns_badge(oid):
+def generate_tns_badge(tns_fullname, tns_type):
     """Generate TNS badge
 
     Parameters
@@ -1465,35 +1522,12 @@ def generate_tns_badge(oid):
     -------
     badge: dmc.Badge or None
     """
-    r = request_api(
-        "/api/v1/resolver",
-        json={
-            "resolver": "tns",
-            "name": str(oid),
-            "reverse": True,
-        },
-        output="json",
-    )
 
-    if r != []:
-        entries = [i["d:fullname"] for i in r]
-        if len(entries) > 1:
-            types = [i.get("type", "") for i in r]
-            # Check if object is classified
-            try:
-                index = [~i.startswith("AT") for i in types].index(True)
-            except ValueError:
-                # no classification in list -- take the last one (most recent)
-                index = -1
+    if tns_fullname not in BAD_VALUES and not pd.isna(tns_fullname):
+        if tns_type not in BAD_VALUES and not pd.isna(tns_type):
+            msg = f"TNS: {tns_fullname} ({tns_type})"
         else:
-            index = 0
-
-        payload = r[index]
-
-        if payload["d:type"] != "nan":
-            msg = "TNS: {} ({})".format(payload["d:fullname"], payload["d:type"])
-        else:
-            msg = "TNS: {}".format(payload["d:fullname"])
+            msg = f"TNS: {tns_fullname}"
         badge = make_badge(
             msg,
             color="red",
@@ -1579,21 +1613,18 @@ def create_external_conesearches(ra0, dec0):
     dec0: float
         DEC for the conesearch center
     """
-    width = 3
+    width = 4
     buttons = [
         dbc.Row(
             [
+                create_button_for_external_conesearch(
+                    kind="fink-ztf", ra0=ra0, dec0=dec0, radius=1.5, width=width
+                ),
                 create_button_for_external_conesearch(
                     kind="tns", ra0=ra0, dec0=dec0, radius=5, width=width
                 ),
                 create_button_for_external_conesearch(
                     kind="simbad", ra0=ra0, dec0=dec0, radius=0.08, width=width
-                ),
-                create_button_for_external_conesearch(
-                    kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
-                ),
-                create_button_for_external_conesearch(
-                    kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
                 ),
             ],
             justify="around",
@@ -1601,8 +1632,19 @@ def create_external_conesearches(ra0, dec0):
         dbc.Row(
             [
                 create_button_for_external_conesearch(
+                    kind="snad", ra0=ra0, dec0=dec0, radius=5, width=width
+                ),
+                create_button_for_external_conesearch(
+                    kind="datacentral", ra0=ra0, dec0=dec0, radius=2.0, width=width
+                ),
+                create_button_for_external_conesearch(
                     kind="ned", ra0=ra0, dec0=dec0, radius=1.0, width=width
                 ),
+            ],
+            justify="around",
+        ),
+        dbc.Row(
+            [
                 create_button_for_external_conesearch(
                     kind="sdss", ra0=ra0, dec0=dec0, width=width
                 ),
@@ -1615,6 +1657,15 @@ def create_external_conesearches(ra0, dec0):
             ],
             justify="around",
         ),
+        dbc.Row(
+            [
+                create_button_for_external_conesearch(
+                    kind="casda", ra0=ra0, dec0=dec0, radius=5, width=width
+                ),
+            ],
+            justify="around",
+        ),
+        dmc.Space(h=10),
     ]
     return buttons
 
@@ -1632,7 +1683,7 @@ def create_external_links_brokers(objectId):
                     id="alerce",
                     title="ALeRCE",
                     target="_blank",
-                    href=f"https://alerce.online/object/{objectId}",
+                    href=f"https://lsst.alerce.online/object/{objectId}?survey=lsst&page=1&page_size=20&count=false&selected_oid={objectId}",
                 ),
             ),
             # dbc.Col(
@@ -1656,7 +1707,7 @@ def create_external_links_brokers(objectId):
                     id="lasair",
                     title="Lasair",
                     target="_blank",
-                    href=f"https://lasair-lsst.lsst.ac.uk/objects/{objectId}",
+                    href=f"https://lasair.lsst.ac.uk/objects/{objectId}",
                 ),
             ),
         ],

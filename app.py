@@ -12,14 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dash
-import dash_mantine_components as dmc
-from dash import DiskcacheManager
-
-import dash_bootstrap_components as dbc
-
 import os
+
+import dash
+import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
 import diskcache
+from dash import DiskcacheManager
 
 cache = diskcache.Cache("./cache")
 background_callback_manager = DiskcacheManager(cache)
