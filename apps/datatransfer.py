@@ -1083,7 +1083,7 @@ Hit the `Download configuration` button to export your configuration as a YAML f
 #### 3. Register
 
 To retrieve the data, you need to get an account. See [fink-client](https://github.com/astrolabsoftware/fink-client) and
-the [documentation](https://fink-broker.readthedocs.io/en/latest/services/data_transfer) for more information.
+the [documentation](https://doc.lsst.fink-broker.org/services/data_transfer/) for more information.
 
 #### 4. Retrieve
 
