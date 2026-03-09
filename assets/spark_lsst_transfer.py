@@ -530,10 +530,6 @@ def main(args):
         # other cases
         cnames = content
 
-        if "diaSource.midpointMjdTai" not in cnames:
-            # required for the Kafka client partitionment
-            cnames.append("diaSource.midpointMjdTai")
-
     # enforce proper serialisation
     cnames = sanitize_fields(cnames)
 
