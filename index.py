@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os 
+import os
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -191,25 +191,27 @@ plotly_color_sets = [
 ]
 
 
-component = dmc.Box([
-    dmc.Group(
-        [
-            dmc.Select(
-                id="color_scale",
-                value="Fink",
-                data=[{"value": k, "label": k} for k in plotly_color_sets],
-                w=110,
-                # mb=10,
-                persistence=True,
-                searchable=True,
-                clearable=True,
-                radius="xl",
-            ),
-            html.Div(id="color_palette"),
-        ],
-        justify="space-around",
-    ),
-])
+component = dmc.Box(
+    [
+        dmc.Group(
+            [
+                dmc.Select(
+                    id="color_scale",
+                    value="Fink",
+                    data=[{"value": k, "label": k} for k in plotly_color_sets],
+                    w=110,
+                    # mb=10,
+                    persistence=True,
+                    searchable=True,
+                    clearable=True,
+                    radius="xl",
+                ),
+                html.Div(id="color_palette"),
+            ],
+            justify="space-around",
+        ),
+    ]
+)
 
 # embedding the navigation bar
 app.layout = dmc.MantineProvider(
@@ -526,7 +528,7 @@ server.config["JSON_SORT_KEYS"] = False
 if __name__ == "__main__":
     config_args = extract_configuration("config.yml")
 
-    host = os.getenv("HOST",config_args["HOST"])
-    port = int(os.getenv("PORT",config_args["PORT"]))
+    host = os.getenv("HOST", config_args["HOST"])
+    port = int(os.getenv("PORT", config_args["PORT"]))
 
     app.run(host=host, debug=True, port=port)
