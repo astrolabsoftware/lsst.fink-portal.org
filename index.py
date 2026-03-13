@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os 
+
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import numpy as np
@@ -523,4 +525,8 @@ server.config["JSON_SORT_KEYS"] = False
 
 if __name__ == "__main__":
     config_args = extract_configuration("config.yml")
-    app.run(config_args["HOST"], debug=True, port=config_args["PORT"])
+
+    host = os.getenv("HOST",config_args["HOST"])
+    port = int(os.getenv("PORT",config_args["PORT"]))
+
+    app.run(host=host, debug=True, port=port)
