@@ -97,9 +97,6 @@ DEFAULT_FINK_MARKERS = {
     "y": "pentagon",  # Matplotlib 'p' -> Plotly 'pentagon'
 }
 
-default_radio_options = ["Total flux", "Difference flux", "Magnitude"]
-all_radio_options = {v: default_radio_options for v in default_radio_options}
-
 
 def generate_rgb_color_sequence(color_scale: str = "Fink", n_colors: int = 6):
     """Return a list of `n_colors` based on color_scale
@@ -720,7 +717,7 @@ def draw_lightcurve_preview(
     is_sso=False,
     color_scale="Fink",
     units="magnitude",
-    measurement="total",
+    measurement="science",
     switch_layout="plain",
     layout=None,
 ) -> dict:
@@ -731,14 +728,18 @@ def draw_lightcurve_preview(
     figure: dict
     """
     # shortcuts -- in microJansky
-    if measurement == "total":
+    if measurement == "science":
         flux_name = "r:scienceFlux"
         flux_err_name = "r:scienceFluxErr"
-        layout["yaxis"]["title"] = "Total flux (microJansky)"
-    elif measurement == "differential":
+        layout["yaxis"]["title"] = "Science PSF flux (microJansky)"
+    elif measurement == "template":
+        flux_name = "r:templateFlux"
+        flux_err_name = "r:templateFluxErr"
+        layout["yaxis"]["title"] = "Template PSF flux (microJansky)"
+    elif measurement == "difference":
         flux_name = "r:psfFlux"
         flux_err_name = "r:psfFluxErr"
-        layout["yaxis"]["title"] = "Difference flux (microJansky)"
+        layout["yaxis"]["title"] = "Difference PSF flux (microJansky)"
 
     # Get data if necessary
     if pdf is None and isinstance(main_id, str):
@@ -783,10 +784,12 @@ def draw_lightcurve_preview(
         # Using same names as others despite being magnitudes
         flux, flux_err = flux_to_mag(flux, flux_err)
         layout["yaxis"]["autorange"] = "reversed"
-        if measurement == "differential":
+        if measurement == "difference":
             layout["yaxis"]["title"] = "Difference magnitude"
+        elif measurement == "template":
+            layout["yaxis"]["title"] = "Template magnitude"
         else:
-            layout["yaxis"]["title"] = "Magnitude"
+            layout["yaxis"]["title"] = "Science magnitude"
 
     if units == "flux":
         # micro-jansky
@@ -1075,14 +1078,6 @@ def draw_lightcurve(
     switch_layout: str, object_data, object_ztf, color_scale, units, measurement
 ) -> dict:
     """Draw diaObject lightcurve with errorbars
-
-    Parameters
-    ----------
-    switch: int
-        Choose:
-          - 0 to display Total Flux
-          - 1 to display Difference Flux
-          - 2 to display Magnitude
 
     Returns
     -------

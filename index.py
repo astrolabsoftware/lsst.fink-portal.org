@@ -289,15 +289,19 @@ app.layout = dmc.MantineProvider(
                                                 dmc.Text("Measurement"),
                                                 dmc.Select(
                                                     id="select-measurement",
-                                                    value="total",
+                                                    value="science",
                                                     data=[
                                                         {
-                                                            "value": "total",
-                                                            "label": "total",
+                                                            "value": "science",
+                                                            "label": "science",
                                                         },
                                                         {
-                                                            "value": "differential",
-                                                            "label": "differential",
+                                                            "value": "template",
+                                                            "label": "template",
+                                                        },
+                                                        {
+                                                            "value": "difference",
+                                                            "label": "difference",
                                                         },
                                                     ],
                                                     w=200,
