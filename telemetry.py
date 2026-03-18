@@ -18,9 +18,8 @@ import inspect
 import time
 from functools import wraps
 
-from dash import Dash, callback_context
-
 from colorama import Fore, Style
+from dash import Dash, callback_context
 
 LOG_CALLBACK_TELEMETRY = True
 

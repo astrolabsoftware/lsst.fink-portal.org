@@ -106,9 +106,9 @@ def flux_to_mag(flux, flux_err):
     Parameters
     ----------
     flux: array-like
-        Total flux in nJy
+        Flux in nJy
     flux_err: array-like
-        Total flux error in nJy
+        Flux error in nJy
 
     Returns
     -------

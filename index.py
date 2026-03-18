@@ -191,27 +191,25 @@ plotly_color_sets = [
 ]
 
 
-component = dmc.Box(
-    [
-        dmc.Group(
-            [
-                dmc.Select(
-                    id="color_scale",
-                    value="Fink",
-                    data=[{"value": k, "label": k} for k in plotly_color_sets],
-                    w=110,
-                    # mb=10,
-                    persistence=True,
-                    searchable=True,
-                    clearable=True,
-                    radius="xl",
-                ),
-                html.Div(id="color_palette"),
-            ],
-            justify="space-around",
-        ),
-    ]
-)
+component = dmc.Box([
+    dmc.Group(
+        [
+            dmc.Select(
+                id="color_scale",
+                value="Fink",
+                data=[{"value": k, "label": k} for k in plotly_color_sets],
+                w=110,
+                # mb=10,
+                persistence=True,
+                searchable=True,
+                clearable=True,
+                radius="xl",
+            ),
+            html.Div(id="color_palette"),
+        ],
+        justify="space-around",
+    ),
+])
 
 # embedding the navigation bar
 app.layout = dmc.MantineProvider(
@@ -289,15 +287,19 @@ app.layout = dmc.MantineProvider(
                                                 dmc.Text("Measurement"),
                                                 dmc.Select(
                                                     id="select-measurement",
-                                                    value="total",
+                                                    value="science",
                                                     data=[
                                                         {
-                                                            "value": "total",
-                                                            "label": "total",
+                                                            "value": "science",
+                                                            "label": "science",
                                                         },
                                                         {
-                                                            "value": "differential",
-                                                            "label": "differential",
+                                                            "value": "template",
+                                                            "label": "template",
+                                                        },
+                                                        {
+                                                            "value": "difference",
+                                                            "label": "difference",
                                                         },
                                                     ],
                                                     w=200,
