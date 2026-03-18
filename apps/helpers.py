@@ -145,9 +145,10 @@ The figure shows the evolution of brightness as a function of time. Each filter 
 The y axis unit can also be changed in the configuration. We expose several options:
 
 - Difference magnitude/flux: magnitude/flux estimated from the difference image (science image - reference image).
-- Total magnitude/flux: magnitude/flux estimated from the science image.
+- Science magnitude/flux: magnitude/flux estimated from the science image.
+- Template magnitude/flux: magnitude/flux estimated from the template image.
 
-If the flux estimate is negative, corresponding magnitudes will not be computed. Note that we display the flux in micro-Jansky.
+If the flux estimate is negative, corresponding magnitudes will not be computed. Note that we display the flux in micro-Jansky. For mor information about Rubin photometry, we refer the reader to [https://doc.lsst.fink-broker.org/data/photometry/](https://doc.lsst.fink-broker.org/data/photometry/).
 
 ##### Adding forced photometry estimates
 
