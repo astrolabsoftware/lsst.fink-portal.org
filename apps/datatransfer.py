@@ -224,6 +224,24 @@ def store_blocks(tags, variants, n_clicks):
     """Return a list of active blocks"""
     return store_tags_blocks(tags, variants, n_clicks)
 
+def create_tile(icon, heading, description, href):
+    return dmc.Anchor(dmc.Card(
+        radius="md",
+        p="xl",
+        withBorder=True,
+        m=5,
+        className="homepage-tile",
+        children=[
+            DashIconify(
+                icon=icon,
+                height=20,
+                color= "var(--mantine-color-blue-filled)",
+            ),
+            dmc.Text(heading, size="lg", mt="md"),
+            dmc.Text(description, size="sm", c="dimmed", mt="sm"),
+        ],
+    ), href=href, underline = "never", style={"display":"flex", "height": "100%"})
+
 
 def filter_number_tab():
     """Construct the filtering tab for the Data Transfer service
@@ -232,6 +250,38 @@ def filter_number_tab():
     -------
     out: Div
     """
+    tab = dmc.Container(
+        size="lg",
+        px=0,
+        py=0,
+        my=40,
+        children=[
+            dmc.SimpleGrid(
+                mt=80,
+                cols={"xs": 1, "sm": 2, "xl": 3},
+                children=[
+                    create_tile(
+                        icon="akar-icons:calendar",
+                        heading="Apply Fink Blocks & Filters",
+                        description="Easily switch between different years and months while looking great too.",
+                        href="/datepickers-overview",
+                    ),
+                    create_tile(
+                        icon="akar-icons:calendar",
+                        heading="Add an external catalog",
+                        description="Easily switch between different years and months while looking great too.",
+                        href="/datepickers-overview",
+                    ),
+                    create_tile(
+                        icon="akar-icons:calendar",
+                        heading="Write your own block",
+                        description="Easily switch between different years and months while looking great too.",
+                        href="/datepickers-overview",
+                    ),
+                ]
+            )
+        ], id="filter_number_tab",
+    )
     all_lsst_fields, all_fink_fields = fields_for_data_transfer()
     options = html.Div(
         [
@@ -925,6 +975,7 @@ def submit_job(
         # define unique topic name
         d = datetime.datetime.utcnow()
 
+        # FIXME: should be in config
         topic_name = f"ftransfer_lsst_{d.date().isoformat()}_{d.microsecond}"
         fn = "assets/spark_lsst_transfer.py"
         basepath = "hdfs://ccmaster1:8020/user/fink/archive/science"
