@@ -224,24 +224,63 @@ def store_blocks(tags, variants, n_clicks):
     """Return a list of active blocks"""
     return store_tags_blocks(tags, variants, n_clicks)
 
-def create_tile(icon, heading, description, href):
-    return dmc.Anchor(dmc.Card(
-        radius="md",
-        p="xl",
-        withBorder=True,
-        m=5,
-        className="homepage-tile",
-        children=[
-            DashIconify(
-                icon=icon,
-                height=20,
-                color= "var(--mantine-color-blue-filled)",
+def create_tile(icon, heading, description, index, content):
+    return html.Div(
+        [
+            dmc.Card(
+                radius="md",
+                p="xl",
+                withBorder=True,
+                m=5,
+                className="homepage-tile",
+                children=[
+                    dmc.Group([
+                        DashIconify(
+                            icon=icon,
+                            height=20,
+                            color= "var(--mantine-color-blue-filled)",
+                        ),
+                        dmc.Button("Open Modal", id=f"modal-datatransfer-button-{index}")
+                    ], justify="space-between"),
+                    dmc.Text(heading, size="lg", mt="md"),
+                    dmc.Text(description, size="sm", c="dimmed", mt="sm"),
+                ],
             ),
-            dmc.Text(heading, size="lg", mt="md"),
-            dmc.Text(description, size="sm", c="dimmed", mt="sm"),
-        ],
-    ), href=href, underline = "never", style={"display":"flex", "height": "100%"})
+            dmc.Modal(
+                title="New Modal",
+                children=content,
+                id=f"modal-datatransfer-{index}",
+                centered=True,
+            )
+        ]
+    )
 
+@callback(
+    Output("modal-datatransfer-1", "opened"),
+    Input("modal-datatransfer-button-1", "n_clicks"),
+    State("modal-datatransfer-1", "opened"),
+    prevent_initial_call=True,
+)
+def modal_demo(nc1, opened):
+    return not opened
+
+@callback(
+    Output("modal-datatransfer-2", "opened"),
+    Input("modal-datatransfer-button-2", "n_clicks"),
+    State("modal-datatransfer-2", "opened"),
+    prevent_initial_call=True,
+)
+def modal_demo(nc1, opened):
+    return not opened
+
+@callback(
+    Output("modal-datatransfer-3", "opened"),
+    Input("modal-datatransfer-button-3", "n_clicks"),
+    State("modal-datatransfer-3", "opened"),
+    prevent_initial_call=True,
+)
+def modal_demo(nc1, opened):
+    return not opened
 
 def filter_number_tab():
     """Construct the filtering tab for the Data Transfer service
@@ -250,40 +289,8 @@ def filter_number_tab():
     -------
     out: Div
     """
-    tab = dmc.Container(
-        size="lg",
-        px=0,
-        py=0,
-        my=40,
-        children=[
-            dmc.SimpleGrid(
-                mt=80,
-                cols={"xs": 1, "sm": 2, "xl": 3},
-                children=[
-                    create_tile(
-                        icon="akar-icons:calendar",
-                        heading="Apply Fink Blocks & Filters",
-                        description="Easily switch between different years and months while looking great too.",
-                        href="/datepickers-overview",
-                    ),
-                    create_tile(
-                        icon="akar-icons:calendar",
-                        heading="Add an external catalog",
-                        description="Easily switch between different years and months while looking great too.",
-                        href="/datepickers-overview",
-                    ),
-                    create_tile(
-                        icon="akar-icons:calendar",
-                        heading="Write your own block",
-                        description="Easily switch between different years and months while looking great too.",
-                        href="/datepickers-overview",
-                    ),
-                ]
-            )
-        ], id="filter_number_tab",
-    )
     all_lsst_fields, all_fink_fields = fields_for_data_transfer()
-    options = html.Div(
+    option1 = html.Div(
         [
             dmc.Space(h=10),
             dmc.Text("User-defined filters", size="sm"),
@@ -344,6 +351,11 @@ def filter_number_tab():
                 )
                 for index, fink_block in enumerate(list(fink_blocks.keys()))
             ],
+        ]
+    )
+
+    option3 = html.Div(
+        [
             dmc.Space(h=20),
             dmc.Text("Write your own block", size="sm"),
             dmc.Text(
@@ -491,11 +503,46 @@ pred.is_cataloged;
             ),
         ],
     )
+    tabs = dmc.Container(
+        size="lg",
+        px=0,
+        py=0,
+        my=40,
+        children=[
+            dmc.SimpleGrid(
+                mt=80,
+                cols={"xs": 1, "sm": 2, "xl": 3},
+                children=[
+                    create_tile(
+                        icon="akar-icons:calendar",
+                        heading="Apply Fink Blocks & Filters",
+                        description="Easily switch between different years and months while looking great too.",
+                        index=1,
+                        content=option1
+                    ),
+                    create_tile(
+                        icon="akar-icons:calendar",
+                        heading="Add an external catalog",
+                        description="Easily switch between different years and months while looking great too.",
+                        index=2,
+                        content=html.Div()
+                    ),
+                    create_tile(
+                        icon="akar-icons:calendar",
+                        heading="Write your own block",
+                        description="Easily switch between different years and months while looking great too.",
+                        index=3,
+                        content=option3
+                    ),
+                ]
+            )
+        ],
+    )
     tab = html.Div(
         [
             dmc.Space(h=50),
             dmc.Divider(variant="solid", label="Reduce the number of incoming alerts"),
-            options,
+            tabs,
         ],
         id="filter_number_tab",
     )
