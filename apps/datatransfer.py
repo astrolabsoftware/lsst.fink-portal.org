@@ -298,11 +298,19 @@ def create_user_filterblocks_description(items):
     # header
     rows = []
     for index, (tag, description) in enumerate(items.items()):
+        if tag.startswith("b_"):
+            classname = "button_blocks_transfer"
+            symbol = "target"
+            name = "Blocks"
+        else:
+            classname = "button_filter_transfer"
+            symbol = "stream"
+            name = "Filters"
         button = dmc.Button(
             children=tag,
-            className="button_filter_transfer",
+            className=classname,
             id={
-                "type": "button_filter_transfer",
+                "type": classname,
                 "index": index,
             },
             radius="xl",
@@ -310,7 +318,7 @@ def create_user_filterblocks_description(items):
             variant="light",
             color="grey",
             style={"margin": "3px"},
-            leftSection=DashIconify(icon="material-symbols:stream"),
+            leftSection=DashIconify(icon=f"material-symbols:{symbol}"),
         )
         rows.append(
             dmc.TableTr([
@@ -321,21 +329,18 @@ def create_user_filterblocks_description(items):
 
     head = dmc.TableThead(
         dmc.TableTr([
-            dmc.TableTh("Name", w="35%"),
+            dmc.TableTh(name, w="35%"),
             dmc.TableTh("Description", w="65%"),
         ])
     )
     body = dmc.TableTbody(rows)
 
-    table_candidate = dmc.TableScrollContainer(
+    table_candidate = html.Div(
         dmc.Table(
             [head, body, None],
             horizontalSpacing="xl",
             highlightOnHover=True,
         ),
-        maxHeight=300,
-        minWidth=1000,
-        type="scrollarea",
     )
     return table_candidate
 
@@ -374,12 +379,8 @@ def filter_number_tab():
                 c="gray",
             ),
             dmc.Space(h=30),
-            dmc.Divider(variant="solid", label="Filters"),
-            dmc.Space(h=10),
             create_user_filterblocks_description(fink_tags),
             dmc.Space(h=30),
-            dmc.Divider(variant="solid", label="Blocks"),
-            dmc.Space(h=10),
             create_user_filterblocks_description(fink_blocks),
         ]
     )
