@@ -232,25 +232,36 @@ def create_tile(icon, heading, description, index, content):
                 p="xl",
                 withBorder=True,
                 m=5,
-                className="homepage-tile",
+                #className="homepage-tile",
                 children=[
                     dmc.Group([
                         DashIconify(
                             icon=icon,
-                            height=20,
-                            color= "var(--mantine-color-blue-filled)",
+                            height=40,
+                            color= DEFAULT_FINK_COLORS[0],
                         ),
-                        dmc.Button("Open Modal", id=f"modal-datatransfer-button-{index}")
+                        dmc.ActionIcon(
+                            DashIconify(
+                                icon="material-symbols:add-circle-outline",
+                                color=DEFAULT_FINK_COLORS[-1],
+                                width=40
+                            ),
+                            color="white",
+                            variant="subtle",
+                            size="xl",
+                            id=f"modal-datatransfer-button-{index}"
+                        )
                     ], justify="space-between"),
                     dmc.Text(heading, size="lg", mt="md"),
                     dmc.Text(description, size="sm", c="dimmed", mt="sm"),
                 ],
             ),
             dmc.Modal(
-                title="New Modal",
+                title=dmc.Text(heading, size="xl", mt="md", c="black"),
                 children=content,
                 id=f"modal-datatransfer-{index}",
-                centered=True,
+                size="70%",
+                #fullScreen=True,
             )
         ]
     )
@@ -282,6 +293,53 @@ def modal_demo(nc1, opened):
 def modal_demo(nc1, opened):
     return not opened
 
+def create_user_filterblocks_description(items):
+    """ """
+    # header
+    rows = []
+    for index, (tag, description) in enumerate(items.items()):
+        button = dmc.Button(
+            children=tag,
+            className="button_filter_transfer",
+            id={
+                "type": "button_filter_transfer",
+                "index": index,
+            },
+            radius="xl",
+            #size="lg",
+            variant="light",
+            color="grey",
+            style={"margin": "3px"},
+            leftSection=DashIconify(icon="material-symbols:stream"),
+        )
+        rows.append(
+            dmc.TableTr([
+                dmc.TableTd(button),
+                dmc.TableTd(description),
+            ])
+        )
+
+    head = dmc.TableThead(
+        dmc.TableTr([
+            dmc.TableTh("Name", w="35%"),
+            dmc.TableTh("Description", w="65%"),
+        ])
+    )
+    body = dmc.TableTbody(rows)
+
+    table_candidate = dmc.TableScrollContainer(
+        dmc.Table(
+            [head, body, None],
+            horizontalSpacing="xl",
+            highlightOnHover=True,
+        ),
+        maxHeight=300,
+        minWidth=1000,
+        type="scrollarea",
+    )
+    return table_candidate
+
+
 def filter_number_tab():
     """Construct the filtering tab for the Data Transfer service
 
@@ -293,7 +351,7 @@ def filter_number_tab():
     option1 = html.Div(
         [
             dmc.Space(h=10),
-            dmc.Text("User-defined filters", size="sm"),
+            #dmc.Text("User-defined filters", size="xl"),
             dmc.Text(
                 [
                     "You can apply one or several Fink filters (",
@@ -312,45 +370,17 @@ def filter_number_tab():
                     ),
                     r" for description of available filters and blocks.",
                 ],
-                size="xs",
+                size="lg",
                 c="gray",
             ),
+            dmc.Space(h=30),
+            dmc.Divider(variant="solid", label="Filters"),
             dmc.Space(h=10),
-            *[
-                dmc.Button(
-                    children=fink_tag,
-                    className="button_filter_transfer",
-                    id={
-                        "type": "button_filter_transfer",
-                        "index": index,
-                    },
-                    radius="xl",
-                    size="xs",
-                    variant="light",
-                    color="grey",
-                    style={"margin": "3px"},
-                    leftSection=DashIconify(icon="material-symbols:stream"),
-                )
-                for index, fink_tag in enumerate(list(fink_tags.keys()))
-            ],
+            create_user_filterblocks_description(fink_tags),
+            dmc.Space(h=30),
+            dmc.Divider(variant="solid", label="Blocks"),
             dmc.Space(h=10),
-            *[
-                dmc.Button(
-                    children=fink_block,
-                    className="button_blocks_transfer",
-                    id={
-                        "type": "button_blocks_transfer",
-                        "index": index,
-                    },
-                    radius="xl",
-                    size="xs",
-                    variant="light",
-                    color="grey",
-                    style={"margin": "3px"},
-                    leftSection=DashIconify(icon="material-symbols:target"),
-                )
-                for index, fink_block in enumerate(list(fink_blocks.keys()))
-            ],
+            create_user_filterblocks_description(fink_blocks),
         ]
     )
 
@@ -389,6 +419,8 @@ def filter_number_tab():
             ),
             dmc.Space(h=10),
             AutocompleteInput(
+                offsetX=0,
+                offsetY=0,
                 id="extra_cond",
                 placeholder="One condition per line (SQL syntax), ending with semi-colon.",
                 component="textarea",
@@ -454,6 +486,7 @@ def filter_number_tab():
                 style={
                     "height": "15pc",
                     "width": "100%",
+                    "position": "relative"
                 },
             ),
             dmc.Accordion(
@@ -483,7 +516,7 @@ diaObject.nDiaSources > 3;
 diaSource.band = 'g';
 31.4 - 2.5 * LOG10(diaSource.scienceFlux) < 21;
 
--- Example block 3: Using a combination of fields (magnitude difference between science and template)
+-- Example block 3: Using a combination of fields (magnitude difference between difference and template image)
 2.5 * LOG10(diaSource.psfFlux / diaSource.templateFlux) > 0.5;
 
 -- Example block 3: Filtering on ML scores
@@ -494,14 +527,18 @@ xm.tns_type IN ('SN Ia', 'SN II');
 
 -- Example block 5: Only classified objects in SIMBAD and Gaia DR3
 pred.is_cataloged;
+
+-- Example block 6: Only far away Solar System objects
+pred.is_sso;
+mpc_orbits.a > 10;
 ```"""),
                             ),
                         ],
                         value="info",
                     ),
-                ],
+                ], value="info"
             ),
-        ],
+        ], 
     )
     tabs = dmc.Container(
         size="lg",
@@ -514,23 +551,23 @@ pred.is_cataloged;
                 cols={"xs": 1, "sm": 2, "xl": 3},
                 children=[
                     create_tile(
-                        icon="akar-icons:calendar",
-                        heading="Apply Fink Blocks & Filters",
-                        description="Easily switch between different years and months while looking great too.",
+                        icon="boxicons:filter",
+                        heading="Fink filters",
+                        description="Select alerts of interest by applying user-defined Fink filters and blocks.",
                         index=1,
                         content=option1
                     ),
                     create_tile(
-                        icon="akar-icons:calendar",
-                        heading="Add an external catalog",
-                        description="Easily switch between different years and months while looking great too.",
+                        icon="fluent-mdl2:venn-diagram",
+                        heading="External catalog",
+                        description="Upload your catalog of astronomical sources to find matches with Fink/LSST alerts.",
                         index=2,
                         content=html.Div()
                     ),
                     create_tile(
-                        icon="akar-icons:calendar",
-                        heading="Write your own block",
-                        description="Easily switch between different years and months while looking great too.",
+                        icon="solar:document-add-linear",
+                        heading="Custom filtering",
+                        description="Select alerts of interest by writing your own filtering.",
                         index=3,
                         content=option3
                     ),
