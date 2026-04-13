@@ -18,12 +18,14 @@ import io
 import textwrap
 
 import dash_mantine_components as dmc
+import pandas as pd
 import numpy as np
 import requests
 import yaml
-from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update
+from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update, dash_table
 from dash_autocomplete_input import AutocompleteInput
 from dash_iconify import DashIconify
+from dash.exceptions import PreventUpdate
 
 from app import app
 from apps.configuration import extract_configuration
@@ -43,6 +45,8 @@ APIURL = args["APIURL"]
 
 min_step = 0
 max_step = 5
+
+MAX_ROW = 100000
 
 
 def config_tab():
@@ -344,6 +348,277 @@ def create_user_filterblocks_description(items):
     )
     return table_candidate
 
+def upload_catalog():
+    """ """
+    radius = dmc.NumberInput(
+        placeholder="type value...",
+        label="Crossmatch radius in arcsecond",
+        variant="default",
+        # size="sm",
+        # radius="sm",
+        hideControls=True,
+        w=250,
+        mb=10,
+        id="radius_xmatch",
+        disabled=True,
+    )
+
+    ra = dmc.Select(
+        label="Column for Right Ascension (J2000)",
+        placeholder="Select one",
+        id="ra-column",
+        w=250,
+        mb=10,
+        disabled=True,
+    )
+    dec = dmc.Select(
+        label="Column for Declination (J2000)",
+        placeholder="Select one",
+        id="dec-column",
+        w=250,
+        mb=10,
+        disabled=True,
+    )
+    identifier = dmc.Select(
+        label="Select column for the identifier",
+        placeholder="Select one",
+        id="id-column",
+        w=250,
+        mb=10,
+        disabled=True,
+    )
+
+    return html.Div(
+        children=[
+            dcc.Upload(
+                id="upload-data",
+                children=html.Div(
+                    [
+                        "Drag and Drop or ",
+                        html.A("Select Files "),
+                        "(csv, fits, parquet, or votable)",
+                    ]
+                ),
+                style={
+                    "width": "100%",
+                    "height": "60px",
+                    "lineHeight": "60px",
+                    "borderWidth": "1px",
+                    "borderStyle": "dashed",
+                    "borderRadius": "5px",
+                    "textAlign": "center",
+                    "margin": "10px",
+                },
+            ),
+            html.Div(id="output-data-upload"),
+            dmc.Space(h=10),
+            dmc.Group([ra, dec, identifier, radius], justify="center"),
+            dmc.Space(h=10),
+            # dmc.Center(modal_skymap()),
+        ]
+    )
+
+@callback(
+    Output("output-data-upload", "children"),
+    Input("object-catalog", "data"),
+    State("upload-data", "filename"),
+    State("upload-data", "last_modified"),
+)
+def update_output(catalog, filename, date):
+    if catalog is not None:
+        children = parse_contents(catalog, filename, date)
+        return children
+
+
+@callback(
+    [
+        Output("object-catalog", "data"),
+        Output("gauge_catalog_number", "sections"),
+        Output("gauge_catalog_number", "label"),
+        Output("notification-container", "sendNotifications", allow_duplicate=True),
+    ],
+    [
+        Input("upload-data", "contents"),
+        State("upload-data", "filename"),
+    ],
+    prevent_initial_call='initial_duplicate'
+)
+def store_catalog(content, filename):
+    """Store data from user"""
+    if filename is None:
+        return no_update, no_update, dmc.Text("No catalog", ta="center"), no_update
+
+    content_type, content_string = content.split(",")
+    decoded = base64.b64decode(content_string)
+
+    try:
+        if ".csv" in filename:
+            # Assume that the user uploaded a CSV file
+            pdf = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+        elif ".parquet" in filename:
+            # Assume that the user uploaded a parquet file
+            pdf = pd.read_parquet(io.BytesIO(decoded))
+        elif ".xml" in filename:
+            # Assume that the user uploaded a votable file
+            table = votable.parse(io.BytesIO(decoded))
+            pdf = table.get_first_table().to_table(use_names_over_ids=True).to_pandas()
+        elif ".fits" in filename:
+            # Assume that the user uploaded a fits file
+            with fits.open(io.BytesIO(decoded)) as hdul:
+                for hdu in hdul:
+                    if isinstance(hdu, fits.BinTableHDU):
+                        pdf = pd.DataFrame(np.array(hdu.data))
+                        break
+        if ("pdf" not in locals()) or (not isinstance(pdf, pd.DataFrame)):
+            msg = "Catalog format not recognised"
+            notification = dict(
+                title="Error while uploading catalog",
+                id="show-notify",
+                action="show",
+                message=msg,
+                color="red",
+            )
+            return (
+                "{}",
+                [{"value": 0, "color": "grey", "tooltip": "0%"}],
+                dmc.Text(msg, c="red", ta="center"),
+                [notification],
+
+            )
+    except Exception as e:
+        notification = dict(
+            title="Error while uploading catalog",
+            id="show-notify",
+            action="show",
+            message=e,
+            color="red",
+        )
+        return (
+            "{}",
+            [{"value": 0, "color": "grey", "tooltip": "0%"}],
+            dmc.Text(e, c="red", ta="center"),
+            [notification],
+        )
+
+    if len(pdf) > MAX_ROW:
+        msg = "{:,} > {} rows allowed. Uploading only {} rows.".format(len(pdf), MAX_ROW, MAX_ROW)
+        color = "orange"
+        notification = dict(
+            title="Truncating input catalog",
+            id="show-notify",
+            action="show",
+            message=msg,
+            color=color,
+        )
+        pdf = pdf.head(MAX_ROW)
+    else:
+        color = "green"
+        notification = dict(
+            title="Catalog uploaded",
+            id="show-notify",
+            action="show",
+            message="{:,} rows".format(len(pdf)),
+            color=color,
+        )
+    sections = {
+        "value": len(pdf) / MAX_ROW * 100,
+        "color": color,
+        "tooltip": "{:.2f}%".format(len(pdf) / MAX_ROW * 100),
+    }
+    label = dmc.Text("{:,} rows".format(len(pdf)), c=DEFAULT_FINK_COLORS[0], ta="center")
+
+    return pdf.to_json(), [sections], label, [notification]
+
+def parse_contents(catalog, filename, date):
+    pdf = pd.read_json(io.StringIO(catalog))
+
+    # Check header? Or ask the user to provide what is RA, DEC, OID?
+
+    return html.Div(
+        [
+            html.H5("{}".format(filename)),
+            html.H6("Preview of the 10 first rows"),
+            dash_table.DataTable(
+                pdf.head(10).to_dict("records"),
+                [{"name": i, "id": i} for i in pdf.columns],
+            ),
+        ]
+    )
+
+@app.callback(
+    [
+        Output("ra-column", "disabled"),
+        Output("dec-column", "disabled"),
+        Output("id-column", "disabled"),
+        Output("radius_xmatch", "disabled"),
+        Output("ra-column", "data"),
+        Output("dec-column", "data"),
+        Output("id-column", "data"),
+    ],
+    Input("object-catalog", "data"),
+    prevent_initial_call=True,
+)
+def select_columns(catalog):
+    """ """
+    print(catalog)
+    if catalog is None or catalog == {} or catalog == "{}":
+        PreventUpdate()
+
+    pdf = pd.read_json(io.StringIO(catalog))
+    if pdf.empty:
+        PreventUpdate()
+
+    ra_data = [{"value": c, "label": c} for c in pdf.columns]
+    dec_data = [{"value": c, "label": c} for c in pdf.columns]
+    identifier = [{"value": c, "label": c} for c in pdf.columns]
+
+    return False, False, False, False, ra_data, dec_data, identifier
+
+
+def enforce_decimal(pdf, ra_label, dec_label):
+    """Convert RA and Dec to decimal degree if need be
+
+    Parameters
+    ----------
+    pdf: pd.DataFrame
+        Pandas DataFrame
+    ra_label: str
+        RA column name
+    dec_label: str
+        Dec column name
+
+    Returns
+    -------
+    out: np.array, np.array
+        RA, Dec in decimal degrees
+    """
+    ra = pdf[ra_label].to_numpy()
+    dec = pdf[dec_label].to_numpy()
+
+    # conversion if not degree
+    if isinstance(ra[0], str) and not ra[0].isnumeric():
+        out = []
+        for ra_, dec_ in zip(ra, dec):
+            string = "{} {}".format(ra_, dec_)
+            m = re.search(
+                r"^(\d{1,2})\s+(\d{1,2})\s+(\d{1,2}\.?\d*)\s+([+-])?\s*(\d{1,3})\s+(\d{1,2})\s+(\d{1,2}\.?\d*)(\s+(\d+\.?\d*))?$",
+                string,
+            ) or re.search(
+                r"^(\d{1,2})[:h](\d{1,2})[:m](\d{1,2}\.?\d*)[s]?\s+([+-])?\s*(\d{1,3})[d:](\d{1,2})[m:](\d{1,2}\.?\d*)[s]?(\s+(\d+\.?\d*))?$",
+                string,
+            )
+            if m:
+                ra_deg = (float(m[1]) + float(m[2]) / 60 + float(m[3]) / 3600) * 15
+                dec_deg = float(m[5]) + float(m[6]) / 60 + float(m[7]) / 3600
+
+                if m[4] == "-":
+                    dec_deg *= -1
+
+                out.append([ra_deg, dec_deg])
+        if len(out) > 0:
+            ra, dec = np.transpose(out)
+
+    return ra, dec
 
 def filter_number_tab():
     """Construct the filtering tab for the Data Transfer service
@@ -384,6 +659,8 @@ def filter_number_tab():
             create_user_filterblocks_description(fink_blocks),
         ]
     )
+
+    option2 = upload_catalog()
 
     option3 = html.Div(
         [
@@ -539,7 +816,7 @@ mpc_orbits.a > 10;
                     ),
                 ], value="info"
             ),
-        ], 
+        ],
     )
     tabs = dmc.Container(
         size="lg",
@@ -563,7 +840,7 @@ mpc_orbits.a > 10;
                         heading="External catalog",
                         description="Upload your catalog of astronomical sources to find matches with Fink/LSST alerts.",
                         index=2,
-                        content=html.Div()
+                        content=option2
                     ),
                     create_tile(
                         icon="solar:document-add-linear",
@@ -957,7 +1234,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Estimated number of alerts for the selected dates, including the class filter(s) and the livestream filter (if any), but not the custom filters (if any). The percentage is given with respect to the total for the selected dates ({} to {})".format(
+                    label="Estimated number of alerts for the selected dates ({} to {}), excluding all filters.".format(
                         *date_range_picker
                     ),
                 ),
@@ -1271,21 +1548,35 @@ def layout():
                                         ),
                                     ),
                                     dmc.Space(h=20),
-                                    dmc.RingProgress(
-                                        roundCaps=True,
-                                        sections=[{"value": 0, "color": "grey"}],
-                                        size=250,
-                                        thickness=20,
-                                        label="",
-                                        id="gauge_alert_number",
-                                    ),
-                                    dmc.RingProgress(
-                                        roundCaps=True,
-                                        sections=[{"value": 0, "color": "grey"}],
-                                        size=250,
-                                        thickness=20,
-                                        label="",
-                                        id="gauge_alert_size",
+                                    dmc.Stack(
+                                        align="center",
+                                        justify="center",
+                                        children=[
+                                            dmc.RingProgress(
+                                                roundCaps=True,
+                                                sections=[{"value": 0, "color": "grey"}],
+                                                size=200,
+                                                thickness=10,
+                                                label="",
+                                                id="gauge_alert_number",
+                                            ),
+                                            dmc.RingProgress(
+                                                roundCaps=True,
+                                                sections=[{"value": 0, "color": "grey"}],
+                                                size=200,
+                                                thickness=10,
+                                                label="",
+                                                id="gauge_alert_size",
+                                            ),
+                                            dmc.RingProgress(
+                                                roundCaps=True,
+                                                sections=[{"value": 0, "color": "grey"}],
+                                                size=200,
+                                                thickness=10,
+                                                label="",
+                                                id="gauge_catalog_number",
+                                            ),
+                                        ]
                                     ),
                                     dmc.Accordion(
                                         variant="separated",
@@ -1458,10 +1749,11 @@ def layout():
                             dcc.Store(data="", id="log_progress"),
                             dcc.Store(data=[], id="tag_select"),
                             dcc.Store(data=[], id="blocks_select"),
+                            dcc.Store(id="object-catalog"),
                             html.Div("", id="batch_id", style={"display": "none"}),
                             html.Div("", id="topic_name", style={"display": "none"}),
                         ],
-                        span=9,
+                        span=10,
                     ),
                 ],
             ),
