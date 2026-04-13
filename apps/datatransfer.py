@@ -477,6 +477,7 @@ def store_catalog(content, filename):
                 action="show",
                 message=msg,
                 color="red",
+                autoClose=False,
             )
             return (
                 "{}",
@@ -492,6 +493,7 @@ def store_catalog(content, filename):
             action="show",
             message=e,
             color="red",
+            autoClose=False,
         )
         return (
             "{}",
@@ -509,6 +511,7 @@ def store_catalog(content, filename):
             action="show",
             message=msg,
             color=color,
+            autoClose=False,
         )
         pdf = pdf.head(MAX_ROW)
     else:
@@ -560,7 +563,6 @@ def parse_contents(catalog, filename, date):
 )
 def select_columns(catalog):
     """ """
-    print(catalog)
     if catalog is None or catalog == {} or catalog == "{}":
         PreventUpdate()
 
@@ -924,6 +926,7 @@ def filter_content_tab():
         Input("blocks_select", "data"),
         Input("field_select", "value"),
         Input("extra_cond", "value"),
+        State("upload-data", "filename"),
     ],
     prevent_initial_call=True,
 )
@@ -934,6 +937,7 @@ def download_yaml(
     blocks_select,
     field_select,
     extra_cond,
+    catalog_filename,
 ):
     """Construct a JSON file and export to YAML"""
     if nclicks is None:
@@ -964,6 +968,7 @@ def download_yaml(
         "blocks": blocks_select,
         "content": field_select,
         "extra_cond": extra_cond,
+        "catalog_filename": catalog_filename
     }
 
     if field_select is None or field_select == []:
@@ -1022,7 +1027,7 @@ def upload_yaml(content, filename):
 
     data = yaml.safe_load(io.StringIO(decoded.decode("utf-8")))
 
-    is_valid, outNotifications = validate_yaml(data)
+    is_valid, catalog_filename, outNotifications = validate_yaml(data)
 
     if not is_valid:
         return (
@@ -1034,6 +1039,14 @@ def upload_yaml(content, filename):
             outNotifications,
             no_update,
         )
+    elif catalog_filename != "":
+        outNotifications = [
+            dict(
+                title=f"Previous configuration loaded from {filename}",
+                message=f"You still need to re-upload your catalog ({catalog_filename})",
+                color="orange",
+            )
+        ]
     else:
         outNotifications = [
             dict(
@@ -1086,6 +1099,8 @@ def sanitize_extra_cond(extra_cond):
                 out.append(elem)
             return out
 
+    return []
+
 
 def validate_yaml(dic):
     """Check input dictionary has correct fields
@@ -1099,6 +1114,8 @@ def validate_yaml(dic):
     -------
     is_valid: bool
         True if the dictionary is valid. False otherwise.
+    catalog_filename: str
+        Name of the catalog. No catalog is empty string.
     outNotifications: dict
         Notifications to send to the user in case of unvalid dictionary.
     """
@@ -1109,7 +1126,11 @@ def validate_yaml(dic):
         "blocks": list,
         "content": list,
         "extra_cond": list,
+        "catalog_filename": str,
     }
+
+    # Support legacy format
+    dic["catalog_filename"] = dic.get("catalog_filename", "")
 
     # Check all mandatory fields are here
     for key in default_fields:
@@ -1120,7 +1141,7 @@ def validate_yaml(dic):
                     color="red",
                 )
             ]
-            return False, outNotifications
+            return False, dic["catalog_filename"], outNotifications
 
     # Check we have start AND stop dates
     if len(dic["dates"]) != 2:
@@ -1132,7 +1153,7 @@ def validate_yaml(dic):
                 color="red",
             )
         ]
-        return False, outNotifications
+        return False, dic["catalog_filename"], outNotifications
 
     # Check their type. None is fine (means value not set)
     for key, value in dic.items():
@@ -1143,9 +1164,9 @@ def validate_yaml(dic):
                     color="red",
                 )
             ]
-            return False, outNotifications
+            return False, dic["catalog_filename"], outNotifications
 
-    return True, outNotifications
+    return True, dic["catalog_filename"], outNotifications
 
 
 @app.callback(
@@ -1321,6 +1342,12 @@ fink_datatransfer \\
         State("blocks_select", "data"),
         State("field_select", "value"),
         State("extra_cond", "value"),
+        State("object-catalog", "data"),
+        State("upload-data", "filename"),
+        State("ra-column", "value"),
+        State("dec-column", "value"),
+        State("radius_xmatch", "value"),
+        State("id-column", "value"),
     ],
     prevent_initial_call=True,
 )
@@ -1331,6 +1358,12 @@ def submit_job(
     blocks_select,
     field_select,
     extra_cond,
+    catalog,
+    catalog_filename,
+    catalog_ra,
+    catalog_dec,
+    catalog_radius,
+    catalog_identifier,
 ):
     """Submit a job to the Apache Spark cluster via Livy"""
     if n_clicks:
@@ -1373,12 +1406,55 @@ def submit_job(
             )
             return True, [alert], no_update, no_update
 
+        # Send the data to HDFS as parquet file
+        catalog_filename_parquet = os.path.splitext(catalog_filename)[0] + ".parquet"
+
+        # Conversion in decimal degree as xmatch expects it
+        pdf_catalog = pd.read_json(io.StringIO(catalog))
+        pdf_catalog[catalog_ra], pdf[catalog_dec] = enforce_decimal(pdf_catalog, catalog_ra, catalog_dec)
+
+        status_code, hdfs_log = upload_file_hdfs(
+            pdf_catalog.to_parquet(),
+            input_args["WEBHDFS"],
+            input_args["NAMENODE"],
+            input_args["USER"],
+            catalog_filename_parquet,
+        )
+
+        if status_code != 201:
+            text = dmc.Stack(
+                children=[
+                    "Unable to upload {} on HDFS, with error: ".format(
+                        catalog_filename_parquet
+                    ),
+                    dmc.CodeHighlight(code=f"{hdfs_log}", language="html"),
+                    "Contact an administrator at contact@fink-broker.org.",
+                ]
+            )
+            alert = dict(
+                message=text,
+                title=f"[Status code {status_code}]",
+                color="red",
+                action="show",
+                autoClose=False,
+            )
+            return True, [alert], no_update, no_update
+
         # get the job args
         job_args = [
             f"-startDate={date_range_picker[0]}",
             f"-stopDate={date_range_picker[1]}",
             f"-basePath={basepath}",
             f"-topic_name={topic_name}",
+            f"-ra_col={catalog_ra}",
+            f"-dec_col={catalog_dec}",
+            f"-radius_arcsec={catalog_radius}",
+            f"-id_col={catalog_identifier}",
+            "-catalog_filename={}".format(
+                "hdfs://{}///user/{}/{}".format(
+                    input_args["NAMENODE"], input_args["USER"], catalog_filename_parquet
+                )
+            ),
             "-kafka_bootstrap_servers={}".format(input_args["KAFKA_BOOTSTRAP_SERVERS"]),
             "-kafka_sasl_username={}".format(input_args["KAFKA_SASL_USERNAME"]),
             "-kafka_sasl_password={}".format(input_args["KAFKA_SASL_PASSWORD"]),
