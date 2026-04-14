@@ -519,7 +519,8 @@ def main(args):
             "prvDiaForcedSources",
             "diaObject",
             "ssSource",
-            "MPCORB",  # FIXME: to be replaced by mpc_orbits in v10
+            "MPCORB",
+            "mpc_orbits",
             "day",
             "month",
             "year",

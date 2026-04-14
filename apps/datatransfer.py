@@ -37,7 +37,7 @@ from apps.mining.utils import (
     upload_file_hdfs,
 )
 from apps.plotting import DEFAULT_FINK_COLORS
-from apps.schema import fields_for_data_transfer, predefined_fields_for_data_transfer
+from apps.schema import fields_for_data_transfer, predefined_fields_for_data_transfer, lsst_nested_fields_for_data_transfer
 from apps.utils import query_and_order_statistics
 
 args = extract_configuration("config.yml")
@@ -47,6 +47,8 @@ min_step = 0
 max_step = 5
 
 MAX_ROW = 100000
+
+ALL_LSST_FIELDS, ALL_FINK_FIELDS = fields_for_data_transfer()
 
 
 def config_tab():
@@ -629,7 +631,6 @@ def filter_number_tab():
     -------
     out: Div
     """
-    all_lsst_fields, all_fink_fields = fields_for_data_transfer()
     option1 = html.Div(
         [
             dmc.Space(h=10),
@@ -717,42 +718,42 @@ def filter_number_tab():
                 options={
                     "diaSource.": [
                         k.split("diaSource.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("diaSource.")
                     ],
                     "ssSource.": [
                         k.split("ssSource.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("ssSource.")
                     ],
                     "mpc_orbits.": [
                         k.split("mpc_orbits.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("mpc_orbits.")
                     ],
                     "diaObject.": [
                         k.split("diaObject.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("diaObject.")
                     ],
                     "xm.": [
                         k.split("xm.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("xm.")
                     ],
                     "clf.": [
                         k.split("clf.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("clf.")
                     ],
                     "misc.": [
                         k.split("misc.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("misc.")
                     ],
                     "pred.": [
                         k.split("pred.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("pred.")
                     ],
                 },
@@ -868,11 +869,12 @@ mpc_orbits.a > 10;
 
 def filter_content_tab():
     custom_fields, _ = predefined_fields_for_data_transfer()
-    all_lsst_fields, all_fink_fields = fields_for_data_transfer()
+    nested_fields, _ = lsst_nested_fields_for_data_transfer()
     data = [
         custom_fields[0],
-        {"group": "Fink added values", "items": all_fink_fields},
-        {"group": "LSST original fields", "items": all_lsst_fields},
+        nested_fields[0],
+        {"group": "Fink added values", "items": list(ALL_FINK_FIELDS.keys())},
+        {"group": "LSST original fields", "items": list(ALL_LSST_FIELDS.keys())},
     ]
     options = html.Div(
         [
@@ -1208,7 +1210,7 @@ def gauge_meter(
             field_select = ["Full packet"]
 
         total, count = estimate_alert_number_lsst(date_range_picker, tag_select)
-        sizeGb = estimate_size_gb_lsst(field_select)
+        sizeGb = estimate_size_gb_lsst(field_select, ALL_LSST_FIELDS, ALL_FINK_FIELDS)
         defaultGb = 55 / 1024 / 1024
 
         if count == 0:
@@ -1255,7 +1257,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Estimated number of alerts for the selected dates ({} to {}), excluding all filters.".format(
+                    label="Number of alerts received for the selected dates ({} to {}), excluding all Fink filters.".format(
                         *date_range_picker
                     ),
                 ),
@@ -1291,7 +1293,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Estimated data volume to transfer based on selected alert fields. The percentage is given with respect to the total for the selected dates ({} to {}), with the class filter(s) applied (if any).".format(
+                    label="Estimated data volume to transfer based on selected alert fields. The percentage is given with respect to the total for the selected dates ({} to {}), excluding Fink filters.".format(
                         *date_range_picker
                     ),
                 ),

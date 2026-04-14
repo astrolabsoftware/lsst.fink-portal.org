@@ -20,15 +20,14 @@ import requests
 
 from apps.utils import query_and_order_statistics
 
-# coeffs_per_class = pd.read_parquet("assets/fclass_2022_060708_coeffs.parquet")
-# coeffs_per_filters = pd.read_parquet("assets/ffilters_2025_01_to_06_coeffs.parquet")
 
 CONV = {
     "float": 4,
     "double": 8,
     "int": 4,
+    "long": 8,
     "string": 8,
-    "array": 4 * 60 * 60,
+    "bytes": 3 * 4 * 40 * 40,
     "boolean": 1,
     "long": 8,
 }
@@ -125,21 +124,17 @@ def submit_spark_job(livyhost, filename, spark_conf, job_args):
     return batchid, response.status_code, response.text
 
 
-def extract_type(field):
-    if isinstance(field, list):
-        # null, type
-        return field[1]
-    else:
-        return field
-
-
-def estimate_size_gb_lsst(content):
+def estimate_size_gb_lsst(content, all_lsst_fields, all_fink_fields):
     """Estimate the size of the data to download
 
     Parameters
     ----------
     content: list
         List of selected alert fields
+
+    Returns
+    -------
+    sizeGb:
     """
     if content is None:
         return 0
@@ -151,18 +146,16 @@ def estimate_size_gb_lsst(content):
         sizeGb = 1.4 / 1024 / 1024
     elif "Medium packet" in content:
         sizeGb = 18.0 / 1024 / 1024
-    # else:
-    #     # freedom on candidates + added values
-    #     schema = request_api("/api/v1/schema", method="GET", output="json")
-    #     sizeB = 0
-    #     for k_out in schema.keys():
-    #         for k_in, field in schema[k_out].items():
-    #             if select_struct(k_in) in content:
-    #                 sizeB += CONV[extract_type(field["type"])]
-    #             elif select_struct(k_in, "diaSource.") in content:
-    #                 sizeB += CONV[extract_type(field["type"])]
+    else:
+        # freedom on candidates + added values
+        sizeB = 0
+        for k in content:
+            if k in all_lsst_fields:
+                sizeB += CONV[all_lsst_fields[k]]
+            elif k in all_fink_fields:
+                sizeB += CONV[all_fink_fields[k]]
 
-    #     sizeGb = sizeB / 1024 / 1024 / 1024
+        sizeGb = sizeB / 1024 / 1024 / 1024
 
     return sizeGb
 
