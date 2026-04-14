@@ -634,7 +634,6 @@ def filter_number_tab():
     option1 = html.Div(
         [
             dmc.Space(h=10),
-            #dmc.Text("User-defined filters", size="xl"),
             dmc.Text(
                 [
                     "You can apply one or several Fink filters (",
@@ -668,7 +667,6 @@ def filter_number_tab():
     option3 = html.Div(
         [
             dmc.Space(h=20),
-            dmc.Text("Write your own block", size="sm"),
             dmc.Text(
                 [
                     "Similarly to the blocks above, you can write your own block. You need to specify one condition per line (SQL syntax), ending with semi-colon (see below for examples). Start typing an alert section such as ",
@@ -695,7 +693,7 @@ def filter_number_tab():
                     ),
                     r" for description of available fields.",
                 ],
-                size="xs",
+                size="lg",
                 c="gray",
             ),
             dmc.Space(h=10),
@@ -758,7 +756,7 @@ def filter_number_tab():
                     ],
                 },
                 maxOptions=0,
-                className="inputbar form-control border-0",
+                className="inputbar form-control roundcorner",
                 quoteWhitespaces=True,
                 autoFocus=True,
                 ignoreCase=True,
@@ -767,7 +765,7 @@ def filter_number_tab():
                 style={
                     "height": "15pc",
                     "width": "100%",
-                    "position": "relative"
+                    "position": "relative",
                 },
             ),
             dmc.Accordion(
