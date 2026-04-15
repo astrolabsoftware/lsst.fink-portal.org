@@ -18,8 +18,11 @@ import logging
 import sys
 from logging import Logger
 
-# from fink_science.ztf.ad_features.processor import extract_features_ad
 from time import time
+
+from fink_science.ztf.xmatch.utils import cross_match_astropy
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
 import numpy as np
 import pandas as pd
@@ -433,6 +436,69 @@ def apply_filter_or_block(df, names, is_filter=False, is_block=False, logger=Non
 
     return df
 
+def perform_xmatch(spark, df, catalog_filename, ra_col, dec_col, id_col, radius_arcsec):
+    """Crossmatch a DataFrame to a catalog with Spark"""
+    df_other = spark.read.format("parquet").load(catalog_filename)
+    pdf_other = df_other.toPandas()
+    pdf_b = spark.sparkContext.broadcast(pdf_other)
+
+    @pandas_udf(StringType(), PandasUDFType.SCALAR)
+    def crossmatch(ra, dec):
+        """Spark UDF for simple crossmatch"""
+        pdf_cat = pdf_b.value
+        ra2, dec2, id2 = pdf_cat[ra_col], pdf_cat[dec_col], pdf_cat[id_col]
+
+        pdf = pd.DataFrame(
+            {
+                "ra": ra.to_numpy(),
+                "dec": dec.to_numpy(),
+                "candid": range(len(ra)),
+            }
+        )
+
+        # Limit the catalog to Rubin declinations
+        dec_min, dec_max = dec.min(), dec.max()
+
+        # extend the box for safety
+        pad = 2 * radius_arcsec / 3600
+        mask = (dec2 >= dec_min - pad) & (dec2 <= dec_max + pad)
+        if mask.sum() == 0:
+            # No overlap, return only Unknowns
+            return pd.Series(["Unknown"] * len(ra))
+
+        ra2 = ra2[mask]
+        dec2 = dec2[mask]
+        id2 = id2[mask]
+
+        # create catalogs
+        catalog_ztf = SkyCoord(
+            ra=np.array(ra, dtype=np.float) * u.degree,
+            dec=np.array(dec, dtype=np.float) * u.degree,
+        )
+        catalog_other = SkyCoord(
+            ra=np.array(ra2, dtype=np.float) * u.degree,
+            dec=np.array(dec2, dtype=np.float) * u.degree,
+        )
+
+        pdf_merge, mask, idx2 = cross_match_astropy(
+            pdf, catalog_ztf, catalog_other, radius_arcsec=pd.Series([radius_arcsec])
+        )
+
+        pdf_merge["Type"] = "Unknown"
+        pdf_merge.loc[mask, "Type"] = [
+            str(i).strip() for i in id2.astype(str).to_numpy()[idx2]
+        ]
+
+        return pdf_merge["Type"]
+
+    # Keep only matches
+    df = df.withColumn(
+        id_col,
+        crossmatch(df["diaSource.ra"], df["diaSource.dec"]),
+    ).filter(F.col(id_col) != "Unknown")
+
+    return df
+
 
 def main(args):
     spark = SparkSession.builder.getOrCreate()
@@ -458,6 +524,17 @@ def main(args):
     )
 
     df = add_classification(spark, df, args.path_to_tns)
+
+    # Perform the xmatch
+    df = perform_xmatch(
+        spark,
+        df,
+        args.catalog_filename,
+        args.ra_col,
+        args.dec_col,
+        args.id_col,
+        args.radius_arcsec,
+    )
 
     # direct Spark SQL filtering
     if args.extraCond is not None:
@@ -608,6 +685,11 @@ if __name__ == "__main__":
     parser.add_argument("-fblock", action="append")
     parser.add_argument("-extraCond", action="append")
     parser.add_argument("-ffield", action="append")
+    parser.add_argument("-ra_col")
+    parser.add_argument("-dec_col")
+    parser.add_argument("-radius_arcsec")
+    parser.add_argument("-id_col")
+    parser.add_argument("-catalog_filename")
     parser.add_argument("-basePath")
     parser.add_argument("-topic_name")
     parser.add_argument("-kafka_bootstrap_servers")
