@@ -1,4 +1,4 @@
-# Copyright 2025 AstroLab Software
+# Copyright 2025-2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@ import logging
 from datetime import date
 
 import requests
+import pandas as pd
 
 from apps.utils import query_and_order_statistics
 
@@ -31,6 +32,8 @@ CONV = {
     "boolean": 1,
     "long": 8,
 }
+
+FILTERS_AND_BLOCKS_YIELD = {item['name']:item['yield'] for item in pd.read_csv("assets/filters_and_blocks_yield.csv").to_dict(orient='records')}
 
 
 def upload_file_hdfs(code, webhdfs, namenode, user, filename):
@@ -136,7 +139,8 @@ def estimate_size_gb_lsst(content, blocks, all_lsst_fields, all_fink_fields):
 
     Returns
     -------
-    sizeGb:
+    sizeGb: int
+    max_size: int
     """
     if content is None:
         return 0
@@ -198,7 +202,7 @@ def estimate_size_gb_lsst(content, blocks, all_lsst_fields, all_fink_fields):
                 sizeB += 0.5 * 1024
             elif k == "prvDiaSources" and kind in ["static", "mix"]:
                 sizeB += 116 * 1024 * precomputed[kind]["history_factor"] / 100.
-            elif k == "prvDiaForcedSourced" and kind in ["static", "mix"]:
+            elif k == "prvDiaForcedSources" and kind in ["static", "mix"]:
                 sizeB += 1024 * precomputed[kind]["history_factor"] / 100.
             elif k == "diaObject" and kind in ["static", "mix"]:
                 sizeB += 0.3 * 1024
@@ -211,7 +215,7 @@ def estimate_size_gb_lsst(content, blocks, all_lsst_fields, all_fink_fields):
 
         sizeGb = sizeB / 1024 / 1024 / 1024
 
-    return sizeGb
+    return sizeGb, precomputed[kind]["Full packet"]
 
 
 def initialise_classes(class_select):
@@ -311,9 +315,11 @@ def get_statistics(dstart, dstop):
 #     return dic
 
 
-def estimate_alert_number_lsst(date_range_picker):
+def estimate_alert_number_lsst(date_range_picker, tags, blocks):
     """Callback to estimate the number of alerts to be transfered
 
+    Notes
+    -----
     This can be improved by using the REST API directly to get number of
     alerts per class.
     """
@@ -322,8 +328,30 @@ def estimate_alert_number_lsst(date_range_picker):
     dstop = date(*[int(i) for i in date_range_picker[1].split("-")])
 
     dic = get_statistics(dstart, dstop)
+    print(blocks)
 
     total = dic["f:alerts"]
     count = dic["f:alerts"]
+    if isinstance(tags, list) and len(tags) > 0:
+        for tag in tags:
+            # is it negation?
+            is_not = "NOT " in tag
+            if tag in FILTERS_AND_BLOCKS_YIELD.keys():
+                count *= FILTERS_AND_BLOCKS_YIELD[tag]
+            elif is_not:
+                not_tag = tag.split("NOT ")[1].strip()
+                if not_tag in FILTERS_AND_BLOCKS_YIELD.keys():
+                    count *= (1 - FILTERS_AND_BLOCKS_YIELD[not_tag])
+
+    if isinstance(blocks, list) and len(blocks) > 0:
+        for block in blocks:
+            # is it negation?
+            is_not = "NOT " in block
+            if block in FILTERS_AND_BLOCKS_YIELD.keys():
+                count *= FILTERS_AND_BLOCKS_YIELD[block]
+            elif is_not:
+                not_block = block.split("NOT ")[1].strip()
+                if not_block in FILTERS_AND_BLOCKS_YIELD.keys():
+                    count *= (1 - FILTERS_AND_BLOCKS_YIELD[not_block])
 
     return total, count

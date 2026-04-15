@@ -1183,6 +1183,7 @@ def validate_yaml(dic):
     [
         Input("alert-stats", "data"),
         Input("date-range-picker", "value"),
+        Input("tag_select", "data"),
         Input("blocks_select", "data"),
         Input("field_select", "value"),
         Input("extra_cond", "value"),
@@ -1191,6 +1192,7 @@ def validate_yaml(dic):
 def gauge_meter(
     alert_stats,
     date_range_picker,
+    tags,
     blocks,
     field_select,
     extra_cond,
@@ -1211,9 +1213,8 @@ def gauge_meter(
         if field_select is None or field_select == []:
             field_select = ["Full packet"]
 
-        total, count = estimate_alert_number_lsst(date_range_picker)
-        sizeGb = estimate_size_gb_lsst(field_select, blocks, ALL_LSST_FIELDS, ALL_FINK_FIELDS)
-        defaultGb = 55 / 1024 / 1024
+        total, count = estimate_alert_number_lsst(date_range_picker, tags, blocks)
+        sizeGb, defaultGb = estimate_size_gb_lsst(field_select, blocks, ALL_LSST_FIELDS, ALL_FINK_FIELDS)
 
         if count == 0:
             color = "gray"
