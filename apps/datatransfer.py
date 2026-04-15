@@ -1260,7 +1260,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Number of alerts received for the selected dates ({} to {}), excluding all Fink filters.".format(
+                    label="Number of alerts received for the selected dates ({} to {}). Fink filters and block are applied without taking into account overlap between them. Custom filtering is not taken into account.".format(
                         *date_range_picker
                     ),
                 ),
@@ -1296,7 +1296,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Estimated data volume to transfer based on selected alert fields. The percentage is given with respect to the total for the selected dates ({} to {}), excluding Fink filters.".format(
+                    label="Estimated data volume to transfer based on selected alert fields. The percentage is given with respect to the total for the selected dates ({} to {}). Fink filters and block are applied without taking into account overlap between them. Custom filtering is not taken into account.".format(
                         *date_range_picker
                     ),
                 ),

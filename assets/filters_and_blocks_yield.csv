@@ -1,0 +1,20 @@
+name,yield
+extragalactic_lt20mag_candidate, 0.0002564572265982781
+extragalactic_new_candidate, 0.009763692984063016
+hostless_candidate, 0.0
+in_tns, 0.020992855834401906
+sn_near_galaxy_candidate, 0.07563656347316358
+b_extragalactic_loose_candidate,0.25156622091958236
+b_extragalactic_near_galaxy_candidate,0.14061183366917018
+b_good_quality,0.7358856933504305
+b_is_fading,0.24546620260120902
+b_is_new,0.4530866459058436
+b_is_rising,0.25865543139769187
+b_is_solar_system,0.3328265250045796
+b_outside_galactic_plane,1.0
+b_xmatched_gaia_star,0.017732185381938083
+b_xmatched_mangrove,0.015222568235940648
+b_xmatched_simbad_galaxy,0.027642425352628685
+b_xmatched_simbad_unknown,0.7378457592965745
+b_xmatched_vsx,0.014123465836233742
+b_xmatched_vsx_star,0.014123465836233742
