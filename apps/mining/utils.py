@@ -328,7 +328,6 @@ def estimate_alert_number_lsst(date_range_picker, tags, blocks):
     dstop = date(*[int(i) for i in date_range_picker[1].split("-")])
 
     dic = get_statistics(dstart, dstop)
-    print(blocks)
 
     total = dic["f:alerts"]
     count = dic["f:alerts"]
