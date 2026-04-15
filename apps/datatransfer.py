@@ -138,8 +138,12 @@ def check_field(fields):
     if fields is not None:
         if len(fields) > 1 and "Full packet" in fields:
             return "Full packet cannot be combined with other fields."
-        if len(fields) > 1 and "Light packet" in fields:
-            return "Light packet cannot be combined with other fields."
+        if len(fields) > 1 and "Light static packet" in fields:
+            return "Light static packet cannot be combined with other fields."
+        if len(fields) > 1 and "Light SSO packet" in fields:
+            return "Light SSO packet cannot be combined with other fields."
+        if len(fields) > 1 and "Medium packet" in fields:
+            return "Medium packet cannot be combined with other fields."
     return ""
 
 
@@ -1179,7 +1183,7 @@ def validate_yaml(dic):
     [
         Input("alert-stats", "data"),
         Input("date-range-picker", "value"),
-        Input("tag_select", "data"),
+        Input("blocks_select", "data"),
         Input("field_select", "value"),
         Input("extra_cond", "value"),
     ],
@@ -1187,7 +1191,7 @@ def validate_yaml(dic):
 def gauge_meter(
     alert_stats,
     date_range_picker,
-    tag_select,
+    blocks,
     field_select,
     extra_cond,
 ):
@@ -1207,8 +1211,8 @@ def gauge_meter(
         if field_select is None or field_select == []:
             field_select = ["Full packet"]
 
-        total, count = estimate_alert_number_lsst(date_range_picker, tag_select)
-        sizeGb = estimate_size_gb_lsst(field_select, ALL_LSST_FIELDS, ALL_FINK_FIELDS)
+        total, count = estimate_alert_number_lsst(date_range_picker)
+        sizeGb = estimate_size_gb_lsst(field_select, blocks, ALL_LSST_FIELDS, ALL_FINK_FIELDS)
         defaultGb = 55 / 1024 / 1024
 
         if count == 0:

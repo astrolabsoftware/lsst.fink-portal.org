@@ -492,7 +492,7 @@ def main(args):
         cnames = df.columns
     elif "Medium packet" in content:
         cnames = [col for col in df.columns if not col.startswith("cutout")]
-    elif "Light packet" in content:
+    elif "Light static packet" in content:
         # Wanted content from diaSource.
         cnames = [
             "diaSource.diaObjectId",
@@ -526,6 +526,29 @@ def main(args):
             "year",
         ]
         [cnames.append(col) for col in df.columns if col not in to_avoid]
+    elif "Light SSO packet" in content:
+        # Wanted content from diaSource.
+        cnames = [
+            "diaSourceId",
+            "ssSource.ssObjectId",
+            "ssSource.phaseAngle",
+            "ssSource.diaDistanceRank",
+            "diaSource.snr",
+            "diaSource.scienceFlux",
+            "diaSource.scienceFluxErr",
+            "diaSource.templateFlux",
+            "diaSource.templateFluxErr",
+            "diaSource.band",
+            "diaSource.midpointMjdTai",
+            "diaSource.ra",
+            "diaSource.dec",
+            "diaSource.reliability",
+            "mpc_orbits.packed_primary_provisional_designation",
+            "mpc_orbits.unpacked_primary_provisional_designation",
+            "lsst_schema_version",
+            "fink_broker_version",
+            "fink_science_version",
+        ]
 
     elif isinstance(content, list):
         # other cases

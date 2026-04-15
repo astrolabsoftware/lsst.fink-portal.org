@@ -124,13 +124,15 @@ def submit_spark_job(livyhost, filename, spark_conf, job_args):
     return batchid, response.status_code, response.text
 
 
-def estimate_size_gb_lsst(content, all_lsst_fields, all_fink_fields):
+def estimate_size_gb_lsst(content, blocks, all_lsst_fields, all_fink_fields):
     """Estimate the size of the data to download
 
     Parameters
     ----------
     content: list
         List of selected alert fields
+    blocks: list
+        List of selected blocks
 
     Returns
     -------
@@ -138,20 +140,72 @@ def estimate_size_gb_lsst(content, all_lsst_fields, all_fink_fields):
     """
     if content is None:
         return 0
-    # Pre-defined schema
+
+    precomputed = {
+        "sso": {
+            "Full packet": 60.0 / 1024 / 1024,
+            "Medium packet": 3.0 / 1024 / 1024,
+            "Light SSO packet": 1.7 / 1024 / 1024,
+            "history_factor": 1.0,
+        },
+        "static": {
+            "Full packet": 176.0 / 1024 / 1024,
+            "Medium packet": 123.0 / 1024 / 1024,
+            "Light static packet": 1.7 / 1024 / 1024,
+            "history_factor": 100.0
+        },
+        "mix": {
+            "Full packet": 137.0 / 1024 / 1024,
+            "Medium packet": 80.0 / 1024 / 1024,
+            "Light static packet": 1.7 / 1024 / 1024,
+            "Light SSO packet": 1.7 / 1024 / 1024,
+            "history_factor": 75.0
+        }
+    }
+
+    flavor = None
     if "Full packet" in content:
-        # all fields
-        sizeGb = 55.0 / 1024 / 1024
-    elif "Light packet" in content:
-        sizeGb = 1.4 / 1024 / 1024
+        flavor = "Full packet"
     elif "Medium packet" in content:
-        sizeGb = 18.0 / 1024 / 1024
+        flavor = "Medium packet"
+    if "Light SSO packet" in content:
+        flavor = "Light SSO packet"
+    if "Light static packet" in content:
+        flavor = "Light static packet"
+
+    if "b_is_solar_system" in blocks:
+        # pure sso sample
+        kind = "sso"
+    elif "NOT b_is_solar_system" in blocks:
+        # pure static sample
+        kind = "static"
     else:
-        # freedom on candidates + added values
+        kind = "mix"
+
+    if flavor is not None:
+        sizeGb = precomputed.get(kind, {}).get(flavor, 0)
+    else:
+        # freedom on fields
         sizeB = 0
         for k in content:
             if k in all_lsst_fields:
-                sizeB += CONV[all_lsst_fields[k]]
+                if k.startswith("prvDiaSources"):
+                    # Account for history length
+                    sizeB += precomputed[kind]["history_factor"] * CONV[all_lsst_fields[k]]
+                else:
+                    sizeB += CONV[all_lsst_fields[k]]
+            elif k == "diaSource":
+                sizeB += 0.5 * 1024
+            elif k == "prvDiaSources" and kind in ["static", "mix"]:
+                sizeB += 116 * 1024 * precomputed[kind]["history_factor"] / 100.
+            elif k == "prvDiaForcedSourced" and kind in ["static", "mix"]:
+                sizeB += 1024 * precomputed[kind]["history_factor"] / 100.
+            elif k == "diaObject" and kind in ["static", "mix"]:
+                sizeB += 0.3 * 1024
+            elif k == "mpc_orbits" and kind in ["sso", "mix"]:
+                sizeB += 0.3 * 1024
+            elif k == "ssSource" and kind in ["sso", "mix"]:
+                sizeB += 0.3 * 1024
             elif k in all_fink_fields:
                 sizeB += CONV[all_fink_fields[k]]
 
@@ -257,23 +311,17 @@ def get_statistics(dstart, dstop):
 #     return dic
 
 
-def estimate_alert_number_lsst(date_range_picker, tag_select):
+def estimate_alert_number_lsst(date_range_picker):
     """Callback to estimate the number of alerts to be transfered
 
     This can be improved by using the REST API directly to get number of
     alerts per class.
     """
-    # FIXME: rewrite the logic for LSST
     # FIXME: for the moment, not filtering
     dstart = date(*[int(i) for i in date_range_picker[0].split("-")])
     dstop = date(*[int(i) for i in date_range_picker[1].split("-")])
 
     dic = get_statistics(dstart, dstop)
-
-    # # we check first filter, and then class
-    # dic = get_tag_statistics(dic, tag_select)
-    # total = dic["f:alerts"]
-    # count = np.sum([v for k, v in dic.items() if k != "f:alerts"])
 
     total = dic["f:alerts"]
     count = dic["f:alerts"]

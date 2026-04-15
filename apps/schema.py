@@ -52,7 +52,7 @@ def extract_type(t):
 
 def predefined_fields_for_data_transfer():
     """Predefined fields for data transfer"""
-    fields = ["Full packet", "Medium packet", "Light packet"]
+    fields = ["Full packet", "Medium packet", "Light static packet", "Light SSO packet"]
 
     data = []
 
@@ -66,14 +66,14 @@ def predefined_fields_for_data_transfer():
     return data, fields
 
 def lsst_nested_fields_for_data_transfer():
-    """LSST nested fields for data transfer"""
+    """LSST nested sections for data transfer"""
     fields = ["diaSource", "diaObject", "prvDiaSources", "prvDiaForcedSources", "mpc_orbits", "ssSource"]
 
     data = []
 
     # high level
     packet = {
-        "group": "LSST nested fields",
+        "group": "LSST nested sections",
         "items": fields,
     }
     data.append(packet)
@@ -130,6 +130,15 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
         'lc_features', 'clf', 'xm', 'pred', 'misc', 'brokerEndProcessTimestamp',
         'timestamp', 'tns_type_recomputed'
     ]
+    light_sso_fields = cols = [
+        'ssObjectId', 'snr', 'scienceFlux', 'scienceFluxErr', 'templateFlux',
+        'templateFluxErr', 'band', 'midpointMjdTai', 'ra', 'dec', 'reliability',
+        'diaSourceId',
+        'phaseAngle', 'diaDistanceRank',
+        'packed_primary_provisional_designation',
+        'unpacked_primary_provisional_designation',
+        'fink_broker_version', 'fink_science_version', 'lsst_schema_version'
+    ]
 
     if provenance == "custom":
         _, custom_fields = predefined_fields_for_data_transfer()
@@ -157,7 +166,17 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
                 dmc.TableTd(
-                    "Selection of LSST & Fink fields for lightcurve analysis: {}".format(", ".join(light_static_fields))
+                    "Selection of LSST & Fink fields for lightcurve analysis (static objects): {}".format(", ".join(light_static_fields))
+                ),
+            ])
+        )
+        rows.append(
+            dmc.TableTr([
+                dmc.TableTd(custom_fields[3]),
+                dmc.TableTd("LSST & Fink"),
+                dmc.TableTd("--"),
+                dmc.TableTd(
+                    "Selection of LSST & Fink fields for lightcurve analysis (Solar System objects): {}".format(", ".join(light_sso_fields))
                 ),
             ])
         )
@@ -196,7 +215,7 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
             horizontalSpacing="xl",
             highlightOnHover=True,
         ),
-        maxHeight=300,
+        maxHeight=500,
         minWidth=1000,
         type="scrollarea",
     )
