@@ -1,20 +1,22 @@
 name,yield
-extragalactic_lt20mag_candidate, 0.0002564572265982781
-extragalactic_new_candidate, 0.009763692984063016
+extragalactic_lt20mag_candidate, 0.0008011424988679508
+extragalactic_new_candidate, 0.010832839875997074
 hostless_candidate, 0.0
-in_tns, 0.020992855834401906
-sn_near_galaxy_candidate, 0.07563656347316358
-b_extragalactic_loose_candidate,0.25156622091958236
-b_extragalactic_near_galaxy_candidate,0.14061183366917018
-b_good_quality,0.7358856933504305
-b_is_fading,0.24546620260120902
-b_is_new,0.4530866459058436
-b_is_rising,0.25865543139769187
-b_is_solar_system,0.3328265250045796
-b_outside_galactic_plane,1.0
-b_xmatched_gaia_star,0.017732185381938083
-b_xmatched_mangrove,0.015222568235940648
-b_xmatched_simbad_galaxy,0.027642425352628685
-b_xmatched_simbad_unknown,0.7378457592965745
-b_xmatched_vsx,0.014123465836233742
-b_xmatched_vsx_star,0.014123465836233742
+in_tns, 0.01922741997283082
+sn_near_galaxy_candidate, 0.07004772022710648
+uniform_sample, 0.009230554878261172
+b_extragalactic_loose_candidate,0.23546623010205858
+b_extragalactic_near_galaxy_candidate,0.13765718067504965
+b_good_quality,0.6172628792364764
+b_is_fading,0.25215089344804764
+b_is_new,0.40907032637848756
+b_is_rising,0.2847539099237173
+b_is_solar_system,0.24570692117454457
+b_outside_galactic_plane_20_deg,1.0
+b_outside_galactic_plane_5_deg,1.0
+b_xmatched_gaia_star,0.172141140408931
+b_xmatched_mangrove,0.011564317809746073
+b_xmatched_simbad_galaxy,3.483228255947612e-05
+b_xmatched_simbad_unknown,0.8303319516527918
+b_xmatched_vsx,0.01933191682050925
+b_xmatched_vsx_star,0.01933191682050925
