@@ -1315,23 +1315,70 @@ def gauge_meter(
 
 @app.callback(
     Output("code_block", "code"),
-    Input("topic_name", "children"),
-    prevent_initial_call=True,
+    [
+        Input("topic_name", "children"),
+        Input("date-range-picker", "value"),
+    ]
 )
-def update_code_block(topic_name):
-    if topic_name is not None and topic_name != "":
+def update_code_block(topic_name, dates):
+    if topic_name is None or topic_name == "":
         # FIXME: introduce partitioning?
         # This is done by time by default
-        code_block = f"""
-# Requires fink-client>=10.0
+        topic_name = "<topic>"
+
+    code_block = f"""
 fink_datatransfer \\
     -survey lsst \\
     -topic {topic_name} \\
     -outdir {topic_name} \\
     --verbose
-        """
-        return code_block
+    """
+    return code_block
 
+@app.callback(
+    Output("actions-summary", "children"),
+    [
+        Input("date-range-picker", "value"),
+        Input("tag_select", "data"),
+        Input("blocks_select", "data"),
+        Input("field_select", "value"),
+        Input("extra_cond", "value"),
+        Input("upload-data", "filename"),
+    ],
+)
+def summarize_actions(
+    date_range_picker,
+    tag_select,
+    blocks_select,
+    field_select,
+    extra_cond,
+    catalog_filename,
+):
+    if (
+        date_range_picker is None
+        or isinstance(date_range_picker, list)
+        and None in date_range_picker
+    ):
+        date_range_picker = ["", ""]
+
+    if extra_cond is not None and isinstance(extra_cond, str):
+        extra_cond = extra_cond.split(";")
+        extra_cond = [i.strip() for i in extra_cond]
+        extra_cond = [i for i in extra_cond if i != ""]
+    if field_select is None or field_select == []:
+        field_select = ["Full packet"]
+    outfile = {
+        "dates": {"startdate": date_range_picker[0], "stopdate": date_range_picker[1]},
+        "filters": tag_select,
+        "blocks": blocks_select,
+        "content": field_select,
+        "extra_cond": extra_cond,
+        "catalog_filename": catalog_filename
+    }
+
+    yaml_string = yaml.dump(outfile, default_flow_style=False)
+
+    return dmc.CodeHighlight(code=f"{yaml_string}", language="yaml", style={'width': '300px'})
 
 @app.callback(
     Output("submit_datatransfer", "disabled"),
@@ -1547,7 +1594,8 @@ def update_log(batchid, interval):
                     *log[index:],
                 ]
                 output = html.Div(
-                    "\n".join(failure_msg), style={"whiteSpace": "pre-wrap"}
+                    "\n".join(failure_msg), style={"whiteSpace": "pre-wrap"},
+                    className="terminal-div roundcorner"
                 )
                 return output
             # catch and return tailored error msg if fail (with batchid and contact@fink-broker.org)
@@ -1555,7 +1603,7 @@ def update_log(batchid, interval):
             livy_log = [f"Batch ID: {batchid}", "Starting..."] + livy_log
             output = html.Div("\n".join(livy_log), style={"whiteSpace": "pre-wrap"})
         elif "msg" in response.json():
-            output = html.Div(response.text)
+            output = html.Div(response.text, className="terminal-div roundcorner")
         return output
     else:
         return no_update
@@ -1739,49 +1787,85 @@ def layout():
                                                         dmc.Stack(
                                                             children=[
                                                                 dmc.Space(h=20),
-                                                                dmc.Group(
-                                                                    children=[
-                                                                        dmc.Button(
-                                                                            "Submit job",
-                                                                            id="submit_datatransfer",
-                                                                            variant="outline",
-                                                                            color=DEFAULT_FINK_COLORS[
-                                                                                0
-                                                                            ],
-                                                                            leftSection=DashIconify(
-                                                                                icon="fluent:send-16-filled"
-                                                                            ),
-                                                                        ),
-                                                                        dmc.Button(
-                                                                            "Download configuration",
-                                                                            id="submit_yaml_file",
-                                                                            variant="outline",
-                                                                            color=DEFAULT_FINK_COLORS[
-                                                                                0
-                                                                            ],
-                                                                            leftSection=DashIconify(
-                                                                                icon="fluent:arrow-download-16-filled"
-                                                                            ),
-                                                                        ),
-                                                                        dcc.Download(
-                                                                            id="download_yaml"
-                                                                        ),
-                                                                        # dmc.Button("Upload", id="upload_yaml_file"),
-                                                                        # html.A(
-                                                                        #     dmc.Button(
-                                                                        #         "Clear and restart",
-                                                                        #         id="refresh",
-                                                                        #         color="red",
-                                                                        #     ),
-                                                                        #     href="/download",
-                                                                        # ),
-                                                                    ]
-                                                                ),
-                                                                dmc.Group(children=[]),
+                                                                # dmc.Group(
+                                                                #     children=[
+                                                                #         # dmc.Button("Upload", id="upload_yaml_file"),
+                                                                #         # html.A(
+                                                                #         #     dmc.Button(
+                                                                #         #         "Clear and restart",
+                                                                #         #         id="refresh",
+                                                                #         #         color="red",
+                                                                #         #     ),
+                                                                #         #     href="/download",
+                                                                #         # ),
+                                                                #     ]
+                                                                # ),
+                                                                # dmc.Group(children=[]),
                                                                 dcc.Interval(
                                                                     id="interval-component",
                                                                     interval=1 * 3000,
                                                                     n_intervals=0,
+                                                                ),
+                                                                dmc.Stack(
+                                                                    [
+                                                                        dmc.Card(
+                                                                            radius="xl",
+                                                                            p="xl",
+                                                                            withBorder=True,
+                                                                            m=5,
+                                                                            children=dmc.Stack(
+                                                                                [
+                                                                                    html.Div(id='actions-summary'),
+                                                                                    dmc.Button(
+                                                                                        "Download configuration",
+                                                                                        id="submit_yaml_file",
+                                                                                        variant="outline",
+                                                                                        fullWidth=False,
+                                                                                        color=DEFAULT_FINK_COLORS[
+                                                                                            0
+                                                                                        ],
+                                                                                        leftSection=DashIconify(
+                                                                                            icon="fluent:arrow-download-16-filled"
+                                                                                        ),
+                                                                                        className="roundcorner"
+                                                                                    ),
+                                                                                    dcc.Download(
+                                                                                        id="download_yaml"
+                                                                                    ),
+                                                                                ],
+                                                                                align='center',
+                                                                                # className='conf-datatransfer-div'
+                                                                            ),
+                                                                        ),
+                                                                        dmc.Card(
+                                                                            radius="xl",
+                                                                            p="xl",
+                                                                            withBorder=True,
+                                                                            m=5,
+                                                                            children=dmc.Stack(
+                                                                                [
+                                                                                    dmc.CodeHighlight(
+                                                                                        code="# Submit to see code",
+                                                                                        id="code_block",
+                                                                                        language="bash",
+                                                                                    ),
+                                                                                    dmc.Button(
+                                                                                        "Submit job",
+                                                                                        id="submit_datatransfer",
+                                                                                        variant="outline",
+                                                                                        color=DEFAULT_FINK_COLORS[
+                                                                                            0
+                                                                                        ],
+                                                                                        leftSection=DashIconify(
+                                                                                            icon="fluent:send-16-filled"
+                                                                                        ),
+                                                                                    ),
+                                                                                ],
+                                                                                align='center',
+                                                                                # className='conf-datatransfer-div'
+                                                                            ),
+                                                                        ),
+                                                                    ]
                                                                 ),
                                                                 html.Div(
                                                                     id="batch_log"
@@ -1790,21 +1874,16 @@ def layout():
                                                             align="center",
                                                         )
                                                     ],
-                                                    span=6,
+                                                    span=8,
                                                 ),
                                                 dmc.GridCol(
                                                     dmc.Stack(
                                                         children=[
                                                             dmc.Space(h=20),
                                                             dcc.Markdown(instructions),
-                                                            dmc.CodeHighlight(
-                                                                code="# Submit to see code",
-                                                                id="code_block",
-                                                                language="bash",
-                                                            ),
                                                         ]
                                                     ),
-                                                    span=6,
+                                                    span=4,
                                                 ),
                                             ],
                                         ),

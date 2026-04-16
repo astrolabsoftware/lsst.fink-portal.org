@@ -226,3 +226,25 @@ a:hover {
     0 0 2px rgba(0, 0, 0, 0.3),
     inset 0 0 2px rgba(0, 0, 0, 0.2);
 }
+
+.terminal-div {
+  background-color: black;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  padding: 2rem;
+  color: white;
+  /* font: 1.3rem Inconsolata, monospace; */
+  /* text-shadow: 0 0 5px #C8C8C8; */
+}
+
+.conf-datatransfer-div {
+  display: flex;
+  height: 300px;
+  width: 300px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 2px rgba(0, 0, 0, 0.3),
+    inset 0 0 2px rgba(0, 0, 0, 0.2);
+}
