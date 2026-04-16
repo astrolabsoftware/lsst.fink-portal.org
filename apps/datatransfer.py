@@ -1296,7 +1296,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Estimated data volume to transfer based on selected alert fields. The percentage is given with respect to the total for the selected dates ({} to {}). Fink filters and block are applied without taking into account overlap between them. Custom filtering is not taken into account.".format(
+                    label="Estimated data volume to transfer based on selected alert fields. The volume is given with respect to the total for the selected dates ({} to {}). Fink filters and block are applied without taking into account overlap between them but custom filtering is not taken into account. Gauge size is weighted with respect to your choice of fields.".format(
                         *date_range_picker
                     ),
                 ),
@@ -1567,8 +1567,8 @@ instructions = """
 You are about to submit a job on the Fink Apache Spark & Kafka clusters.
 Review your parameters, and take into account the estimated number of
 alerts before hitting submission! Note that the estimation takes into account the number
-of alerts between the selected dates, but not the effect of the filters and blocks applied (which could reduce the
-number of alerts).
+of alerts between the selected dates, the effect of the Fink filters and blocks applied (which could reduce the
+number of alerts), but not custom filters nor catalog crossmatch.
 
 #### 2. Download your configuration file
 
@@ -1604,7 +1604,7 @@ def layout():
 
     Once ready, submit your job on the Fink Apache Spark and Kafka clusters to retrieve your data wherever you like.
     To access the data, you need to create an account. See the [fink-client](https://github.com/astrolabsoftware/fink-client) and
-    the [documentation](https://doc.lsst.fink-broker.org/en/latest/services/data_transfer) for more information. The data is available
+    the [documentation](https://doc.lsst.fink-broker.org/services/data_transfer/) for more information. The data is available
     for download for 7 days.
     """
 
@@ -1669,7 +1669,6 @@ def layout():
                                                         "Help",
                                                         icon=DashIconify(
                                                             icon="material-symbols:info-outline",
-                                                            # color=dmc.DEFAULT_THEME["colors"]["blue"][6],
                                                             color="black",
                                                             width=30,
                                                         ),
@@ -1766,15 +1765,6 @@ def layout():
                                                                         dcc.Download(
                                                                             id="download_yaml"
                                                                         ),
-                                                                        # dmc.Button("Upload", id="upload_yaml_file"),
-                                                                        # html.A(
-                                                                        #     dmc.Button(
-                                                                        #         "Clear and restart",
-                                                                        #         id="refresh",
-                                                                        #         color="red",
-                                                                        #     ),
-                                                                        #     href="/download",
-                                                                        # ),
                                                                     ]
                                                                 ),
                                                                 dmc.Group(children=[]),
