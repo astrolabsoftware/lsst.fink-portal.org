@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import base64
 import datetime
 import io
@@ -1411,39 +1412,40 @@ def submit_job(
             )
             return True, [alert], no_update, no_update
 
-        # Send the data to HDFS as parquet file
-        catalog_filename_parquet = os.path.splitext(catalog_filename)[0] + ".parquet"
+        if catalog_filename is not None:
+            # Send the data to HDFS as parquet file
+            catalog_filename_parquet = os.path.splitext(catalog_filename)[0] + ".parquet"
 
-        # Conversion in decimal degree as xmatch expects it
-        pdf_catalog = pd.read_json(io.StringIO(catalog))
-        pdf_catalog[catalog_ra], pdf[catalog_dec] = enforce_decimal(pdf_catalog, catalog_ra, catalog_dec)
+            # Conversion in decimal degree as xmatch expects it
+            pdf_catalog = pd.read_json(io.StringIO(catalog))
+            pdf_catalog[catalog_ra], pdf_catalog[catalog_dec] = enforce_decimal(pdf_catalog, catalog_ra, catalog_dec)
 
-        status_code, hdfs_log = upload_file_hdfs(
-            pdf_catalog.to_parquet(),
-            input_args["WEBHDFS"],
-            input_args["NAMENODE"],
-            input_args["USER"],
-            catalog_filename_parquet,
-        )
-
-        if status_code != 201:
-            text = dmc.Stack(
-                children=[
-                    "Unable to upload {} on HDFS, with error: ".format(
-                        catalog_filename_parquet
-                    ),
-                    dmc.CodeHighlight(code=f"{hdfs_log}", language="html"),
-                    "Contact an administrator at contact@fink-broker.org.",
-                ]
+            status_code, hdfs_log = upload_file_hdfs(
+                pdf_catalog.to_parquet(),
+                input_args["WEBHDFS"],
+                input_args["NAMENODE"],
+                input_args["USER"],
+                catalog_filename_parquet,
             )
-            alert = dict(
-                message=text,
-                title=f"[Status code {status_code}]",
-                color="red",
-                action="show",
-                autoClose=False,
-            )
-            return True, [alert], no_update, no_update
+
+            if status_code != 201:
+                text = dmc.Stack(
+                    children=[
+                        "Unable to upload {} on HDFS, with error: ".format(
+                            catalog_filename_parquet
+                        ),
+                        dmc.CodeHighlight(code=f"{hdfs_log}", language="html"),
+                        "Contact an administrator at contact@fink-broker.org.",
+                    ]
+                )
+                alert = dict(
+                    message=text,
+                    title=f"[Status code {status_code}]",
+                    color="red",
+                    action="show",
+                    autoClose=False,
+                )
+                return True, [alert], no_update, no_update
 
         # get the job args
         job_args = [
@@ -1451,20 +1453,21 @@ def submit_job(
             f"-stopDate={date_range_picker[1]}",
             f"-basePath={basepath}",
             f"-topic_name={topic_name}",
-            f"-ra_col={catalog_ra}",
-            f"-dec_col={catalog_dec}",
-            f"-radius_arcsec={catalog_radius}",
-            f"-id_col={catalog_identifier}",
-            "-catalog_filename={}".format(
-                "hdfs://{}///user/{}/{}".format(
-                    input_args["NAMENODE"], input_args["USER"], catalog_filename_parquet
-                )
-            ),
             "-kafka_bootstrap_servers={}".format(input_args["KAFKA_BOOTSTRAP_SERVERS"]),
             "-kafka_sasl_username={}".format(input_args["KAFKA_SASL_USERNAME"]),
             "-kafka_sasl_password={}".format(input_args["KAFKA_SASL_PASSWORD"]),
             "-path_to_tns=/data/fink/tns/tns.parquet",
         ]
+        if catalog_filename is not None:
+            job_args.append(f"-ra_col={catalog_ra}")
+            job_args.append(f"-dec_col={catalog_dec}")
+            job_args.append(f"-radius_arcsec={catalog_radius}")
+            job_args.append(f"-id_col={catalog_identifier}")
+            job_args.append("-catalog_filename={}".format(
+                "hdfs://{}///user/{}/{}".format(
+                    input_args["NAMENODE"], input_args["USER"], catalog_filename_parquet
+                )
+            ))
         if field_select is not None:
             [job_args.append(f"-ffield={elem}") for elem in field_select]
         if isinstance(tag_select, list) and len(tag_select) > 0:

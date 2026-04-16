@@ -461,7 +461,7 @@ def perform_xmatch(spark, df, catalog_filename, ra_col, dec_col, id_col, radius_
 
         # extend the box for safety
         pad = 2 * radius_arcsec / 3600
-        mask = (dec2 >= dec_min - pad) & (dec2 <= dec_max + pad)
+        mask = (dec2 >= dec_min - pad) & (dec2 <= dec_max + pad)  # FIXME: assumes degree
         if mask.sum() == 0:
             # No overlap, return only Unknowns
             return pd.Series(["Unknown"] * len(ra))
@@ -525,16 +525,18 @@ def main(args):
 
     df = add_classification(spark, df, args.path_to_tns)
 
-    # Perform the xmatch
-    df = perform_xmatch(
-        spark,
-        df,
-        args.catalog_filename,
-        args.ra_col,
-        args.dec_col,
-        args.id_col,
-        args.radius_arcsec,
-    )
+    if args.catalog_filename is not None:
+        # Perform the xmatch
+        log.info("Crossmatching with {}".format(args.catalog_filename.split('/')[-1]))
+        df = perform_xmatch(
+            spark,
+            df,
+            args.catalog_filename,
+            args.ra_col,
+            args.dec_col,
+            args.id_col,
+            int(args.radius_arcsec),
+        )
 
     # direct Spark SQL filtering
     if args.extraCond is not None:
