@@ -433,6 +433,7 @@ def get_api_background(url):
             )
             for i in [
                 "sources",
+                "fp",
                 "objects",
                 "sso",
                 "conesearch",
