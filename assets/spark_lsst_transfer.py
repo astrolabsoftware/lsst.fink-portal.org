@@ -18,8 +18,11 @@ import logging
 import sys
 from logging import Logger
 
-# from fink_science.ztf.ad_features.processor import extract_features_ad
 from time import time
+
+from fink_science.ztf.xmatch.utils import cross_match_astropy
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
 import numpy as np
 import pandas as pd
@@ -333,17 +336,6 @@ def sanitize_fields(cnames):
     cnames: list
         List of fields, sanitized.
     """
-    # if "prv_diaSource." in cnames:
-    #     cnames[cnames.index("prv_diaSource.")] = (
-    #         "explode(array(prv_diaSource.)) as prv_diaSource."
-    #     )
-
-    # for lc_features in ["lc_features_g", "lc_features_r"]:
-    #     if lc_features in cnames:
-    #         cnames[cnames.index(lc_features)] = "struct({}.*) as {}".format(
-    #             lc_features, lc_features
-    #         )
-
     for col in [
         "xm",
         "clf",
@@ -433,6 +425,71 @@ def apply_filter_or_block(df, names, is_filter=False, is_block=False, logger=Non
 
     return df
 
+def perform_xmatch(spark, df, catalog_filename, ra_col, dec_col, id_col, radius_arcsec):
+    """Crossmatch a DataFrame to a catalog with Spark"""
+    df_other = spark.read.format("parquet").load(catalog_filename)
+    pdf_other = df_other.toPandas()
+    pdf_b = spark.sparkContext.broadcast(pdf_other)
+
+    @pandas_udf(StringType(), PandasUDFType.SCALAR)
+    def crossmatch(ra, dec):
+        """Spark UDF for simple crossmatch"""
+        pdf_cat = pdf_b.value
+        ra2, dec2, id2 = pdf_cat[ra_col], pdf_cat[dec_col], pdf_cat[id_col]
+
+        pdf = pd.DataFrame(
+            {
+                "ra": ra.to_numpy(),
+                "dec": dec.to_numpy(),
+                "candid": range(len(ra)),
+            }
+        )
+
+        # FIXME: Assumes degrees. Need to generalize for any coordinates type
+        if ra2.dtype == float:
+            # Limit the catalog to Rubin declinations
+            dec_min, dec_max = dec.min(), dec.max()
+
+            # extend the box for safety
+            pad = 2 * radius_arcsec / 3600
+            mask = (dec2 >= dec_min - pad) & (dec2 <= dec_max + pad)
+            if mask.sum() == 0:
+                # No overlap, return only Unknowns
+                return pd.Series(["Unknown"] * len(ra))
+
+            ra2 = ra2[mask]
+            dec2 = dec2[mask]
+            id2 = id2[mask]
+
+        # create catalogs
+        catalog_ztf = SkyCoord(
+            ra=np.array(ra, dtype=float) * u.degree,
+            dec=np.array(dec, dtype=float) * u.degree,
+        )
+        catalog_other = SkyCoord(
+            ra=np.array(ra2, dtype=float) * u.degree,
+            dec=np.array(dec2, dtype=float) * u.degree,
+        )
+
+        pdf_merge, mask, idx2 = cross_match_astropy(
+            pdf, catalog_ztf, catalog_other, radius_arcsec=pd.Series([radius_arcsec])
+        )
+
+        pdf_merge["Type"] = "Unknown"
+        pdf_merge.loc[mask, "Type"] = [
+            str(i).strip() for i in id2.astype(str).to_numpy()[idx2]
+        ]
+
+        return pdf_merge["Type"]
+
+    # Keep only matches
+    df = df.withColumn(
+        id_col,
+        crossmatch(df["diaSource.ra"], df["diaSource.dec"]),
+    ).filter(F.col(id_col) != "Unknown")
+
+    return df
+
 
 def main(args):
     spark = SparkSession.builder.getOrCreate()
@@ -458,6 +515,19 @@ def main(args):
     )
 
     df = add_classification(spark, df, args.path_to_tns)
+
+    if args.catalog_filename is not None:
+        # Perform the xmatch
+        log.info("Crossmatching with {}".format(args.catalog_filename.split('/')[-1]))
+        df = perform_xmatch(
+            spark,
+            df,
+            args.catalog_filename,
+            args.ra_col,
+            args.dec_col,
+            args.id_col,
+            float(args.radius_arcsec),
+        )
 
     # direct Spark SQL filtering
     if args.extraCond is not None:
@@ -492,7 +562,7 @@ def main(args):
         cnames = df.columns
     elif "Medium packet" in content:
         cnames = [col for col in df.columns if not col.startswith("cutout")]
-    elif "Light packet" in content:
+    elif "Light static packet" in content:
         # Wanted content from diaSource.
         cnames = [
             "diaSource.diaObjectId",
@@ -519,12 +589,36 @@ def main(args):
             "prvDiaForcedSources",
             "diaObject",
             "ssSource",
-            "MPCORB",  # FIXME: to be replaced by mpc_orbits in v10
+            "MPCORB",
+            "mpc_orbits",
             "day",
             "month",
             "year",
         ]
         [cnames.append(col) for col in df.columns if col not in to_avoid]
+    elif "Light SSO packet" in content:
+        # Wanted content from diaSource.
+        cnames = [
+            "diaSourceId",
+            "ssSource.ssObjectId",
+            "ssSource.phaseAngle",
+            "ssSource.diaDistanceRank",
+            "diaSource.snr",
+            "diaSource.scienceFlux",
+            "diaSource.scienceFluxErr",
+            "diaSource.templateFlux",
+            "diaSource.templateFluxErr",
+            "diaSource.band",
+            "diaSource.midpointMjdTai",
+            "diaSource.ra",
+            "diaSource.dec",
+            "diaSource.reliability",
+            "mpc_orbits.packed_primary_provisional_designation",
+            "mpc_orbits.unpacked_primary_provisional_designation",
+            "lsst_schema_version",
+            "fink_broker_version",
+            "fink_science_version",
+        ]
 
     elif isinstance(content, list):
         # other cases
@@ -584,6 +678,11 @@ if __name__ == "__main__":
     parser.add_argument("-fblock", action="append")
     parser.add_argument("-extraCond", action="append")
     parser.add_argument("-ffield", action="append")
+    parser.add_argument("-ra_col")
+    parser.add_argument("-dec_col")
+    parser.add_argument("-radius_arcsec")
+    parser.add_argument("-id_col")
+    parser.add_argument("-catalog_filename")
     parser.add_argument("-basePath")
     parser.add_argument("-topic_name")
     parser.add_argument("-kafka_bootstrap_servers")

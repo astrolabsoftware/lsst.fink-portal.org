@@ -1,4 +1,4 @@
-# Copyright 2025 AstroLab Software
+# Copyright 2025-2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,21 +17,23 @@ import logging
 from datetime import date
 
 import requests
+import pandas as pd
 
 from apps.utils import query_and_order_statistics
 
-# coeffs_per_class = pd.read_parquet("assets/fclass_2022_060708_coeffs.parquet")
-# coeffs_per_filters = pd.read_parquet("assets/ffilters_2025_01_to_06_coeffs.parquet")
 
 CONV = {
     "float": 4,
     "double": 8,
     "int": 4,
+    "long": 8,
     "string": 8,
-    "array": 4 * 60 * 60,
+    "bytes": 3 * 4 * 40 * 40,
     "boolean": 1,
     "long": 8,
 }
+
+FILTERS_AND_BLOCKS_YIELD = {item['name']:item['yield'] for item in pd.read_csv("assets/filters_and_blocks_yield.csv").to_dict(orient='records')}
 
 
 def upload_file_hdfs(code, webhdfs, namenode, user, filename):
@@ -125,46 +127,95 @@ def submit_spark_job(livyhost, filename, spark_conf, job_args):
     return batchid, response.status_code, response.text
 
 
-def extract_type(field):
-    if isinstance(field, list):
-        # null, type
-        return field[1]
-    else:
-        return field
-
-
-def estimate_size_gb_lsst(content):
+def estimate_size_gb_lsst(content, blocks, all_lsst_fields, all_fink_fields):
     """Estimate the size of the data to download
 
     Parameters
     ----------
     content: list
         List of selected alert fields
+    blocks: list
+        List of selected blocks
+
+    Returns
+    -------
+    sizeGb: int
+    max_size: int
     """
     if content is None:
         return 0
-    # Pre-defined schema
+
+    precomputed = {
+        "sso": {
+            "Full packet": 60.0 / 1024 / 1024,
+            "Medium packet": 3.0 / 1024 / 1024,
+            "Light SSO packet": 1.7 / 1024 / 1024,
+            "history_factor": 1.0,
+        },
+        "static": {
+            "Full packet": 176.0 / 1024 / 1024,
+            "Medium packet": 123.0 / 1024 / 1024,
+            "Light static packet": 1.7 / 1024 / 1024,
+            "history_factor": 100.0
+        },
+        "mix": {
+            "Full packet": 137.0 / 1024 / 1024,
+            "Medium packet": 80.0 / 1024 / 1024,
+            "Light static packet": 1.7 / 1024 / 1024,
+            "Light SSO packet": 1.7 / 1024 / 1024,
+            "history_factor": 75.0
+        }
+    }
+
+    flavor = None
     if "Full packet" in content:
-        # all fields
-        sizeGb = 55.0 / 1024 / 1024
-    elif "Light packet" in content:
-        sizeGb = 1.4 / 1024 / 1024
+        flavor = "Full packet"
     elif "Medium packet" in content:
-        sizeGb = 18.0 / 1024 / 1024
-    # else:
-    #     # freedom on candidates + added values
-    #     schema = request_api("/api/v1/schema", method="GET", output="json")
-    #     sizeB = 0
-    #     for k_out in schema.keys():
-    #         for k_in, field in schema[k_out].items():
-    #             if select_struct(k_in) in content:
-    #                 sizeB += CONV[extract_type(field["type"])]
-    #             elif select_struct(k_in, "diaSource.") in content:
-    #                 sizeB += CONV[extract_type(field["type"])]
+        flavor = "Medium packet"
+    if "Light SSO packet" in content:
+        flavor = "Light SSO packet"
+    if "Light static packet" in content:
+        flavor = "Light static packet"
 
-    #     sizeGb = sizeB / 1024 / 1024 / 1024
+    if "b_is_solar_system" in blocks:
+        # pure sso sample
+        kind = "sso"
+    elif "NOT b_is_solar_system" in blocks:
+        # pure static sample
+        kind = "static"
+    else:
+        kind = "mix"
 
-    return sizeGb
+    if flavor is not None:
+        sizeGb = precomputed.get(kind, {}).get(flavor, 0)
+    else:
+        # freedom on fields
+        sizeB = 0
+        for k in content:
+            if k in all_lsst_fields:
+                if k.startswith("prvDiaSources"):
+                    # Account for history length
+                    sizeB += precomputed[kind]["history_factor"] * CONV[all_lsst_fields[k]]
+                else:
+                    sizeB += CONV[all_lsst_fields[k]]
+            elif k == "diaSource":
+                sizeB += 0.5 * 1024
+            elif k == "prvDiaSources" and kind in ["static", "mix"]:
+                sizeB += 116 * 1024 * precomputed[kind]["history_factor"] / 100.
+            elif k == "prvDiaForcedSources" and kind in ["static", "mix"]:
+                sizeB += 1024 * precomputed[kind]["history_factor"] / 100.
+            elif k == "diaObject" and kind in ["static", "mix"]:
+                sizeB += 0.3 * 1024
+            elif k == "mpc_orbits" and kind in ["sso", "mix"]:
+                sizeB += 0.3 * 1024
+            elif k == "ssSource" and kind in ["sso", "mix"]:
+                sizeB += 0.3 * 1024
+            elif k in all_fink_fields:
+                sizeB += CONV[all_fink_fields[k]]
+
+        sizeGb = sizeB / 1024 / 1024 / 1024
+
+    return sizeGb, precomputed[kind]["Full packet"]
 
 
 def initialise_classes(class_select):
@@ -264,25 +315,42 @@ def get_statistics(dstart, dstop):
 #     return dic
 
 
-def estimate_alert_number_lsst(date_range_picker, tag_select):
+def estimate_alert_number_lsst(date_range_picker, tags, blocks):
     """Callback to estimate the number of alerts to be transfered
 
+    Notes
+    -----
     This can be improved by using the REST API directly to get number of
     alerts per class.
     """
-    # FIXME: rewrite the logic for LSST
     # FIXME: for the moment, not filtering
     dstart = date(*[int(i) for i in date_range_picker[0].split("-")])
     dstop = date(*[int(i) for i in date_range_picker[1].split("-")])
 
     dic = get_statistics(dstart, dstop)
 
-    # # we check first filter, and then class
-    # dic = get_tag_statistics(dic, tag_select)
-    # total = dic["f:alerts"]
-    # count = np.sum([v for k, v in dic.items() if k != "f:alerts"])
-
     total = dic["f:alerts"]
     count = dic["f:alerts"]
+    if isinstance(tags, list) and len(tags) > 0:
+        for tag in tags:
+            # is it negation?
+            is_not = "NOT " in tag
+            if tag in FILTERS_AND_BLOCKS_YIELD.keys():
+                count *= FILTERS_AND_BLOCKS_YIELD[tag]
+            elif is_not:
+                not_tag = tag.split("NOT ")[1].strip()
+                if not_tag in FILTERS_AND_BLOCKS_YIELD.keys():
+                    count *= (1 - FILTERS_AND_BLOCKS_YIELD[not_tag])
+
+    if isinstance(blocks, list) and len(blocks) > 0:
+        for block in blocks:
+            # is it negation?
+            is_not = "NOT " in block
+            if block in FILTERS_AND_BLOCKS_YIELD.keys():
+                count *= FILTERS_AND_BLOCKS_YIELD[block]
+            elif is_not:
+                not_block = block.split("NOT ")[1].strip()
+                if not_block in FILTERS_AND_BLOCKS_YIELD.keys():
+                    count *= (1 - FILTERS_AND_BLOCKS_YIELD[not_block])
 
     return total, count

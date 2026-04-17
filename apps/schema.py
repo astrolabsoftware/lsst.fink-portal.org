@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import dash_mantine_components as dmc
-from dash import Input, Output, html, no_update
+from dash import Input, Output, html, no_update, dcc
 from dash_iconify import DashIconify
 
 from app import app
@@ -27,10 +27,32 @@ CONV_NAMES = {
     "Fink science module outputs (f:)": "Fink",
 }
 
+def extract_type(t):
+    """Extract field type from json schema
+
+    Parameters
+    ----------
+    t: str or list
+        In the forms 'field' or ['null', 'field']
+
+    Returns
+    -------
+    out: str
+    """
+    if isinstance(t, list):
+        field = [i for i in t if i != 'null'][0]
+        if isinstance(field, dict):
+            #  {'logicalType': 'timestamp-micros', 'type': 'long'},
+            return field["type"]
+        else:
+            return field
+    else:
+        return t
+
 
 def predefined_fields_for_data_transfer():
-    """Get schema from API, and make it suitable for Data Transfer"""
-    fields = ["Full packet", "Medium packet", "Light packet"]
+    """Predefined fields for data transfer"""
+    fields = ["Full packet", "Medium packet", "Light static packet", "Light SSO packet"]
 
     data = []
 
@@ -43,29 +65,80 @@ def predefined_fields_for_data_transfer():
 
     return data, fields
 
+def lsst_nested_fields_for_data_transfer():
+    """LSST nested sections for data transfer"""
+    fields = ["diaSource", "diaObject", "prvDiaSources", "prvDiaForcedSources", "mpc_orbits", "ssSource"]
+
+    data = []
+
+    # high level
+    packet = {
+        "group": "LSST nested sections",
+        "items": fields,
+    }
+    data.append(packet)
+
+    return data, fields
+
 
 def fields_for_data_transfer():
-    """Return only field names"""
+    """Return field names and types
+
+    Returns
+    -------
+    out: (dict, dict)
+        Dictionary with field names and types, for LSST and Fink.
+    """
     schema_lsst = request_api(
         endpoint="/api/v1/schema",
         json={"endpoint": "/datatransfer/lsst"},
         output="json",
     )
-    all_lsst_fields = list(schema_lsst["LSST"].keys())
+    if len(schema_lsst) > 0:
+        all_lsst_fields = list(schema_lsst["LSST"].keys())
+        all_lsst_fields_types = [extract_type(i['type']) for i in schema_lsst['LSST'].values()]
+    else:
+        # HTTP error usually
+        return {}, {}
 
     schema_fink = request_api(
         endpoint="/api/v1/schema",
         json={"endpoint": "/datatransfer/fink"},
         output="json",
     )
-    all_fink_fields = list(schema_fink["Fink"].keys())
+    if len(schema_fink) > 0:
+        all_fink_fields = list(schema_fink["Fink"].keys())
+        all_fink_fields_types = [extract_type(i['type']) for i in schema_fink['Fink'].values()]
+    else:
+        # HTTP error usually
+        return {}, {}
 
-    return all_lsst_fields, all_fink_fields
+    return {k:v for k, v in zip(all_lsst_fields, all_lsst_fields_types)}, {k:v for k, v in zip(all_fink_fields, all_fink_fields_types)}
 
 
 def create_datatransfer_schema_table(provenance="lsst", caption=""):
     """Create a table for datatransfer"""
     rows = []
+
+    # Strict definition in apps/spark_lsst_transfer.py
+    light_static_fields = cols = [
+        'diaObjectId', 'snr', 'scienceFlux', 'scienceFluxErr', 'templateFlux',
+        'templateFluxErr', 'band', 'midpointMjdTai', 'ra', 'dec', 'reliability',
+        'diaSourceId', 'observation_reason', 'target_name',
+        'brokerIngestMjd', 'lsst_schema_version', 'brokerStartProcessTimestamp',
+        'fink_broker_version', 'fink_science_version', 'publisher',
+        'lc_features', 'clf', 'xm', 'pred', 'misc', 'brokerEndProcessTimestamp',
+        'timestamp', 'tns_type_recomputed'
+    ]
+    light_sso_fields = cols = [
+        'ssObjectId', 'snr', 'scienceFlux', 'scienceFluxErr', 'templateFlux',
+        'templateFluxErr', 'band', 'midpointMjdTai', 'ra', 'dec', 'reliability',
+        'diaSourceId',
+        'phaseAngle', 'diaDistanceRank',
+        'packed_primary_provisional_designation',
+        'unpacked_primary_provisional_designation',
+        'fink_broker_version', 'fink_science_version', 'lsst_schema_version'
+    ]
 
     if provenance == "custom":
         _, custom_fields = predefined_fields_for_data_transfer()
@@ -93,7 +166,17 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
                 dmc.TableTd(
-                    "Selection of LSST & Fink fields for lightcurve analysis (a dozen of fields)"
+                    "Selection of LSST & Fink fields for lightcurve analysis (static objects): {}".format(", ".join(light_static_fields))
+                ),
+            ])
+        )
+        rows.append(
+            dmc.TableTr([
+                dmc.TableTd(custom_fields[3]),
+                dmc.TableTd("LSST & Fink"),
+                dmc.TableTd("--"),
+                dmc.TableTd(
+                    "Selection of LSST & Fink fields for lightcurve analysis (Solar System objects): {}".format(", ".join(light_sso_fields))
                 ),
             ])
         )
@@ -132,7 +215,7 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
             horizontalSpacing="xl",
             highlightOnHover=True,
         ),
-        maxHeight=300,
+        maxHeight=500,
         minWidth=1000,
         type="scrollarea",
     )
@@ -337,7 +420,8 @@ def get_api_background(url):
         id="api_schema",
         disableChevronRotation=False,
         chevronPosition="left",
-        children=[
+        children=[dcc.Markdown("This panel shows the fields returned by each API endpoint. Available arguments and examples for each endpoint can be found at [https://api.lsst.fink-portal.org](https://api.lsst.fink-portal.org)."),] +
+        [
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
@@ -349,6 +433,7 @@ def get_api_background(url):
             )
             for i in [
                 "sources",
+                "fp",
                 "objects",
                 "sso",
                 "conesearch",
@@ -367,6 +452,7 @@ def layout():
         disableChevronRotation=False,
         chevronPosition="left",
         children=[
+            dcc.Markdown("Filters are used to filter data during the night, and producing substreams for the Livestream and tags for the API. They can also be used in the Data Transfer to filter historical data and replay streams. Blocks are convenient small functions used for example to build larger filters."),
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
@@ -397,17 +483,7 @@ def layout():
         disableChevronRotation=False,
         chevronPosition="left",
         children=[
-            dmc.AccordionItem(
-                [
-                    dmc.AccordionControl(
-                        "Pre-defined packet contents",
-                    ),
-                    dmc.AccordionPanel(
-                        create_datatransfer_schema_table(provenance="custom")
-                    ),
-                ],
-                value="custom",
-            ),
+            dcc.Markdown("This section details the alert schema (Avro format) as it is sent by LSST, plus the additional fields by Fink. The schema is nested, that is there are several nested levels. The root sections and field names will be separated by a point, as in `diaSource.ra` (`ra` field in the root section `diaSource`)."),
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
@@ -454,6 +530,17 @@ def layout():
                 ],
                 value="lsst",
             ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Pre-defined packet contents (Data Transfer)",
+                    ),
+                    dmc.AccordionPanel(
+                        create_datatransfer_schema_table(provenance="custom")
+                    ),
+                ],
+                value="custom",
+            ),
         ],
     )
 
@@ -484,7 +571,7 @@ def layout():
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
-                        "Data Transfer & Xmatch",
+                        "Alert packet, Data Transfer & Livestream",
                         icon=DashIconify(
                             icon="material-symbols:stream",
                             color=DEFAULT_FINK_COLORS[3],

@@ -12,18 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import base64
 import datetime
 import io
 import textwrap
 
 import dash_mantine_components as dmc
+import pandas as pd
 import numpy as np
 import requests
 import yaml
-from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update
+from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update, dash_table
 from dash_autocomplete_input import AutocompleteInput
 from dash_iconify import DashIconify
+from dash.exceptions import PreventUpdate
 
 from app import app
 from apps.configuration import extract_configuration
@@ -35,7 +38,7 @@ from apps.mining.utils import (
     upload_file_hdfs,
 )
 from apps.plotting import DEFAULT_FINK_COLORS
-from apps.schema import fields_for_data_transfer, predefined_fields_for_data_transfer
+from apps.schema import fields_for_data_transfer, predefined_fields_for_data_transfer, lsst_nested_fields_for_data_transfer
 from apps.utils import query_and_order_statistics
 
 args = extract_configuration("config.yml")
@@ -43,6 +46,10 @@ APIURL = args["APIURL"]
 
 min_step = 0
 max_step = 5
+
+MAX_ROW = 100000
+
+ALL_LSST_FIELDS, ALL_FINK_FIELDS = fields_for_data_transfer()
 
 
 def config_tab():
@@ -132,8 +139,12 @@ def check_field(fields):
     if fields is not None:
         if len(fields) > 1 and "Full packet" in fields:
             return "Full packet cannot be combined with other fields."
-        if len(fields) > 1 and "Light packet" in fields:
-            return "Light packet cannot be combined with other fields."
+        if len(fields) > 1 and "Light static packet" in fields:
+            return "Light static packet cannot be combined with other fields."
+        if len(fields) > 1 and "Light SSO packet" in fields:
+            return "Light SSO packet cannot be combined with other fields."
+        if len(fields) > 1 and "Medium packet" in fields:
+            return "Medium packet cannot be combined with other fields."
     return ""
 
 
@@ -224,6 +235,399 @@ def store_blocks(tags, variants, n_clicks):
     """Return a list of active blocks"""
     return store_tags_blocks(tags, variants, n_clicks)
 
+def create_tile(icon, heading, description, index, content):
+    return html.Div(
+        [
+            dmc.Card(
+                radius="md",
+                p="xl",
+                withBorder=True,
+                m=5,
+                #className="homepage-tile",
+                children=[
+                    dmc.Group([
+                        DashIconify(
+                            icon=icon,
+                            height=40,
+                            color= DEFAULT_FINK_COLORS[0],
+                        ),
+                        dmc.ActionIcon(
+                            DashIconify(
+                                icon="material-symbols:add-circle-outline",
+                                color=DEFAULT_FINK_COLORS[-1],
+                                width=40
+                            ),
+                            color="white",
+                            variant="subtle",
+                            size="xl",
+                            id=f"modal-datatransfer-button-{index}"
+                        )
+                    ], justify="space-between"),
+                    dmc.Text(heading, size="lg", mt="md"),
+                    dmc.Text(description, size="sm", c="dimmed", mt="sm"),
+                ],
+            ),
+            dmc.Modal(
+                title=dmc.Text(heading, size="xl", mt="md", c="black"),
+                children=content,
+                id=f"modal-datatransfer-{index}",
+                size="70%",
+                #fullScreen=True,
+            )
+        ]
+    )
+
+@callback(
+    Output("modal-datatransfer-1", "opened"),
+    Input("modal-datatransfer-button-1", "n_clicks"),
+    State("modal-datatransfer-1", "opened"),
+    prevent_initial_call=True,
+)
+def modal_demo(nc1, opened):
+    return not opened
+
+@callback(
+    Output("modal-datatransfer-2", "opened"),
+    Input("modal-datatransfer-button-2", "n_clicks"),
+    State("modal-datatransfer-2", "opened"),
+    prevent_initial_call=True,
+)
+def modal_demo(nc1, opened):
+    return not opened
+
+@callback(
+    Output("modal-datatransfer-3", "opened"),
+    Input("modal-datatransfer-button-3", "n_clicks"),
+    State("modal-datatransfer-3", "opened"),
+    prevent_initial_call=True,
+)
+def modal_demo(nc1, opened):
+    return not opened
+
+def create_user_filterblocks_description(items):
+    """ """
+    # header
+    rows = []
+    for index, (tag, description) in enumerate(items.items()):
+        if tag.startswith("b_"):
+            classname = "button_blocks_transfer"
+            symbol = "target"
+            name = "Blocks"
+        else:
+            classname = "button_filter_transfer"
+            symbol = "stream"
+            name = "Filters"
+        button = dmc.Button(
+            children=tag,
+            className=classname,
+            id={
+                "type": classname,
+                "index": index,
+            },
+            radius="xl",
+            #size="lg",
+            variant="light",
+            color="grey",
+            style={"margin": "3px"},
+            leftSection=DashIconify(icon=f"material-symbols:{symbol}"),
+        )
+        rows.append(
+            dmc.TableTr([
+                dmc.TableTd(button),
+                dmc.TableTd(description),
+            ])
+        )
+
+    head = dmc.TableThead(
+        dmc.TableTr([
+            dmc.TableTh(name, w="35%"),
+            dmc.TableTh("Description", w="65%"),
+        ])
+    )
+    body = dmc.TableTbody(rows)
+
+    table_candidate = html.Div(
+        dmc.Table(
+            [head, body, None],
+            horizontalSpacing="xl",
+            highlightOnHover=True,
+        ),
+    )
+    return table_candidate
+
+def upload_catalog():
+    """ """
+    radius = dmc.NumberInput(
+        placeholder="type value...",
+        label="Crossmatch radius in arcsecond",
+        variant="default",
+        # size="sm",
+        # radius="sm",
+        hideControls=True,
+        w=250,
+        mb=10,
+        id="radius_xmatch",
+        disabled=True,
+    )
+
+    ra = dmc.Select(
+        label="Column for Right Ascension (J2000, deg)",
+        placeholder="Select one",
+        id="ra-column",
+        w=250,
+        mb=10,
+        disabled=True,
+    )
+    dec = dmc.Select(
+        label="Column for Declination (J2000, deg)",
+        placeholder="Select one",
+        id="dec-column",
+        w=250,
+        mb=10,
+        disabled=True,
+    )
+    identifier = dmc.Select(
+        label="Select column for the identifier",
+        placeholder="Select one",
+        id="id-column",
+        w=250,
+        mb=10,
+        disabled=True,
+    )
+
+    return html.Div(
+        children=[
+            dcc.Upload(
+                id="upload-data",
+                children=html.Div(
+                    [
+                        "Drag and Drop or ",
+                        html.A("Select Files "),
+                        "(csv, fits, parquet, or votable)",
+                    ]
+                ),
+                style={
+                    "width": "100%",
+                    "height": "60px",
+                    "lineHeight": "60px",
+                    "borderWidth": "1px",
+                    "borderStyle": "dashed",
+                    "borderRadius": "5px",
+                    "textAlign": "center",
+                    "margin": "10px",
+                },
+            ),
+            html.Div(id="output-data-upload"),
+            dmc.Space(h=10),
+            dmc.Group([ra, dec, identifier, radius], justify="center"),
+            dmc.Space(h=10),
+            # dmc.Center(modal_skymap()),
+        ]
+    )
+
+@callback(
+    Output("output-data-upload", "children"),
+    Input("object-catalog", "data"),
+    State("upload-data", "filename"),
+    State("upload-data", "last_modified"),
+)
+def update_output(catalog, filename, date):
+    if catalog is not None:
+        children = parse_contents(catalog, filename, date)
+        return children
+
+
+@callback(
+    [
+        Output("object-catalog", "data"),
+        Output("gauge_catalog_number", "sections"),
+        Output("gauge_catalog_number", "label"),
+        Output("notification-container", "sendNotifications", allow_duplicate=True),
+    ],
+    [
+        Input("upload-data", "contents"),
+        State("upload-data", "filename"),
+    ],
+    prevent_initial_call='initial_duplicate'
+)
+def store_catalog(content, filename):
+    """Store data from user"""
+    if filename is None:
+        return no_update, no_update, dmc.Text("No catalog", ta="center"), no_update
+
+    content_type, content_string = content.split(",")
+    decoded = base64.b64decode(content_string)
+
+    try:
+        if ".csv" in filename:
+            # Assume that the user uploaded a CSV file
+            pdf = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+        elif ".parquet" in filename:
+            # Assume that the user uploaded a parquet file
+            pdf = pd.read_parquet(io.BytesIO(decoded))
+        elif ".xml" in filename:
+            # Assume that the user uploaded a votable file
+            table = votable.parse(io.BytesIO(decoded))
+            pdf = table.get_first_table().to_table(use_names_over_ids=True).to_pandas()
+        elif ".fits" in filename:
+            # Assume that the user uploaded a fits file
+            with fits.open(io.BytesIO(decoded)) as hdul:
+                for hdu in hdul:
+                    if isinstance(hdu, fits.BinTableHDU):
+                        pdf = pd.DataFrame(np.array(hdu.data))
+                        break
+        if ("pdf" not in locals()) or (not isinstance(pdf, pd.DataFrame)):
+            msg = "Catalog format not recognised"
+            notification = dict(
+                title="Error while uploading catalog",
+                id="show-notify",
+                action="show",
+                message=msg,
+                color="red",
+                autoClose=False,
+            )
+            return (
+                "{}",
+                [{"value": 0, "color": "grey", "tooltip": "0%"}],
+                dmc.Text(msg, c="red", ta="center"),
+                [notification],
+
+            )
+    except Exception as e:
+        notification = dict(
+            title="Error while uploading catalog",
+            id="show-notify",
+            action="show",
+            message=e,
+            color="red",
+            autoClose=False,
+        )
+        return (
+            "{}",
+            [{"value": 0, "color": "grey", "tooltip": "0%"}],
+            dmc.Text(e, c="red", ta="center"),
+            [notification],
+        )
+
+    if len(pdf) > MAX_ROW:
+        msg = "{:,} > {} rows allowed. Uploading only {} rows.".format(len(pdf), MAX_ROW, MAX_ROW)
+        color = "orange"
+        notification = dict(
+            title="Truncating input catalog",
+            id="show-notify",
+            action="show",
+            message=msg,
+            color=color,
+            autoClose=False,
+        )
+        pdf = pdf.head(MAX_ROW)
+    else:
+        color = "green"
+        notification = dict(
+            title="Catalog uploaded",
+            id="show-notify",
+            action="show",
+            message="{:,} rows".format(len(pdf)),
+            color=color,
+        )
+    sections = {
+        "value": len(pdf) / MAX_ROW * 100,
+        "color": color,
+        "tooltip": "{:.2f}%".format(len(pdf) / MAX_ROW * 100),
+    }
+    label = dmc.Text("{:,} rows".format(len(pdf)), c=DEFAULT_FINK_COLORS[0], ta="center")
+
+    return pdf.to_json(), [sections], label, [notification]
+
+def parse_contents(catalog, filename, date):
+    pdf = pd.read_json(io.StringIO(catalog))
+
+    # Check header? Or ask the user to provide what is RA, DEC, OID?
+
+    return html.Div(
+        [
+            html.H5("{}".format(filename)),
+            html.H6("Preview of the 10 first rows"),
+            dash_table.DataTable(
+                pdf.head(10).to_dict("records"),
+                [{"name": i, "id": i} for i in pdf.columns],
+            ),
+        ]
+    )
+
+@app.callback(
+    [
+        Output("ra-column", "disabled"),
+        Output("dec-column", "disabled"),
+        Output("id-column", "disabled"),
+        Output("radius_xmatch", "disabled"),
+        Output("ra-column", "data"),
+        Output("dec-column", "data"),
+        Output("id-column", "data"),
+    ],
+    Input("object-catalog", "data"),
+    prevent_initial_call=True,
+)
+def select_columns(catalog):
+    """ """
+    if catalog is None or catalog == {} or catalog == "{}":
+        PreventUpdate()
+
+    pdf = pd.read_json(io.StringIO(catalog))
+    if pdf.empty:
+        PreventUpdate()
+
+    ra_data = [{"value": c, "label": c} for c in pdf.columns]
+    dec_data = [{"value": c, "label": c} for c in pdf.columns]
+    identifier = [{"value": c, "label": c} for c in pdf.columns]
+
+    return False, False, False, False, ra_data, dec_data, identifier
+
+
+def enforce_decimal(pdf, ra_label, dec_label):
+    """Convert RA and Dec to decimal degree if need be
+
+    Parameters
+    ----------
+    pdf: pd.DataFrame
+        Pandas DataFrame
+    ra_label: str
+        RA column name
+    dec_label: str
+        Dec column name
+
+    Returns
+    -------
+    out: np.array, np.array
+        RA, Dec in decimal degrees
+    """
+    ra = pdf[ra_label].to_numpy()
+    dec = pdf[dec_label].to_numpy()
+
+    # conversion if not degree
+    if isinstance(ra[0], str) and not ra[0].isnumeric():
+        out = []
+        for ra_, dec_ in zip(ra, dec):
+            string = "{} {}".format(ra_, dec_)
+            m = re.search(
+                r"^(\d{1,2})\s+(\d{1,2})\s+(\d{1,2}\.?\d*)\s+([+-])?\s*(\d{1,3})\s+(\d{1,2})\s+(\d{1,2}\.?\d*)(\s+(\d+\.?\d*))?$",
+                string,
+            ) or re.search(
+                r"^(\d{1,2})[:h](\d{1,2})[:m](\d{1,2}\.?\d*)[s]?\s+([+-])?\s*(\d{1,3})[d:](\d{1,2})[m:](\d{1,2}\.?\d*)[s]?(\s+(\d+\.?\d*))?$",
+                string,
+            )
+            if m:
+                ra_deg = (float(m[1]) + float(m[2]) / 60 + float(m[3]) / 3600) * 15
+                dec_deg = float(m[5]) + float(m[6]) / 60 + float(m[7]) / 3600
+
+                if m[4] == "-":
+                    dec_deg *= -1
+
+                out.append([ra_deg, dec_deg])
+        if len(out) > 0:
+            ra, dec = np.transpose(out)
+
+    return ra, dec
 
 def filter_number_tab():
     """Construct the filtering tab for the Data Transfer service
@@ -232,11 +636,9 @@ def filter_number_tab():
     -------
     out: Div
     """
-    all_lsst_fields, all_fink_fields = fields_for_data_transfer()
-    options = html.Div(
+    option1 = html.Div(
         [
             dmc.Space(h=10),
-            dmc.Text("User-defined filters", size="sm"),
             dmc.Text(
                 [
                     "You can apply one or several Fink filters (",
@@ -255,47 +657,21 @@ def filter_number_tab():
                     ),
                     r" for description of available filters and blocks.",
                 ],
-                size="xs",
+                size="lg",
                 c="gray",
             ),
-            dmc.Space(h=10),
-            *[
-                dmc.Button(
-                    children=fink_tag,
-                    className="button_filter_transfer",
-                    id={
-                        "type": "button_filter_transfer",
-                        "index": index,
-                    },
-                    radius="xl",
-                    size="xs",
-                    variant="light",
-                    color="grey",
-                    style={"margin": "3px"},
-                    leftSection=DashIconify(icon="material-symbols:stream"),
-                )
-                for index, fink_tag in enumerate(list(fink_tags.keys()))
-            ],
-            dmc.Space(h=10),
-            *[
-                dmc.Button(
-                    children=fink_block,
-                    className="button_blocks_transfer",
-                    id={
-                        "type": "button_blocks_transfer",
-                        "index": index,
-                    },
-                    radius="xl",
-                    size="xs",
-                    variant="light",
-                    color="grey",
-                    style={"margin": "3px"},
-                    leftSection=DashIconify(icon="material-symbols:target"),
-                )
-                for index, fink_block in enumerate(list(fink_blocks.keys()))
-            ],
+            dmc.Space(h=30),
+            create_user_filterblocks_description(fink_tags),
+            dmc.Space(h=30),
+            create_user_filterblocks_description(fink_blocks),
+        ]
+    )
+
+    option2 = upload_catalog()
+
+    option3 = html.Div(
+        [
             dmc.Space(h=20),
-            dmc.Text("Write your own block", size="sm"),
             dmc.Text(
                 [
                     "Similarly to the blocks above, you can write your own block. You need to specify one condition per line (SQL syntax), ending with semi-colon (see below for examples). Start typing an alert section such as ",
@@ -322,11 +698,13 @@ def filter_number_tab():
                     ),
                     r" for description of available fields.",
                 ],
-                size="xs",
+                size="lg",
                 c="gray",
             ),
             dmc.Space(h=10),
             AutocompleteInput(
+                offsetX=0,
+                offsetY=0,
                 id="extra_cond",
                 placeholder="One condition per line (SQL syntax), ending with semi-colon.",
                 component="textarea",
@@ -343,47 +721,47 @@ def filter_number_tab():
                 options={
                     "diaSource.": [
                         k.split("diaSource.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("diaSource.")
                     ],
                     "ssSource.": [
                         k.split("ssSource.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("ssSource.")
                     ],
                     "mpc_orbits.": [
                         k.split("mpc_orbits.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("mpc_orbits.")
                     ],
                     "diaObject.": [
                         k.split("diaObject.")[-1]
-                        for k in all_lsst_fields
+                        for k in ALL_LSST_FIELDS.keys()
                         if k.startswith("diaObject.")
                     ],
                     "xm.": [
                         k.split("xm.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("xm.")
                     ],
                     "clf.": [
                         k.split("clf.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("clf.")
                     ],
                     "misc.": [
                         k.split("misc.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("misc.")
                     ],
                     "pred.": [
                         k.split("pred.")[-1]
-                        for k in all_fink_fields
+                        for k in ALL_FINK_FIELDS.keys()
                         if k.startswith("pred.")
                     ],
                 },
                 maxOptions=0,
-                className="inputbar form-control border-0",
+                className="inputbar form-control roundcorner",
                 quoteWhitespaces=True,
                 autoFocus=True,
                 ignoreCase=True,
@@ -392,6 +770,7 @@ def filter_number_tab():
                 style={
                     "height": "15pc",
                     "width": "100%",
+                    "position": "relative",
                 },
             ),
             dmc.Accordion(
@@ -421,7 +800,7 @@ diaObject.nDiaSources > 3;
 diaSource.band = 'g';
 31.4 - 2.5 * LOG10(diaSource.scienceFlux) < 21;
 
--- Example block 3: Using a combination of fields (magnitude difference between science and template)
+-- Example block 3: Using a combination of fields (magnitude difference between difference and template image)
 2.5 * LOG10(diaSource.psfFlux / diaSource.templateFlux) > 0.5;
 
 -- Example block 3: Filtering on ML scores
@@ -432,20 +811,59 @@ xm.tns_type IN ('SN Ia', 'SN II');
 
 -- Example block 5: Only classified objects in SIMBAD and Gaia DR3
 pred.is_cataloged;
+
+-- Example block 6: Only far away Solar System objects
+pred.is_sso;
+mpc_orbits.a > 10;
 ```"""),
                             ),
                         ],
                         value="info",
                     ),
-                ],
+                ], value="info"
             ),
+        ],
+    )
+    tabs = dmc.Container(
+        size="lg",
+        px=0,
+        py=0,
+        my=40,
+        children=[
+            dmc.SimpleGrid(
+                mt=80,
+                cols={"xs": 1, "sm": 2, "xl": 3},
+                children=[
+                    create_tile(
+                        icon="boxicons:filter",
+                        heading="Fink filters",
+                        description="Select alerts of interest by applying user-defined Fink filters and blocks.",
+                        index=1,
+                        content=option1
+                    ),
+                    create_tile(
+                        icon="fluent-mdl2:venn-diagram",
+                        heading="External catalog",
+                        description="Upload your catalog of astronomical sources to find matches with Fink/LSST alerts.",
+                        index=2,
+                        content=option2
+                    ),
+                    create_tile(
+                        icon="solar:document-add-linear",
+                        heading="Custom filtering",
+                        description="Select alerts of interest by writing your own filtering.",
+                        index=3,
+                        content=option3
+                    ),
+                ]
+            )
         ],
     )
     tab = html.Div(
         [
             dmc.Space(h=50),
             dmc.Divider(variant="solid", label="Reduce the number of incoming alerts"),
-            options,
+            tabs,
         ],
         id="filter_number_tab",
     )
@@ -454,11 +872,12 @@ pred.is_cataloged;
 
 def filter_content_tab():
     custom_fields, _ = predefined_fields_for_data_transfer()
-    all_lsst_fields, all_fink_fields = fields_for_data_transfer()
+    nested_fields, _ = lsst_nested_fields_for_data_transfer()
     data = [
         custom_fields[0],
-        {"group": "Fink added values", "items": all_fink_fields},
-        {"group": "LSST original fields", "items": all_lsst_fields},
+        nested_fields[0],
+        {"group": "Fink added values", "items": list(ALL_FINK_FIELDS.keys())},
+        {"group": "LSST original fields", "items": list(ALL_LSST_FIELDS.keys())},
     ]
     options = html.Div(
         [
@@ -512,6 +931,7 @@ def filter_content_tab():
         Input("blocks_select", "data"),
         Input("field_select", "value"),
         Input("extra_cond", "value"),
+        State("upload-data", "filename"),
     ],
     prevent_initial_call=True,
 )
@@ -522,6 +942,7 @@ def download_yaml(
     blocks_select,
     field_select,
     extra_cond,
+    catalog_filename,
 ):
     """Construct a JSON file and export to YAML"""
     if nclicks is None:
@@ -552,6 +973,7 @@ def download_yaml(
         "blocks": blocks_select,
         "content": field_select,
         "extra_cond": extra_cond,
+        "catalog_filename": catalog_filename
     }
 
     if field_select is None or field_select == []:
@@ -610,7 +1032,7 @@ def upload_yaml(content, filename):
 
     data = yaml.safe_load(io.StringIO(decoded.decode("utf-8")))
 
-    is_valid, outNotifications = validate_yaml(data)
+    is_valid, catalog_filename, outNotifications = validate_yaml(data)
 
     if not is_valid:
         return (
@@ -622,6 +1044,14 @@ def upload_yaml(content, filename):
             outNotifications,
             no_update,
         )
+    elif catalog_filename != "":
+        outNotifications = [
+            dict(
+                title=f"Previous configuration loaded from {filename}",
+                message=f"You still need to re-upload your catalog ({catalog_filename})",
+                color="orange",
+            )
+        ]
     else:
         outNotifications = [
             dict(
@@ -674,6 +1104,8 @@ def sanitize_extra_cond(extra_cond):
                 out.append(elem)
             return out
 
+    return []
+
 
 def validate_yaml(dic):
     """Check input dictionary has correct fields
@@ -687,6 +1119,8 @@ def validate_yaml(dic):
     -------
     is_valid: bool
         True if the dictionary is valid. False otherwise.
+    catalog_filename: str
+        Name of the catalog. No catalog is empty string.
     outNotifications: dict
         Notifications to send to the user in case of unvalid dictionary.
     """
@@ -697,7 +1131,11 @@ def validate_yaml(dic):
         "blocks": list,
         "content": list,
         "extra_cond": list,
+        "catalog_filename": str,
     }
+
+    # Support legacy format
+    dic["catalog_filename"] = dic.get("catalog_filename", "")
 
     # Check all mandatory fields are here
     for key in default_fields:
@@ -708,7 +1146,7 @@ def validate_yaml(dic):
                     color="red",
                 )
             ]
-            return False, outNotifications
+            return False, dic["catalog_filename"], outNotifications
 
     # Check we have start AND stop dates
     if len(dic["dates"]) != 2:
@@ -720,7 +1158,7 @@ def validate_yaml(dic):
                 color="red",
             )
         ]
-        return False, outNotifications
+        return False, dic["catalog_filename"], outNotifications
 
     # Check their type. None is fine (means value not set)
     for key, value in dic.items():
@@ -731,9 +1169,9 @@ def validate_yaml(dic):
                     color="red",
                 )
             ]
-            return False, outNotifications
+            return False, dic["catalog_filename"], outNotifications
 
-    return True, outNotifications
+    return True, dic["catalog_filename"], outNotifications
 
 
 @app.callback(
@@ -747,6 +1185,7 @@ def validate_yaml(dic):
         Input("alert-stats", "data"),
         Input("date-range-picker", "value"),
         Input("tag_select", "data"),
+        Input("blocks_select", "data"),
         Input("field_select", "value"),
         Input("extra_cond", "value"),
     ],
@@ -754,7 +1193,8 @@ def validate_yaml(dic):
 def gauge_meter(
     alert_stats,
     date_range_picker,
-    tag_select,
+    tags,
+    blocks,
     field_select,
     extra_cond,
 ):
@@ -774,9 +1214,8 @@ def gauge_meter(
         if field_select is None or field_select == []:
             field_select = ["Full packet"]
 
-        total, count = estimate_alert_number_lsst(date_range_picker, tag_select)
-        sizeGb = estimate_size_gb_lsst(field_select)
-        defaultGb = 55 / 1024 / 1024
+        total, count = estimate_alert_number_lsst(date_range_picker, tags, blocks)
+        sizeGb, defaultGb = estimate_size_gb_lsst(field_select, blocks, ALL_LSST_FIELDS, ALL_FINK_FIELDS)
 
         if count == 0:
             color = "gray"
@@ -822,7 +1261,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Estimated number of alerts for the selected dates, including the class filter(s) and the livestream filter (if any), but not the custom filters (if any). The percentage is given with respect to the total for the selected dates ({} to {})".format(
+                    label="Number of alerts received for the selected dates ({} to {}). Fink filters and block are applied without taking into account overlap between them. Custom filtering is not taken into account.".format(
                         *date_range_picker
                     ),
                 ),
@@ -858,7 +1297,7 @@ def gauge_meter(
                     position="bottom",
                     multiline=True,
                     w=220,
-                    label="Estimated data volume to transfer based on selected alert fields. The percentage is given with respect to the total for the selected dates ({} to {}), with the class filter(s) applied (if any).".format(
+                    label="Estimated data volume to transfer based on selected alert fields. The volume is given with respect to the total for the selected dates ({} to {}). Fink filters and block are applied without taking into account overlap between them but custom filtering is not taken into account. Gauge size is weighted with respect to your choice of fields.".format(
                         *date_range_picker
                     ),
                 ),
@@ -885,11 +1324,11 @@ def update_code_block(topic_name):
         # FIXME: introduce partitioning?
         # This is done by time by default
         code_block = f"""
-# Requires fink-client>=10.0
 fink_datatransfer \\
     -survey lsst \\
     -topic {topic_name} \\
     -outdir {topic_name} \\
+    --dump_schemas \\
     --verbose
         """
         return code_block
@@ -909,6 +1348,12 @@ fink_datatransfer \\
         State("blocks_select", "data"),
         State("field_select", "value"),
         State("extra_cond", "value"),
+        State("object-catalog", "data"),
+        State("upload-data", "filename"),
+        State("ra-column", "value"),
+        State("dec-column", "value"),
+        State("radius_xmatch", "value"),
+        State("id-column", "value"),
     ],
     prevent_initial_call=True,
 )
@@ -919,12 +1364,19 @@ def submit_job(
     blocks_select,
     field_select,
     extra_cond,
+    catalog,
+    catalog_filename,
+    catalog_ra,
+    catalog_dec,
+    catalog_radius,
+    catalog_identifier,
 ):
     """Submit a job to the Apache Spark cluster via Livy"""
     if n_clicks:
         # define unique topic name
         d = datetime.datetime.utcnow()
 
+        # FIXME: should be in config
         topic_name = f"ftransfer_lsst_{d.date().isoformat()}_{d.microsecond}"
         fn = "assets/spark_lsst_transfer.py"
         basepath = "hdfs://ccmaster1:8020/user/fink/archive/science"
@@ -960,6 +1412,41 @@ def submit_job(
             )
             return True, [alert], no_update, no_update
 
+        if catalog_filename is not None:
+            # Send the data to HDFS as parquet file
+            catalog_filename_parquet = os.path.splitext(catalog_filename)[0] + ".parquet"
+
+            # Conversion in decimal degree as xmatch expects it
+            pdf_catalog = pd.read_json(io.StringIO(catalog))
+            pdf_catalog[catalog_ra], pdf_catalog[catalog_dec] = enforce_decimal(pdf_catalog, catalog_ra, catalog_dec)
+
+            status_code, hdfs_log = upload_file_hdfs(
+                pdf_catalog.to_parquet(),
+                input_args["WEBHDFS"],
+                input_args["NAMENODE"],
+                input_args["USER"],
+                catalog_filename_parquet,
+            )
+
+            if status_code != 201:
+                text = dmc.Stack(
+                    children=[
+                        "Unable to upload {} on HDFS, with error: ".format(
+                            catalog_filename_parquet
+                        ),
+                        dmc.CodeHighlight(code=f"{hdfs_log}", language="html"),
+                        "Contact an administrator at contact@fink-broker.org.",
+                    ]
+                )
+                alert = dict(
+                    message=text,
+                    title=f"[Status code {status_code}]",
+                    color="red",
+                    action="show",
+                    autoClose=False,
+                )
+                return True, [alert], no_update, no_update
+
         # get the job args
         job_args = [
             f"-startDate={date_range_picker[0]}",
@@ -971,6 +1458,16 @@ def submit_job(
             "-kafka_sasl_password={}".format(input_args["KAFKA_SASL_PASSWORD"]),
             "-path_to_tns=/data/fink/tns/tns.parquet",
         ]
+        if catalog_filename is not None:
+            job_args.append(f"-ra_col={catalog_ra}")
+            job_args.append(f"-dec_col={catalog_dec}")
+            job_args.append(f"-radius_arcsec={catalog_radius}")
+            job_args.append(f"-id_col={catalog_identifier}")
+            job_args.append("-catalog_filename={}".format(
+                "hdfs://{}///user/{}/{}".format(
+                    input_args["NAMENODE"], input_args["USER"], catalog_filename_parquet
+                )
+            ))
         if field_select is not None:
             [job_args.append(f"-ffield={elem}") for elem in field_select]
         if isinstance(tag_select, list) and len(tag_select) > 0:
@@ -1073,8 +1570,8 @@ instructions = """
 You are about to submit a job on the Fink Apache Spark & Kafka clusters.
 Review your parameters, and take into account the estimated number of
 alerts before hitting submission! Note that the estimation takes into account the number
-of alerts between the selected dates, but not the effect of the filters and blocks applied (which could reduce the
-number of alerts).
+of alerts between the selected dates, the effect of the Fink filters and blocks applied (which could reduce the
+number of alerts), but not custom filters nor catalog crossmatch.
 
 #### 2. Download your configuration file
 
@@ -1110,8 +1607,13 @@ def layout():
 
     Once ready, submit your job on the Fink Apache Spark and Kafka clusters to retrieve your data wherever you like.
     To access the data, you need to create an account. See the [fink-client](https://github.com/astrolabsoftware/fink-client) and
-    the [documentation](https://doc.lsst.fink-broker.org/en/latest/services/data_transfer) for more information. The data is available
+    the [documentation](https://doc.lsst.fink-broker.org/services/data_transfer/) for more information. The data is available
     for download for 7 days.
+
+    IMPORTANT NOTE: Uploaded catalogs remain secluded for all practical purpose and will not
+    be exploited scientifically by anyone. They are stored on our system during the operation,
+    and they are automatically deleted after 24h. During this time, only engineers have access to it
+    exclusively for debugging purposes and to assist users if need be.
     """
 
     layout = dmc.Container(
@@ -1135,21 +1637,35 @@ def layout():
                                         ),
                                     ),
                                     dmc.Space(h=20),
-                                    dmc.RingProgress(
-                                        roundCaps=True,
-                                        sections=[{"value": 0, "color": "grey"}],
-                                        size=250,
-                                        thickness=20,
-                                        label="",
-                                        id="gauge_alert_number",
-                                    ),
-                                    dmc.RingProgress(
-                                        roundCaps=True,
-                                        sections=[{"value": 0, "color": "grey"}],
-                                        size=250,
-                                        thickness=20,
-                                        label="",
-                                        id="gauge_alert_size",
+                                    dmc.Stack(
+                                        align="center",
+                                        justify="center",
+                                        children=[
+                                            dmc.RingProgress(
+                                                roundCaps=True,
+                                                sections=[{"value": 0, "color": "grey"}],
+                                                size=200,
+                                                thickness=10,
+                                                label="",
+                                                id="gauge_alert_number",
+                                            ),
+                                            dmc.RingProgress(
+                                                roundCaps=True,
+                                                sections=[{"value": 0, "color": "grey"}],
+                                                size=200,
+                                                thickness=10,
+                                                label="",
+                                                id="gauge_alert_size",
+                                            ),
+                                            dmc.RingProgress(
+                                                roundCaps=True,
+                                                sections=[{"value": 0, "color": "grey"}],
+                                                size=200,
+                                                thickness=10,
+                                                label="",
+                                                id="gauge_catalog_number",
+                                            ),
+                                        ]
                                     ),
                                     dmc.Accordion(
                                         variant="separated",
@@ -1161,7 +1677,6 @@ def layout():
                                                         "Help",
                                                         icon=DashIconify(
                                                             icon="material-symbols:info-outline",
-                                                            # color=dmc.DEFAULT_THEME["colors"]["blue"][6],
                                                             color="black",
                                                             width=30,
                                                         ),
@@ -1258,15 +1773,6 @@ def layout():
                                                                         dcc.Download(
                                                                             id="download_yaml"
                                                                         ),
-                                                                        # dmc.Button("Upload", id="upload_yaml_file"),
-                                                                        # html.A(
-                                                                        #     dmc.Button(
-                                                                        #         "Clear and restart",
-                                                                        #         id="refresh",
-                                                                        #         color="red",
-                                                                        #     ),
-                                                                        #     href="/download",
-                                                                        # ),
                                                                     ]
                                                                 ),
                                                                 dmc.Group(children=[]),
@@ -1322,10 +1828,11 @@ def layout():
                             dcc.Store(data="", id="log_progress"),
                             dcc.Store(data=[], id="tag_select"),
                             dcc.Store(data=[], id="blocks_select"),
+                            dcc.Store(id="object-catalog"),
                             html.Div("", id="batch_id", style={"display": "none"}),
                             html.Div("", id="topic_name", style={"display": "none"}),
                         ],
-                        span=9,
+                        span=10,
                     ),
                 ],
             ),
