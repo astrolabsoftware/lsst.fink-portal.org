@@ -336,17 +336,6 @@ def sanitize_fields(cnames):
     cnames: list
         List of fields, sanitized.
     """
-    # if "prv_diaSource." in cnames:
-    #     cnames[cnames.index("prv_diaSource.")] = (
-    #         "explode(array(prv_diaSource.)) as prv_diaSource."
-    #     )
-
-    # for lc_features in ["lc_features_g", "lc_features_r"]:
-    #     if lc_features in cnames:
-    #         cnames[cnames.index(lc_features)] = "struct({}.*) as {}".format(
-    #             lc_features, lc_features
-    #         )
-
     for col in [
         "xm",
         "clf",
@@ -456,28 +445,30 @@ def perform_xmatch(spark, df, catalog_filename, ra_col, dec_col, id_col, radius_
             }
         )
 
-        # Limit the catalog to Rubin declinations
-        dec_min, dec_max = dec.min(), dec.max()
+        # FIXME: Assumes degrees. Need to generalize for any coordinates type
+        if ra2.dtype == float:
+            # Limit the catalog to Rubin declinations
+            dec_min, dec_max = dec.min(), dec.max()
 
-        # extend the box for safety
-        pad = 2 * radius_arcsec / 3600
-        mask = (dec2 >= dec_min - pad) & (dec2 <= dec_max + pad)  # FIXME: assumes degree
-        if mask.sum() == 0:
-            # No overlap, return only Unknowns
-            return pd.Series(["Unknown"] * len(ra))
+            # extend the box for safety
+            pad = 2 * radius_arcsec / 3600
+            mask = (dec2 >= dec_min - pad) & (dec2 <= dec_max + pad)
+            if mask.sum() == 0:
+                # No overlap, return only Unknowns
+                return pd.Series(["Unknown"] * len(ra))
 
-        ra2 = ra2[mask]
-        dec2 = dec2[mask]
-        id2 = id2[mask]
+            ra2 = ra2[mask]
+            dec2 = dec2[mask]
+            id2 = id2[mask]
 
         # create catalogs
         catalog_ztf = SkyCoord(
-            ra=np.array(ra, dtype=np.float) * u.degree,
-            dec=np.array(dec, dtype=np.float) * u.degree,
+            ra=np.array(ra, dtype=float) * u.degree,
+            dec=np.array(dec, dtype=float) * u.degree,
         )
         catalog_other = SkyCoord(
-            ra=np.array(ra2, dtype=np.float) * u.degree,
-            dec=np.array(dec2, dtype=np.float) * u.degree,
+            ra=np.array(ra2, dtype=float) * u.degree,
+            dec=np.array(dec2, dtype=float) * u.degree,
         )
 
         pdf_merge, mask, idx2 = cross_match_astropy(
@@ -535,7 +526,7 @@ def main(args):
             args.ra_col,
             args.dec_col,
             args.id_col,
-            int(args.radius_arcsec),
+            float(args.radius_arcsec),
         )
 
     # direct Spark SQL filtering
