@@ -70,23 +70,39 @@ fink_search_bar = (
                     " ",
                 ])
                 for _, __ in enumerate(quick_fields)
-            ]
-            + [
-                html.Span(
-                    dmc.Switch(
-                        radius="xl",
-                        size="sm",
-                        offLabel=DashIconify(icon="radix-icons:id-card", width=15),
-                        onLabel=DashIconify(icon="radix-icons:table", width=15),
-                        color="orange",
-                        checked=False,
-                        persistence=True,
-                        id="results_table_switch",
-                    ),
-                    className="float-end",
-                    title="Show results as cards or table",
-                ),
             ],
+            # + [
+            #     html.Span(
+            #         dmc.Switch(
+            #             radius="xl",
+            #             size="sm",
+            #             offLabel=DashIconify(icon="radix-icons:id-card", width=15),
+            #             onLabel=DashIconify(icon="radix-icons:table", width=15),
+            #             color="orange",
+            #             checked=False,
+            #             persistence=True,
+            #             id="results_table_switch",
+            #         ),
+            #         className="float-end",
+            #         title="Show results as cards or table",
+            #     ),
+            # ] + [
+            #     html.Span(
+            #         dmc.Switch(
+            #             radius="xl",
+            #             size="sm",
+            #             offLabel=dmc.Text("alerts", style={"width": 15}),
+            #             onLabel="objects",
+            #             color="orange",
+            #             checked=False,
+            #             persistence=True,
+            #             id="alert-object-switch-card",
+            #             style={"width": '50px'},
+            #         ),
+            #         className="float-end",
+            #         title="Toggle the switch to list each object only once. Only the latest alert will be displayed.",
+            #     ),
+            # ],
             className="ps-4 pe-4 mb-0 mt-1",
         ),
     ]
@@ -209,7 +225,43 @@ fink_search_bar = (
                     storage_type="local",
                 ),
             ],
-        )
+        ),
+        dmc.Space(h=10),
+        dmc.Center(dmc.Group(
+            [
+                html.Div(
+                    dmc.Switch(
+                        radius="xl",
+                        size="md",
+                        offLabel=DashIconify(icon="radix-icons:id-card", width=20),
+                        onLabel=DashIconify(icon="radix-icons:table", width=20),
+                        color="orange",
+                        checked=False,
+                        persistence=True,
+                        id="results_table_switch",
+                    ),
+                    className="float-end",
+                    title="Show results as cards or table",
+                ),
+                html.Div(
+                    dmc.Switch(
+                        radius="xl",
+                        size="md",
+                        offLabel=DashIconify(icon="emojione-monotone:letter-a", width=20),
+                        onLabel=DashIconify(icon="emojione-monotone:letter-o", width=20),
+                        color="orange",
+                        checked=False,
+                        persistence=True,
+                        id="alert-object-switch-card",
+                    ),
+                    className="float-end",
+                    title="Show all (A)lerts, or unique (O)bjects.",
+                ),
+            ],
+            justify="center",
+            className="indicator",
+            style={'width': '25%'}
+        )),
     ]
 )
 
