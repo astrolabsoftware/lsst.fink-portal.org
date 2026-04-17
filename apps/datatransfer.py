@@ -371,7 +371,7 @@ def upload_catalog():
     )
 
     ra = dmc.Select(
-        label="Column for Right Ascension (J2000)",
+        label="Column for Right Ascension (J2000, deg)",
         placeholder="Select one",
         id="ra-column",
         w=250,
@@ -379,7 +379,7 @@ def upload_catalog():
         disabled=True,
     )
     dec = dmc.Select(
-        label="Column for Declination (J2000)",
+        label="Column for Declination (J2000, deg)",
         placeholder="Select one",
         id="dec-column",
         w=250,
@@ -1324,11 +1324,11 @@ def update_code_block(topic_name):
         # FIXME: introduce partitioning?
         # This is done by time by default
         code_block = f"""
-# Requires fink-client>=10.0
 fink_datatransfer \\
     -survey lsst \\
     -topic {topic_name} \\
     -outdir {topic_name} \\
+    --dump_schemas \\
     --verbose
         """
         return code_block
