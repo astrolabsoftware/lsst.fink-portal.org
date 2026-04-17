@@ -100,73 +100,10 @@ def display_table_results(table, endpoint):
         placeholder="Add more fields to the table",
     )
 
-    switch = dmc.Switch(
-        size="xs",
-        radius="xl",
-        label="Unique objects",
-        color="orange",
-        checked=False,
-        id="alert-object-switch",
-    )
-    switch_description = "Toggle the switch to list each object only once. Only the latest alert will be displayed."
-
-    switch_sso = dmc.Switch(
-        size="xs",
-        radius="xl",
-        label="Unique SSO",
-        color="orange",
-        checked=False,
-        id="alert-sso-switch",
-    )
-    switch_sso_description = "Toggle the switch to list each Solar System Object only once. Only the latest alert will be displayed."
-
-    switch_tracklet = dmc.Switch(
-        size="xs",
-        radius="xl",
-        label="Unique tracklets",
-        color="orange",
-        checked=False,
-        id="alert-tracklet-switch",
-    )
-    switch_tracklet_description = "Toggle the switch to list each Tracklet only once (fast moving objects). Only the latest alert will be displayed."
-
     results = [
         dbc.Row(
             [
                 dbc.Col(dropdown, lg=5, md=6),
-                dbc.Col(
-                    dmc.Tooltip(
-                        children=switch,
-                        w=220,
-                        multiline=True,
-                        withArrow=True,
-                        transitionProps={"transition": "fade", "duration": 200},
-                        label=switch_description,
-                    ),
-                    md="auto",
-                ),
-                dbc.Col(
-                    dmc.Tooltip(
-                        children=switch_sso,
-                        w=220,
-                        multiline=True,
-                        withArrow=True,
-                        transitionProps={"transition": "fade", "duration": 200},
-                        label=switch_sso_description,
-                    ),
-                    md="auto",
-                ),
-                dbc.Col(
-                    dmc.Tooltip(
-                        children=switch_tracklet,
-                        w=220,
-                        multiline=True,
-                        withArrow=True,
-                        transitionProps={"transition": "fade", "duration": 200},
-                        label=switch_tracklet_description,
-                    ),
-                    md="auto",
-                ),
             ],
             align="center",
             justify="start",
@@ -182,6 +119,51 @@ def display_table_results(table, endpoint):
             style={"overflow": "visible"},
         )
     ]
+
+
+def display_cards_results(pdf, page_size=10):
+    results_ = [
+        # Data storage
+        dcc.Store(
+            id="results_store",
+            storage_type="memory",
+            data=pdf.to_json(),
+        ),
+        dcc.Store(
+            id="results_page_size_store",
+            storage_type="memory",
+            data=str(page_size),
+        ),
+        # For Aladin
+        dcc.Store(
+            id="result_table",
+            storage_type="memory",
+            data=pdf.to_dict("records"),
+        ),
+        # Actual display of results
+        html.Div(id="results_paginated"),
+    ]
+
+    npages = int(np.ceil(len(pdf.index) / page_size))
+    results_ += [
+        dmc.Space(h=10),
+        dmc.Group(
+            dmc.Pagination(
+                id="results_pagination",
+                value=1,
+                total=npages,
+                siblings=1,
+                withControls=True,
+                withEdges=True,
+            ),
+            align="center",
+            justify="center",
+            className="d-none" if npages == 1 else "",
+        ),
+        dmc.Space(h=20),
+    ]
+
+    return results_
 
 
 @app.callback(
@@ -450,16 +432,13 @@ def populate_result_table(data, columns):
     ],
     [
         Input("field-dropdown2", "value"),
-        Input("alert-object-switch", "checked"),
-        Input("alert-sso-switch", "checked"),
-        Input("alert-tracklet-switch", "checked"),
     ],
     [
         State("result_table", "data"),
         State("result_table", "columns"),
     ],
 )
-def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
+def update_table(field_dropdown, data, columns):
     """Update table by adding new columns (no server call)"""
     changed_id = [p["prop_id"] for p in dash.callback_context.triggered][0]
     # Adding new columns (no client call)
@@ -484,25 +463,6 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
         })
 
         return data, columns
-    elif groupby1 is True:
-        pdf = pd.DataFrame.from_dict(data)
-        pdf = pdf.drop_duplicates(subset="r:diaObjectId", keep="first")
-        data = pdf.to_dict("records")
-        return data, columns
-    elif groupby2 is True:
-        pdf = pd.DataFrame.from_dict(data)
-        if not np.all(pdf["i:ssnamenr"] == "null"):
-            mask = ~pdf.duplicated(subset="i:ssnamenr") | (pdf["i:ssnamenr"] == "null")
-            pdf = pdf[mask]
-            data = pdf.to_dict("records")
-        return data, columns
-    elif groupby3 is True:
-        pdf = pd.DataFrame.from_dict(data)
-        if not np.all(pdf["d:tracklet"] == ""):
-            mask = ~pdf.duplicated(subset="d:tracklet") | (pdf["d:tracklet"] == "")
-            pdf = pdf[mask]
-            data = pdf.to_dict("records")
-        return data, columns
     else:
         raise PreventUpdate
 
@@ -521,17 +481,18 @@ def update_table(field_dropdown, groupby1, groupby2, groupby3, data, columns):
         # Next input uses dynamically created source, so has to be pattern-matching
         Input({"type": "search_bar_suggestion", "value": ALL}, "n_clicks"),
         Input("url", "search"),
+        Input("alert-object-switch-card", "checked"),
+        Input("results_table_switch", "checked"),
     ],
     State("search_bar_input", "value"),
     State("search_history_store", "data"),
-    State("results_table_switch", "checked"),
     # prevent_initial_call=True
     prevent_initial_call="initial_duplicate",
     # FIXME: Hum, why this one is needed?
     # _allow_dynamic_callbacks=True,
     running=[(Output("search_bar_submit", "loading"), True, False)],
 )
-def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_table):
+def results(n_submit, n_clicks, s_n_clicks, searchurl, unique_objects, show_table, value, history):
     """Parse the search string and query the database"""
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -559,10 +520,8 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         "r:diaObjectId": "diaObjectId",
         "r:ra": "RA (deg)",
         "r:dec": "Dec (deg)",
-        # "v:lastdate": "Last alert",
-        "f:finkclass": "Classification",
-        "r:nDiaSources": "Number of measurements",
-        # "v:lapse": "Time variation (day)",
+        "r:psfFlux": "Difference image flux (nJy)",
+        # "r:nDiaSources": "Number of measurements",
     }
 
     if searchurl and triggered_id == "url":
@@ -773,8 +732,14 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
     history.append(value)
     history = history[-10:]  # Limit it to 10 latest entries
 
+    units = "alerts"
+    if not pdf.empty and unique_objects and ('r:diaObjectId' in pdf.columns):
+        # Keep only 1 alert per object. Only work for static objects
+        pdf = pdf.drop_duplicates(['r:diaObjectId'], ignore_index=True, keep='first')
+        units = 'unique objects'
+
     msg = "{} - {} found".format(
-        msg, "nothing" if pdf.empty else str(len(pdf.index)) + " objects"
+        msg, "nothing" if pdf.empty else str(len(pdf.index)) + " {}".format(units)
     )
 
     if pdf.empty:
@@ -854,51 +819,6 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, value, history, show_tabl
         ] + results_
 
         return results, False, no_update, history
-
-
-def display_cards_results(pdf, page_size=10):
-    results_ = [
-        # Data storage
-        dcc.Store(
-            id="results_store",
-            storage_type="memory",
-            data=pdf.to_json(),
-        ),
-        dcc.Store(
-            id="results_page_size_store",
-            storage_type="memory",
-            data=str(page_size),
-        ),
-        # For Aladin
-        dcc.Store(
-            id="result_table",
-            storage_type="memory",
-            data=pdf.to_dict("records"),
-        ),
-        # Actual display of results
-        html.Div(id="results_paginated"),
-    ]
-
-    npages = int(np.ceil(len(pdf.index) / page_size))
-    results_ += [
-        dmc.Space(h=10),
-        dmc.Group(
-            dmc.Pagination(
-                id="results_pagination",
-                value=1,
-                total=npages,
-                siblings=1,
-                withControls=True,
-                withEdges=True,
-            ),
-            align="center",
-            justify="center",
-            className="d-none" if npages == 1 else "",
-        ),
-        dmc.Space(h=20),
-    ]
-
-    return results_
 
 
 @app.callback(
