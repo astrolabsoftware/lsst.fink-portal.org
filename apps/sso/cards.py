@@ -227,12 +227,12 @@ curl -H "Content-Type: application/json" -X POST \\
                                             dbc.Button(
                                                 className="btn btn-default zoom btn-circle btn-lg",
                                                 style={
-                                                    "background-image": "url(/assets/buttons/imcce.png)",
-                                                    "background-size": "cover",
+                                                    "background-image": "url(/assets/buttons/logo_SE-OP_RVB_BLACK.svg)",
+                                                    "background-size": "contain",
                                                 },
                                                 color="light",
                                                 outline=True,
-                                                id="IMCCE",
+                                                id="SEOP",
                                                 target="_blank",
                                                 href=f"https://ssp.imcce.fr/forms/ssocard/{data.id_}",
                                             ),
