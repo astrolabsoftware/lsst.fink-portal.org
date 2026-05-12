@@ -211,7 +211,7 @@ def tabs(pdf, is_sso):
 
 
 def tab_diaobject(pdf):
-    """diaObject tab"""
+    """DiaObject tab"""
     tab_diaobject_ = html.Div([
         dmc.Space(h=10),
         dbc.Row(
@@ -252,6 +252,8 @@ def tab_ssobject(pdf):
 
     msg = """
     Alert data associated to ssObject {} from the LSST stream.
+
+    Number of observations per filter is shown in the plot legend: <filter> (<nobs>).
     """.format(pdf["r:ssObjectId"].to_numpy()[0])
     CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(mpcdesignation)
     lc = html.Div(

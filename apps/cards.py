@@ -1522,7 +1522,6 @@ def generate_tns_badge(tns_fullname, tns_type):
     -------
     badge: dmc.Badge or None
     """
-
     if tns_fullname not in BAD_VALUES and not pd.isna(tns_fullname):
         if tns_type not in BAD_VALUES and not pd.isna(tns_type):
             msg = f"TNS: {tns_fullname} ({tns_type})"

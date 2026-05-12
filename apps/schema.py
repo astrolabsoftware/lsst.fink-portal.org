@@ -27,6 +27,7 @@ CONV_NAMES = {
     "Fink science module outputs (f:)": "Fink",
 }
 
+
 def extract_type(t):
     """Extract field type from json schema
 
@@ -40,7 +41,7 @@ def extract_type(t):
     out: str
     """
     if isinstance(t, list):
-        field = [i for i in t if i != 'null'][0]
+        field = [i for i in t if i != "null"][0]
         if isinstance(field, dict):
             #  {'logicalType': 'timestamp-micros', 'type': 'long'},
             return field["type"]
@@ -65,9 +66,17 @@ def predefined_fields_for_data_transfer():
 
     return data, fields
 
+
 def lsst_nested_fields_for_data_transfer():
     """LSST nested sections for data transfer"""
-    fields = ["diaSource", "diaObject", "prvDiaSources", "prvDiaForcedSources", "mpc_orbits", "ssSource"]
+    fields = [
+        "diaSource",
+        "diaObject",
+        "prvDiaSources",
+        "prvDiaForcedSources",
+        "mpc_orbits",
+        "ssSource",
+    ]
 
     data = []
 
@@ -96,7 +105,9 @@ def fields_for_data_transfer():
     )
     if len(schema_lsst) > 0:
         all_lsst_fields = list(schema_lsst["LSST"].keys())
-        all_lsst_fields_types = [extract_type(i['type']) for i in schema_lsst['LSST'].values()]
+        all_lsst_fields_types = [
+            extract_type(i["type"]) for i in schema_lsst["LSST"].values()
+        ]
     else:
         # HTTP error usually
         return {}, {}
@@ -108,12 +119,16 @@ def fields_for_data_transfer():
     )
     if len(schema_fink) > 0:
         all_fink_fields = list(schema_fink["Fink"].keys())
-        all_fink_fields_types = [extract_type(i['type']) for i in schema_fink['Fink'].values()]
+        all_fink_fields_types = [
+            extract_type(i["type"]) for i in schema_fink["Fink"].values()
+        ]
     else:
         # HTTP error usually
         return {}, {}
 
-    return {k:v for k, v in zip(all_lsst_fields, all_lsst_fields_types)}, {k:v for k, v in zip(all_fink_fields, all_fink_fields_types)}
+    return {k: v for k, v in zip(all_lsst_fields, all_lsst_fields_types)}, {
+        k: v for k, v in zip(all_fink_fields, all_fink_fields_types)
+    }
 
 
 def create_datatransfer_schema_table(provenance="lsst", caption=""):
@@ -122,22 +137,55 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
 
     # Strict definition in apps/spark_lsst_transfer.py
     light_static_fields = cols = [
-        'diaObjectId', 'snr', 'scienceFlux', 'scienceFluxErr', 'templateFlux',
-        'templateFluxErr', 'band', 'midpointMjdTai', 'ra', 'dec', 'reliability',
-        'diaSourceId', 'observation_reason', 'target_name',
-        'brokerIngestMjd', 'lsst_schema_version', 'brokerStartProcessTimestamp',
-        'fink_broker_version', 'fink_science_version', 'publisher',
-        'lc_features', 'clf', 'xm', 'pred', 'misc', 'brokerEndProcessTimestamp',
-        'timestamp', 'tns_type_recomputed'
+        "diaObjectId",
+        "snr",
+        "scienceFlux",
+        "scienceFluxErr",
+        "templateFlux",
+        "templateFluxErr",
+        "band",
+        "midpointMjdTai",
+        "ra",
+        "dec",
+        "reliability",
+        "diaSourceId",
+        "observation_reason",
+        "target_name",
+        "brokerIngestMjd",
+        "lsst_schema_version",
+        "brokerStartProcessTimestamp",
+        "fink_broker_version",
+        "fink_science_version",
+        "publisher",
+        "lc_features",
+        "clf",
+        "xm",
+        "pred",
+        "misc",
+        "brokerEndProcessTimestamp",
+        "timestamp",
+        "tns_type_recomputed",
     ]
     light_sso_fields = cols = [
-        'ssObjectId', 'snr', 'scienceFlux', 'scienceFluxErr', 'templateFlux',
-        'templateFluxErr', 'band', 'midpointMjdTai', 'ra', 'dec', 'reliability',
-        'diaSourceId',
-        'phaseAngle', 'diaDistanceRank',
-        'packed_primary_provisional_designation',
-        'unpacked_primary_provisional_designation',
-        'fink_broker_version', 'fink_science_version', 'lsst_schema_version'
+        "ssObjectId",
+        "snr",
+        "scienceFlux",
+        "scienceFluxErr",
+        "templateFlux",
+        "templateFluxErr",
+        "band",
+        "midpointMjdTai",
+        "ra",
+        "dec",
+        "reliability",
+        "diaSourceId",
+        "phaseAngle",
+        "diaDistanceRank",
+        "packed_primary_provisional_designation",
+        "unpacked_primary_provisional_designation",
+        "fink_broker_version",
+        "fink_science_version",
+        "lsst_schema_version",
     ]
 
     if provenance == "custom":
@@ -166,7 +214,9 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
                 dmc.TableTd(
-                    "Selection of LSST & Fink fields for lightcurve analysis (static objects): {}".format(", ".join(light_static_fields))
+                    "Selection of LSST & Fink fields for lightcurve analysis (static objects): {}".format(
+                        ", ".join(light_static_fields)
+                    )
                 ),
             ])
         )
@@ -176,7 +226,9 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
                 dmc.TableTd("LSST & Fink"),
                 dmc.TableTd("--"),
                 dmc.TableTd(
-                    "Selection of LSST & Fink fields for lightcurve analysis (Solar System objects): {}".format(", ".join(light_sso_fields))
+                    "Selection of LSST & Fink fields for lightcurve analysis (Solar System objects): {}".format(
+                        ", ".join(light_sso_fields)
+                    )
                 ),
             ])
         )
@@ -420,8 +472,12 @@ def get_api_background(url):
         id="api_schema",
         disableChevronRotation=False,
         chevronPosition="left",
-        children=[dcc.Markdown("This panel shows the fields returned by each API endpoint. Available arguments and examples for each endpoint can be found at [https://api.lsst.fink-portal.org](https://api.lsst.fink-portal.org)."),] +
-        [
+        children=[
+            dcc.Markdown(
+                "This panel shows the fields returned by each API endpoint. Available arguments and examples for each endpoint can be found at [https://api.lsst.fink-portal.org](https://api.lsst.fink-portal.org)."
+            ),
+        ]
+        + [
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
@@ -452,7 +508,9 @@ def layout():
         disableChevronRotation=False,
         chevronPosition="left",
         children=[
-            dcc.Markdown("Filters are used to filter data during the night, and producing substreams for the Livestream and tags for the API. They can also be used in the Data Transfer to filter historical data and replay streams. Blocks are convenient small functions used for example to build larger filters."),
+            dcc.Markdown(
+                "Filters are used to filter data during the night, and producing substreams for the Livestream and tags for the API. They can also be used in the Data Transfer to filter historical data and replay streams. Blocks are convenient small functions used for example to build larger filters."
+            ),
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
@@ -483,7 +541,9 @@ def layout():
         disableChevronRotation=False,
         chevronPosition="left",
         children=[
-            dcc.Markdown("This section details the alert schema (Avro format) as it is sent by LSST, plus the additional fields by Fink. The schema is nested, that is there are several nested levels. The root sections and field names will be separated by a point, as in `diaSource.ra` (`ra` field in the root section `diaSource`)."),
+            dcc.Markdown(
+                "This section details the alert schema (Avro format) as it is sent by LSST, plus the additional fields by Fink. The schema is nested, that is there are several nested levels. The root sections and field names will be separated by a point, as in `diaSource.ra` (`ra` field in the root section `diaSource`)."
+            ),
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(

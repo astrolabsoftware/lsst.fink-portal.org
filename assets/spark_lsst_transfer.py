@@ -28,8 +28,6 @@ import numpy as np
 import pandas as pd
 import pyspark.sql.functions as F
 import requests
-from astropy import units as u
-from astropy.coordinates import SkyCoord
 from fink_utils.spark import schema_converter
 from fink_utils.spark.utils import (
     FinkUDF,
@@ -425,6 +423,7 @@ def apply_filter_or_block(df, names, is_filter=False, is_block=False, logger=Non
 
     return df
 
+
 def perform_xmatch(spark, df, catalog_filename, ra_col, dec_col, id_col, radius_arcsec):
     """Crossmatch a DataFrame to a catalog with Spark"""
     df_other = spark.read.format("parquet").load(catalog_filename)
@@ -437,13 +436,11 @@ def perform_xmatch(spark, df, catalog_filename, ra_col, dec_col, id_col, radius_
         pdf_cat = pdf_b.value
         ra2, dec2, id2 = pdf_cat[ra_col], pdf_cat[dec_col], pdf_cat[id_col]
 
-        pdf = pd.DataFrame(
-            {
-                "ra": ra.to_numpy(),
-                "dec": dec.to_numpy(),
-                "candid": range(len(ra)),
-            }
-        )
+        pdf = pd.DataFrame({
+            "ra": ra.to_numpy(),
+            "dec": dec.to_numpy(),
+            "candid": range(len(ra)),
+        })
 
         # FIXME: Assumes degrees. Need to generalize for any coordinates type
         if ra2.dtype == float:
@@ -518,7 +515,7 @@ def main(args):
 
     if args.catalog_filename is not None:
         # Perform the xmatch
-        log.info("Crossmatching with {}".format(args.catalog_filename.split('/')[-1]))
+        log.info("Crossmatching with {}".format(args.catalog_filename.split("/")[-1]))
         df = perform_xmatch(
             spark,
             df,

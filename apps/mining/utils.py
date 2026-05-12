@@ -33,7 +33,12 @@ CONV = {
     "long": 8,
 }
 
-FILTERS_AND_BLOCKS_YIELD = {item['name']:item['yield'] for item in pd.read_csv("assets/filters_and_blocks_yield.csv").to_dict(orient='records')}
+FILTERS_AND_BLOCKS_YIELD = {
+    item["name"]: item["yield"]
+    for item in pd.read_csv("assets/filters_and_blocks_yield.csv").to_dict(
+        orient="records"
+    )
+}
 
 
 def upload_file_hdfs(code, webhdfs, namenode, user, filename):
@@ -156,15 +161,15 @@ def estimate_size_gb_lsst(content, blocks, all_lsst_fields, all_fink_fields):
             "Full packet": 176.0 / 1024 / 1024,
             "Medium packet": 123.0 / 1024 / 1024,
             "Light static packet": 1.7 / 1024 / 1024,
-            "history_factor": 100.0
+            "history_factor": 100.0,
         },
         "mix": {
             "Full packet": 137.0 / 1024 / 1024,
             "Medium packet": 80.0 / 1024 / 1024,
             "Light static packet": 1.7 / 1024 / 1024,
             "Light SSO packet": 1.7 / 1024 / 1024,
-            "history_factor": 75.0
-        }
+            "history_factor": 75.0,
+        },
     }
 
     flavor = None
@@ -195,15 +200,17 @@ def estimate_size_gb_lsst(content, blocks, all_lsst_fields, all_fink_fields):
             if k in all_lsst_fields:
                 if k.startswith("prvDiaSources"):
                     # Account for history length
-                    sizeB += precomputed[kind]["history_factor"] * CONV[all_lsst_fields[k]]
+                    sizeB += (
+                        precomputed[kind]["history_factor"] * CONV[all_lsst_fields[k]]
+                    )
                 else:
                     sizeB += CONV[all_lsst_fields[k]]
             elif k == "diaSource":
                 sizeB += 0.5 * 1024
             elif k == "prvDiaSources" and kind in ["static", "mix"]:
-                sizeB += 116 * 1024 * precomputed[kind]["history_factor"] / 100.
+                sizeB += 116 * 1024 * precomputed[kind]["history_factor"] / 100.0
             elif k == "prvDiaForcedSources" and kind in ["static", "mix"]:
-                sizeB += 1024 * precomputed[kind]["history_factor"] / 100.
+                sizeB += 1024 * precomputed[kind]["history_factor"] / 100.0
             elif k == "diaObject" and kind in ["static", "mix"]:
                 sizeB += 0.3 * 1024
             elif k == "mpc_orbits" and kind in ["sso", "mix"]:
@@ -340,7 +347,7 @@ def estimate_alert_number_lsst(date_range_picker, tags, blocks):
             elif is_not:
                 not_tag = tag.split("NOT ")[1].strip()
                 if not_tag in FILTERS_AND_BLOCKS_YIELD.keys():
-                    count *= (1 - FILTERS_AND_BLOCKS_YIELD[not_tag])
+                    count *= 1 - FILTERS_AND_BLOCKS_YIELD[not_tag]
 
     if isinstance(blocks, list) and len(blocks) > 0:
         for block in blocks:
@@ -351,6 +358,6 @@ def estimate_alert_number_lsst(date_range_picker, tags, blocks):
             elif is_not:
                 not_block = block.split("NOT ")[1].strip()
                 if not_block in FILTERS_AND_BLOCKS_YIELD.keys():
-                    count *= (1 - FILTERS_AND_BLOCKS_YIELD[not_block])
+                    count *= 1 - FILTERS_AND_BLOCKS_YIELD[not_block]
 
     return total, count

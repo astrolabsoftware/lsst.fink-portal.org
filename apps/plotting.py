@@ -818,6 +818,7 @@ def draw_lightcurve_preview(
         <extra></extra>
         """
         idx = pdf["r:band"] == fname
+        fnobs = idx.sum()
 
         trace = go.Scatter(
             x=dates[idx],
@@ -832,7 +833,7 @@ def draw_lightcurve_preview(
                 else rgb_to_rgba(color, 0.5),
             },
             mode="markers",
-            name=f"{fname}",
+            name=f"{fname} ({fnobs})",
             customdata=np.stack(
                 (
                     pdf["r:band"][idx],

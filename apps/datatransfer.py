@@ -23,7 +23,19 @@ import pandas as pd
 import numpy as np
 import requests
 import yaml
-from dash import ALL, MATCH, Input, Output, State, callback, ctx, dcc, html, no_update, dash_table
+from dash import (
+    ALL,
+    MATCH,
+    Input,
+    Output,
+    State,
+    callback,
+    ctx,
+    dcc,
+    html,
+    no_update,
+    dash_table,
+)
 from dash_autocomplete_input import AutocompleteInput
 from dash_iconify import DashIconify
 from dash.exceptions import PreventUpdate
@@ -38,7 +50,11 @@ from apps.mining.utils import (
     upload_file_hdfs,
 )
 from apps.plotting import DEFAULT_FINK_COLORS
-from apps.schema import fields_for_data_transfer, predefined_fields_for_data_transfer, lsst_nested_fields_for_data_transfer
+from apps.schema import (
+    fields_for_data_transfer,
+    predefined_fields_for_data_transfer,
+    lsst_nested_fields_for_data_transfer,
+)
 from apps.utils import query_and_order_statistics
 
 args = extract_configuration("config.yml")
@@ -235,47 +251,50 @@ def store_blocks(tags, variants, n_clicks):
     """Return a list of active blocks"""
     return store_tags_blocks(tags, variants, n_clicks)
 
+
 def create_tile(icon, heading, description, index, content):
-    return html.Div(
-        [
-            dmc.Card(
-                radius="md",
-                p="xl",
-                withBorder=True,
-                m=5,
-                #className="homepage-tile",
-                children=[
-                    dmc.Group([
+    return html.Div([
+        dmc.Card(
+            radius="md",
+            p="xl",
+            withBorder=True,
+            m=5,
+            # className="homepage-tile",
+            children=[
+                dmc.Group(
+                    [
                         DashIconify(
                             icon=icon,
                             height=40,
-                            color= DEFAULT_FINK_COLORS[0],
+                            color=DEFAULT_FINK_COLORS[0],
                         ),
                         dmc.ActionIcon(
                             DashIconify(
                                 icon="material-symbols:add-circle-outline",
                                 color=DEFAULT_FINK_COLORS[-1],
-                                width=40
+                                width=40,
                             ),
                             color="white",
                             variant="subtle",
                             size="xl",
-                            id=f"modal-datatransfer-button-{index}"
-                        )
-                    ], justify="space-between"),
-                    dmc.Text(heading, size="lg", mt="md"),
-                    dmc.Text(description, size="sm", c="dimmed", mt="sm"),
-                ],
-            ),
-            dmc.Modal(
-                title=dmc.Text(heading, size="xl", mt="md", c="black"),
-                children=content,
-                id=f"modal-datatransfer-{index}",
-                size="70%",
-                #fullScreen=True,
-            )
-        ]
-    )
+                            id=f"modal-datatransfer-button-{index}",
+                        ),
+                    ],
+                    justify="space-between",
+                ),
+                dmc.Text(heading, size="lg", mt="md"),
+                dmc.Text(description, size="sm", c="dimmed", mt="sm"),
+            ],
+        ),
+        dmc.Modal(
+            title=dmc.Text(heading, size="xl", mt="md", c="black"),
+            children=content,
+            id=f"modal-datatransfer-{index}",
+            size="70%",
+            # fullScreen=True,
+        ),
+    ])
+
 
 @callback(
     Output("modal-datatransfer-1", "opened"),
@@ -286,6 +305,7 @@ def create_tile(icon, heading, description, index, content):
 def modal_demo(nc1, opened):
     return not opened
 
+
 @callback(
     Output("modal-datatransfer-2", "opened"),
     Input("modal-datatransfer-button-2", "n_clicks"),
@@ -295,6 +315,7 @@ def modal_demo(nc1, opened):
 def modal_demo(nc1, opened):
     return not opened
 
+
 @callback(
     Output("modal-datatransfer-3", "opened"),
     Input("modal-datatransfer-button-3", "n_clicks"),
@@ -303,6 +324,7 @@ def modal_demo(nc1, opened):
 )
 def modal_demo(nc1, opened):
     return not opened
+
 
 def create_user_filterblocks_description(items):
     """ """
@@ -325,7 +347,7 @@ def create_user_filterblocks_description(items):
                 "index": index,
             },
             radius="xl",
-            #size="lg",
+            # size="lg",
             variant="light",
             color="grey",
             style={"margin": "3px"},
@@ -354,6 +376,7 @@ def create_user_filterblocks_description(items):
         ),
     )
     return table_candidate
+
 
 def upload_catalog():
     """ """
@@ -399,13 +422,11 @@ def upload_catalog():
         children=[
             dcc.Upload(
                 id="upload-data",
-                children=html.Div(
-                    [
-                        "Drag and Drop or ",
-                        html.A("Select Files "),
-                        "(csv, fits, parquet, or votable)",
-                    ]
-                ),
+                children=html.Div([
+                    "Drag and Drop or ",
+                    html.A("Select Files "),
+                    "(csv, fits, parquet, or votable)",
+                ]),
                 style={
                     "width": "100%",
                     "height": "60px",
@@ -424,6 +445,7 @@ def upload_catalog():
             # dmc.Center(modal_skymap()),
         ]
     )
+
 
 @callback(
     Output("output-data-upload", "children"),
@@ -448,7 +470,7 @@ def update_output(catalog, filename, date):
         Input("upload-data", "contents"),
         State("upload-data", "filename"),
     ],
-    prevent_initial_call='initial_duplicate'
+    prevent_initial_call="initial_duplicate",
 )
 def store_catalog(content, filename):
     """Store data from user"""
@@ -491,7 +513,6 @@ def store_catalog(content, filename):
                 [{"value": 0, "color": "grey", "tooltip": "0%"}],
                 dmc.Text(msg, c="red", ta="center"),
                 [notification],
-
             )
     except Exception as e:
         notification = dict(
@@ -510,7 +531,9 @@ def store_catalog(content, filename):
         )
 
     if len(pdf) > MAX_ROW:
-        msg = "{:,} > {} rows allowed. Uploading only {} rows.".format(len(pdf), MAX_ROW, MAX_ROW)
+        msg = "{:,} > {} rows allowed. Uploading only {} rows.".format(
+            len(pdf), MAX_ROW, MAX_ROW
+        )
         color = "orange"
         notification = dict(
             title="Truncating input catalog",
@@ -535,25 +558,27 @@ def store_catalog(content, filename):
         "color": color,
         "tooltip": "{:.2f}%".format(len(pdf) / MAX_ROW * 100),
     }
-    label = dmc.Text("{:,} rows".format(len(pdf)), c=DEFAULT_FINK_COLORS[0], ta="center")
+    label = dmc.Text(
+        "{:,} rows".format(len(pdf)), c=DEFAULT_FINK_COLORS[0], ta="center"
+    )
 
     return pdf.to_json(), [sections], label, [notification]
+
 
 def parse_contents(catalog, filename, date):
     pdf = pd.read_json(io.StringIO(catalog))
 
     # Check header? Or ask the user to provide what is RA, DEC, OID?
 
-    return html.Div(
-        [
-            html.H5("{}".format(filename)),
-            html.H6("Preview of the 10 first rows"),
-            dash_table.DataTable(
-                pdf.head(10).to_dict("records"),
-                [{"name": i, "id": i} for i in pdf.columns],
-            ),
-        ]
-    )
+    return html.Div([
+        html.H5("{}".format(filename)),
+        html.H6("Preview of the 10 first rows"),
+        dash_table.DataTable(
+            pdf.head(10).to_dict("records"),
+            [{"name": i, "id": i} for i in pdf.columns],
+        ),
+    ])
+
 
 @app.callback(
     [
@@ -629,6 +654,7 @@ def enforce_decimal(pdf, ra_label, dec_label):
 
     return ra, dec
 
+
 def filter_number_tab():
     """Construct the filtering tab for the Data Transfer service
 
@@ -636,36 +662,34 @@ def filter_number_tab():
     -------
     out: Div
     """
-    option1 = html.Div(
-        [
-            dmc.Space(h=10),
-            dmc.Text(
-                [
-                    "You can apply one or several Fink filters (",
-                    DashIconify(icon="material-symbols:stream"),
-                    ") used in real-time to select alerts of interest. You can also apply Fink blocks (",
-                    DashIconify(icon="material-symbols:target"),
-                    "), which are small user-defined functions acting as building blocks for the filters. One click to apply the filter/block ",
-                    dmc.Text("(dark orange) ", c="orange", span=True, inherit=True),
-                    ", two clicks to apply the negation ",
-                    dmc.Text("(dark blue) ", c="blue", span=True, inherit=True),
-                    ", three clicks to deselect (gray). See the ",
-                    html.A(
-                        "schema page",
-                        href="https://lsst.fink-portal.org/schemas",
-                        target="_blank",
-                    ),
-                    r" for description of available filters and blocks.",
-                ],
-                size="lg",
-                c="gray",
-            ),
-            dmc.Space(h=30),
-            create_user_filterblocks_description(fink_tags),
-            dmc.Space(h=30),
-            create_user_filterblocks_description(fink_blocks),
-        ]
-    )
+    option1 = html.Div([
+        dmc.Space(h=10),
+        dmc.Text(
+            [
+                "You can apply one or several Fink filters (",
+                DashIconify(icon="material-symbols:stream"),
+                ") used in real-time to select alerts of interest. You can also apply Fink blocks (",
+                DashIconify(icon="material-symbols:target"),
+                "), which are small user-defined functions acting as building blocks for the filters. One click to apply the filter/block ",
+                dmc.Text("(dark orange) ", c="orange", span=True, inherit=True),
+                ", two clicks to apply the negation ",
+                dmc.Text("(dark blue) ", c="blue", span=True, inherit=True),
+                ", three clicks to deselect (gray). See the ",
+                html.A(
+                    "schema page",
+                    href="https://lsst.fink-portal.org/schemas",
+                    target="_blank",
+                ),
+                r" for description of available filters and blocks.",
+            ],
+            size="lg",
+            c="gray",
+        ),
+        dmc.Space(h=30),
+        create_user_filterblocks_description(fink_tags),
+        dmc.Space(h=30),
+        create_user_filterblocks_description(fink_blocks),
+    ])
 
     option2 = upload_catalog()
 
@@ -820,7 +844,8 @@ mpc_orbits.a > 10;
                         ],
                         value="info",
                     ),
-                ], value="info"
+                ],
+                value="info",
             ),
         ],
     )
@@ -839,23 +864,23 @@ mpc_orbits.a > 10;
                         heading="Fink filters",
                         description="Select alerts of interest by applying user-defined Fink filters and blocks.",
                         index=1,
-                        content=option1
+                        content=option1,
                     ),
                     create_tile(
                         icon="fluent-mdl2:venn-diagram",
                         heading="External catalog",
                         description="Upload your catalog of astronomical sources to find matches with Fink/LSST alerts.",
                         index=2,
-                        content=option2
+                        content=option2,
                     ),
                     create_tile(
                         icon="solar:document-add-linear",
                         heading="Custom filtering",
                         description="Select alerts of interest by writing your own filtering.",
                         index=3,
-                        content=option3
+                        content=option3,
                     ),
-                ]
+                ],
             )
         ],
     )
@@ -973,7 +998,7 @@ def download_yaml(
         "blocks": blocks_select,
         "content": field_select,
         "extra_cond": extra_cond,
-        "catalog_filename": catalog_filename
+        "catalog_filename": catalog_filename,
     }
 
     if field_select is None or field_select == []:
@@ -1215,7 +1240,9 @@ def gauge_meter(
             field_select = ["Full packet"]
 
         total, count = estimate_alert_number_lsst(date_range_picker, tags, blocks)
-        sizeGb, defaultGb = estimate_size_gb_lsst(field_select, blocks, ALL_LSST_FIELDS, ALL_FINK_FIELDS)
+        sizeGb, defaultGb = estimate_size_gb_lsst(
+            field_select, blocks, ALL_LSST_FIELDS, ALL_FINK_FIELDS
+        )
 
         if count == 0:
             color = "gray"
@@ -1414,11 +1441,15 @@ def submit_job(
 
         if catalog_filename is not None:
             # Send the data to HDFS as parquet file
-            catalog_filename_parquet = os.path.splitext(catalog_filename)[0] + ".parquet"
+            catalog_filename_parquet = (
+                os.path.splitext(catalog_filename)[0] + ".parquet"
+            )
 
             # Conversion in decimal degree as xmatch expects it
             pdf_catalog = pd.read_json(io.StringIO(catalog))
-            pdf_catalog[catalog_ra], pdf_catalog[catalog_dec] = enforce_decimal(pdf_catalog, catalog_ra, catalog_dec)
+            pdf_catalog[catalog_ra], pdf_catalog[catalog_dec] = enforce_decimal(
+                pdf_catalog, catalog_ra, catalog_dec
+            )
 
             status_code, hdfs_log = upload_file_hdfs(
                 pdf_catalog.to_parquet(),
@@ -1463,11 +1494,15 @@ def submit_job(
             job_args.append(f"-dec_col={catalog_dec}")
             job_args.append(f"-radius_arcsec={catalog_radius}")
             job_args.append(f"-id_col={catalog_identifier}")
-            job_args.append("-catalog_filename={}".format(
-                "hdfs://{}///user/{}/{}".format(
-                    input_args["NAMENODE"], input_args["USER"], catalog_filename_parquet
+            job_args.append(
+                "-catalog_filename={}".format(
+                    "hdfs://{}///user/{}/{}".format(
+                        input_args["NAMENODE"],
+                        input_args["USER"],
+                        catalog_filename_parquet,
+                    )
                 )
-            ))
+            )
         if field_select is not None:
             [job_args.append(f"-ffield={elem}") for elem in field_select]
         if isinstance(tag_select, list) and len(tag_select) > 0:
@@ -1643,7 +1678,9 @@ def layout():
                                         children=[
                                             dmc.RingProgress(
                                                 roundCaps=True,
-                                                sections=[{"value": 0, "color": "grey"}],
+                                                sections=[
+                                                    {"value": 0, "color": "grey"}
+                                                ],
                                                 size=200,
                                                 thickness=10,
                                                 label="",
@@ -1651,7 +1688,9 @@ def layout():
                                             ),
                                             dmc.RingProgress(
                                                 roundCaps=True,
-                                                sections=[{"value": 0, "color": "grey"}],
+                                                sections=[
+                                                    {"value": 0, "color": "grey"}
+                                                ],
                                                 size=200,
                                                 thickness=10,
                                                 label="",
@@ -1659,13 +1698,15 @@ def layout():
                                             ),
                                             dmc.RingProgress(
                                                 roundCaps=True,
-                                                sections=[{"value": 0, "color": "grey"}],
+                                                sections=[
+                                                    {"value": 0, "color": "grey"}
+                                                ],
                                                 size=200,
                                                 thickness=10,
                                                 label="",
                                                 id="gauge_catalog_number",
                                             ),
-                                        ]
+                                        ],
                                     ),
                                     dmc.Accordion(
                                         variant="separated",

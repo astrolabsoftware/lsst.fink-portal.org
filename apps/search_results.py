@@ -492,7 +492,16 @@ def update_table(field_dropdown, data, columns):
     # _allow_dynamic_callbacks=True,
     running=[(Output("search_bar_submit", "loading"), True, False)],
 )
-def results(n_submit, n_clicks, s_n_clicks, searchurl, unique_objects, show_table, value, history):
+def results(
+    n_submit,
+    n_clicks,
+    s_n_clicks,
+    searchurl,
+    unique_objects,
+    show_table,
+    value,
+    history,
+):
     """Parse the search string and query the database"""
     ctx = dash.callback_context
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -733,10 +742,10 @@ def results(n_submit, n_clicks, s_n_clicks, searchurl, unique_objects, show_tabl
     history = history[-10:]  # Limit it to 10 latest entries
 
     units = "alerts"
-    if not pdf.empty and unique_objects and ('r:diaObjectId' in pdf.columns):
+    if not pdf.empty and unique_objects and ("r:diaObjectId" in pdf.columns):
         # Keep only 1 alert per object. Only work for static objects
-        pdf = pdf.drop_duplicates(['r:diaObjectId'], ignore_index=True, keep='first')
-        units = 'unique objects'
+        pdf = pdf.drop_duplicates(["r:diaObjectId"], ignore_index=True, keep="first")
+        units = "unique objects"
 
     msg = "{} - {} found".format(
         msg, "nothing" if pdf.empty else str(len(pdf.index)) + " {}".format(units)
