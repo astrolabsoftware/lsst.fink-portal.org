@@ -1889,7 +1889,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
     if "r:psfMag_red" not in pdf.columns:
         return dbc.Alert(
             "No ephemerides available for {}".format(
-                pdf["f:packed_primary_provisional_designation"].to_numpy()[0]
+                pdf["r:packed_primary_provisional_designation"].to_numpy()[0]
             ),
             color="danger",
         )
