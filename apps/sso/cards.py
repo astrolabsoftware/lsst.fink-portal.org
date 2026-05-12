@@ -175,11 +175,15 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 ),
                                             ],
                                             "help_download_sso",
-                                            trigger=dmc.ActionIcon(
-                                                DashIconify(icon="mdi:help"),
+                                            trigger=dmc.Button(
+                                                "Code",
                                                 id="help_download_sso",
                                                 variant="outline",
                                                 color="indigo",
+                                                size="compact-sm",
+                                                leftSection=DashIconify(
+                                                    icon="tabler:prompt"
+                                                ),
                                             ),
                                         ),
                                         html.Div(

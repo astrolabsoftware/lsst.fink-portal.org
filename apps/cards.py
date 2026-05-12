@@ -1027,7 +1027,9 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 variant="outline",
                                                 color="indigo",
                                                 size="compact-sm",
-                                                leftSection=DashIconify(icon="mdi:api"),
+                                                leftSection=DashIconify(
+                                                    icon="tabler:prompt"
+                                                ),
                                             ),
                                         ),
                                         html.Div(
