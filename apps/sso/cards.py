@@ -17,7 +17,6 @@ import textwrap
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import rocks
-from astropy.time import Time
 from dash import Input, Output, dcc, html
 from dash_iconify import DashIconify
 
@@ -535,12 +534,6 @@ def card_sso_rocks_params(data):
             data.parameters.dynamical.orbital_elements.semi_major_axis.value
         )
 
-    ref_epoch_jd = data.parameters.dynamical.orbital_elements.ref_epoch.value
-    if ref_epoch_jd is not None:
-        ref_epoch = Time(ref_epoch_jd, format="jd").strftime("%Y-%m-%d")
-    else:
-        ref_epoch = None
-
     text = rf"""
     ##### Name: `{data.name}` / `{data.number}`
     Class: `{data.class_}`
@@ -550,11 +543,17 @@ def card_sso_rocks_params(data):
     Absolute magnitude (H mag): `{data.parameters.physical.absolute_magnitude.value:.2f}`
     """
     text = textwrap.dedent(text)  # Remove indentation
-    if data.parameters.physical.taxonomy.class_.value is not None:
-        text += f"Taxonomical class: `{data.parameters.physical.taxonomy.class_.value}`"
-    if data.parameters.physical.diameter.value is not None:
+    taxclass = data.parameters.physical.taxonomy.class_.value
+    if (taxclass is not None) and (taxclass != ""):
+        text += f"Taxonomical class: `{taxclass}`"
         text += "\n"
-        text += f"Diameter (km): `{data.parameters.physical.diameter.value:.2f}`"
+
+    diameter = data.parameters.physical.diameter.value
+    if (diameter is not None) and (diameter == diameter):
+        text += f"Diameter (km): `{diameter:.2f}`"
+        text += "\n"
+
+    text = textwrap.dedent(text)
 
     if (data.parameters.physical.spin is not None) and (
         data.parameters.physical.spin != []
