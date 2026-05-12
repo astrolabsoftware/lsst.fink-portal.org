@@ -565,7 +565,7 @@ def store_ephemerides(object_data):
                 rplane="1",
                 tcoor=5,
                 shift=0.0,
-                timeout=10,
+                timeout=30,
             )
 
         if not eph.empty:
