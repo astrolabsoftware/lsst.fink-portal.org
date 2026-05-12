@@ -672,6 +672,7 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
     #     },
     # )
 
+    # FIXME: factorize the request-ztf-alert with apps/summary.py 
     card = html.Div([
         dmc.Group([
             dbc.Popover(
@@ -1027,7 +1028,9 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 variant="outline",
                                                 color="indigo",
                                                 size="compact-sm",
-                                                leftSection=DashIconify(icon="mdi:api"),
+                                                leftSection=DashIconify(
+                                                    icon="tabler:prompt"
+                                                ),
                                             ),
                                         ),
                                         html.Div(
@@ -1522,7 +1525,6 @@ def generate_tns_badge(tns_fullname, tns_type):
     -------
     badge: dmc.Badge or None
     """
-
     if tns_fullname not in BAD_VALUES and not pd.isna(tns_fullname):
         if tns_type not in BAD_VALUES and not pd.isna(tns_type):
             msg = f"TNS: {tns_fullname} ({tns_type})"

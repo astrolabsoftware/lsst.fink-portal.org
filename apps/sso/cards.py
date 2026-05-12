@@ -17,7 +17,6 @@ import textwrap
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import rocks
-from astropy.time import Time
 from dash import Input, Output, dcc, html
 from dash_iconify import DashIconify
 
@@ -175,11 +174,15 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 ),
                                             ],
                                             "help_download_sso",
-                                            trigger=dmc.ActionIcon(
-                                                DashIconify(icon="mdi:help"),
+                                            trigger=dmc.Button(
+                                                "Code",
                                                 id="help_download_sso",
                                                 variant="outline",
                                                 color="indigo",
+                                                size="compact-sm",
+                                                leftSection=DashIconify(
+                                                    icon="tabler:prompt"
+                                                ),
                                             ),
                                         ),
                                         html.Div(
@@ -223,12 +226,12 @@ curl -H "Content-Type: application/json" -X POST \\
                                             dbc.Button(
                                                 className="btn btn-default zoom btn-circle btn-lg",
                                                 style={
-                                                    "background-image": "url(/assets/buttons/imcce.png)",
-                                                    "background-size": "cover",
+                                                    "background-image": "url(/assets/buttons/logo_SE-OP_RVB_BLACK.svg)",
+                                                    "background-size": "contain",
                                                 },
                                                 color="light",
                                                 outline=True,
-                                                id="IMCCE",
+                                                id="SEOP",
                                                 target="_blank",
                                                 href=f"https://ssp.imcce.fr/forms/ssocard/{data.id_}",
                                             ),
@@ -516,49 +519,7 @@ def card_sso_mpc_params(data, ssnamenr, kind):
 def card_sso_rocks_params(data):
     """IMCCE parameters from Rocks"""
     if data is None:
-        card = html.Div(
-            [
-                html.H5("Name: None", className="card-title"),
-                "Class: None",
-                html.Br(),
-                "Parent body: None",
-                html.Br(),
-                "Dynamical system: None",
-                html.Br(),
-                dmc.Divider(
-                    label="Physical parameters",
-                    variant="solid",
-                    style={"marginTop": 20, "marginBottom": 20},
-                ),
-                "Taxonomical class: None",
-                html.Br(),
-                "Absolute magnitude (mag): None",
-                html.Br(),
-                "Diameter (km): None",
-                html.Br(),
-                dmc.Divider(
-                    label="Dynamical parameters",
-                    variant="solid",
-                    style={"marginTop": 20, "marginBottom": 20},
-                ),
-                "a (AU): None",
-                html.Br(),
-                "e: None",
-                html.Br(),
-                "i (deg): None",
-                html.Br(),
-                "Omega (deg): None",
-                html.Br(),
-                "argPeri (deg): None",
-                html.Br(),
-                "Mean motion (deg/day): None",
-                html.Br(),
-                "Orbital period (day): None",
-                html.Br(),
-                "Jupiter Tisserand parameter: None",
-                html.Br(),
-            ],
-        )
+        card = html.Div("No ssoCard found. Please contact VOSSP at vossp.lte@obspm.fr.")
         return card
 
     # Convert km in AU
@@ -573,34 +534,26 @@ def card_sso_rocks_params(data):
             data.parameters.dynamical.orbital_elements.semi_major_axis.value
         )
 
-    ref_epoch_jd = data.parameters.dynamical.orbital_elements.ref_epoch.value
-    if ref_epoch_jd is not None:
-        ref_epoch = Time(ref_epoch_jd, format="jd").strftime("%Y-%m-%d")
-    else:
-        ref_epoch = None
-
     text = rf"""
     ##### Name: `{data.name}` / `{data.number}`
     Class: `{data.class_}`
     Parent body: `{data.parent}`
-    Dynamical system: `{data.system}`
 
     ###### Physical parameters
-    Taxonomical class: `{data.parameters.physical.taxonomy.class_.value}`
-    Absolute magnitude (HV mag): `{data.parameters.physical.absolute_magnitude.value:.2f}`
-    Diameter (km): `{data.parameters.physical.diameter.value:.2f}`
-
-    ###### Dynamical parameters (Epoch: {ref_epoch})
-    a (AU): `{semi_major_axis:.2f}`
-    e: `{data.parameters.dynamical.orbital_elements.eccentricity.value:.2f}`
-    i (deg): `{data.parameters.dynamical.orbital_elements.inclination.value:.2f}`
-    Omega (deg): `{data.parameters.dynamical.orbital_elements.node_longitude.value:.2f}`
-    argPeri (deg): `{data.parameters.dynamical.orbital_elements.periapsis_distance.value:.2f}`
-    Mean motion (deg/day): `{data.parameters.dynamical.orbital_elements.mean_motion.value:.2f}`
-    Orbital period (day): `{data.parameters.dynamical.orbital_elements.orbital_period.value:.2f}`
-    Jupiter Tisserand parameter: `{data.parameters.dynamical.tisserand_parameters.jupiter.value:.2f}`
+    Absolute magnitude (H mag): `{data.parameters.physical.absolute_magnitude.value:.2f}`
     """
     text = textwrap.dedent(text)  # Remove indentation
+    taxclass = data.parameters.physical.taxonomy.class_.value
+    if (taxclass is not None) and (taxclass != ""):
+        text += f"Taxonomical class: `{taxclass}`"
+        text += "\n"
+
+    diameter = data.parameters.physical.diameter.value
+    if (diameter is not None) and (diameter == diameter):
+        text += f"Diameter (km): `{diameter:.2f}`"
+        text += "\n"
+
+    text = textwrap.dedent(text)
 
     if (data.parameters.physical.spin is not None) and (
         data.parameters.physical.spin != []
@@ -616,14 +569,39 @@ def card_sso_rocks_params(data):
 
     text += "\n"
     text += "---\n"
-    text += f'<i><small>Best estimates of the dynamical and physical properties of the object from the <a href="https://ssp.imcce.fr/forms/ssocard/{data.id_}" target="_blank">ssoCard</a> compiled by the <a href="https://ssp.imcce.fr/webservices/ssodnet/" target="_blank">SsODNet</a> service.</small></i>'
+    credit = html.I(
+        html.Small([
+            "Best estimates of the dynamical and physical properties of the object from the ",
+            html.A(
+                "ssoCard",
+                href=f"https://ssp.imcce.fr/forms/ssocard/{data.id_}",
+                target="_blank",
+            ),
+            " compiled by the ",
+            html.A(
+                "SsODNet",
+                href="https://ssp.imcce.fr/webservices/ssodnet/",
+                target="_blank",
+            ),
+            " service ",
+            html.A(
+                "(Berthier et al 2023)",
+                href="https://ui.adsabs.harvard.edu/abs/2023A%26A...671A.151B/abstract",
+                target="_blank",
+            ),
+            ".",
+        ])
+    )
 
     card = html.Div(
-        dcc.Markdown(
-            text,
-            dangerously_allow_html=True,
-            className="markdown markdown-pre",
-        ),
+        [
+            dcc.Markdown(
+                text,
+                dangerously_allow_html=True,
+                className="markdown markdown-pre",
+            ),
+            credit,
+        ],
         className="ps-2 pe-2",
     )
     return card

@@ -211,7 +211,7 @@ def tabs(pdf, is_sso):
 
 
 def tab_diaobject(pdf):
-    """diaObject tab"""
+    """DiaObject tab"""
     tab_diaobject_ = html.Div([
         dmc.Space(h=10),
         dbc.Row(
@@ -252,6 +252,8 @@ def tab_ssobject(pdf):
 
     msg = """
     Alert data associated to ssObject {} from the LSST stream.
+
+    Number of observations per filter is shown in the plot legend: <filter> (<nobs>).
     """.format(pdf["r:ssObjectId"].to_numpy()[0])
     CONFIG_PLOT["toImageButtonOptions"]["filename"] = str(mpcdesignation)
     lc = html.Div(
@@ -268,7 +270,7 @@ def tab_ssobject(pdf):
                 html.Div(id="flags_lc", className="indicator"),
                 html.Div([
                     dbc.Popover(
-                        "Add ZTF/Fink alerts at the same sky position, if any.",
+                        "Add ZTF/Fink alerts from the same Solar System object, if any.",
                         target="request-ztf-alert",
                         body=True,
                         trigger="hover",
@@ -563,7 +565,7 @@ def store_ephemerides(object_data):
                 rplane="1",
                 tcoor=5,
                 shift=0.0,
-                timeout=10,
+                timeout=30,
             )
 
         if not eph.empty:
@@ -627,7 +629,6 @@ def store_ztf_data(n_clicks, object_data):
         # FIXME: take all names!
         sso_name = pdf["f:sso_name"].to_numpy()[0]
 
-        # get data for 2021RZ105
         r = requests.post(
             "https://api.fink-portal.org/api/v1/sso",
             json={

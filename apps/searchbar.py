@@ -227,41 +227,47 @@ fink_search_bar = (
             ],
         ),
         dmc.Space(h=10),
-        dmc.Center(dmc.Group(
-            [
-                html.Div(
-                    dmc.Switch(
-                        radius="xl",
-                        size="md",
-                        offLabel=DashIconify(icon="radix-icons:id-card", width=20),
-                        onLabel=DashIconify(icon="radix-icons:table", width=20),
-                        color="orange",
-                        checked=False,
-                        persistence=True,
-                        id="results_table_switch",
+        dmc.Center(
+            dmc.Group(
+                [
+                    html.Div(
+                        dmc.Switch(
+                            radius="xl",
+                            size="md",
+                            offLabel=DashIconify(icon="radix-icons:id-card", width=20),
+                            onLabel=DashIconify(icon="radix-icons:table", width=20),
+                            color="orange",
+                            checked=False,
+                            persistence=True,
+                            id="results_table_switch",
+                        ),
+                        className="float-end",
+                        title="Show results as cards or table",
                     ),
-                    className="float-end",
-                    title="Show results as cards or table",
-                ),
-                html.Div(
-                    dmc.Switch(
-                        radius="xl",
-                        size="md",
-                        offLabel=DashIconify(icon="emojione-monotone:letter-a", width=20),
-                        onLabel=DashIconify(icon="emojione-monotone:letter-o", width=20),
-                        color="orange",
-                        checked=False,
-                        persistence=True,
-                        id="alert-object-switch-card",
+                    html.Div(
+                        dmc.Switch(
+                            radius="xl",
+                            size="md",
+                            offLabel=DashIconify(
+                                icon="emojione-monotone:letter-a", width=20
+                            ),
+                            onLabel=DashIconify(
+                                icon="emojione-monotone:letter-o", width=20
+                            ),
+                            color="orange",
+                            checked=False,
+                            persistence=True,
+                            id="alert-object-switch-card",
+                        ),
+                        className="float-end",
+                        title="Show all (A)lerts, or unique (O)bjects.",
                     ),
-                    className="float-end",
-                    title="Show all (A)lerts, or unique (O)bjects.",
-                ),
-            ],
-            justify="center",
-            className="indicator",
-            style={'width': '25%'}
-        )),
+                ],
+                justify="center",
+                className="indicator",
+                style={"width": "25%"},
+            )
+        ),
     ]
 )
 
