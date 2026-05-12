@@ -672,6 +672,7 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
     #     },
     # )
 
+    # FIXME: factorize the request-ztf-alert with apps/summary.py 
     card = html.Div([
         dmc.Group([
             dbc.Popover(
