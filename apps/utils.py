@@ -189,7 +189,7 @@ def is_row_static_or_moving(row: dict):
     ssname = demarkdownify_objectid(
         str(row.get("r:packed_primary_provisional_designation", 0))
     )
-    if dianame in [0, "0", None]:
+    if (dianame in [0, "0", None]) and (ssname not in [0, "0", None]):
         # FIXME: is 0 the normal value?
         main_id = ssname
         is_sso = True

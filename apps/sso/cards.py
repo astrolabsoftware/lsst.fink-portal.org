@@ -522,18 +522,6 @@ def card_sso_rocks_params(data):
         card = html.Div("No ssoCard found. Please contact VOSSP at vossp.lte@obspm.fr.")
         return card
 
-    # Convert km in AU
-    if data.parameters.dynamical.orbital_elements.semi_major_axis.unit == "km":
-        semi_major_axis = (
-            data.parameters.dynamical.orbital_elements.semi_major_axis.value
-            / AU_TO_M
-            * 1000
-        )
-    else:
-        semi_major_axis = (
-            data.parameters.dynamical.orbital_elements.semi_major_axis.value
-        )
-
     text = rf"""
     ##### Name: `{data.name}` / `{data.number}`
     Class: `{data.class_}`

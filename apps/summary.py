@@ -630,7 +630,7 @@ def store_ztf_data(n_clicks, object_data):
         sso_name = pdf["f:sso_name"].to_numpy()[0]
 
         r = requests.post(
-            "https://api.fink-portal.org/api/v1/sso",
+            "https://api.ztf.fink-portal.org/api/v1/sso",
             json={
                 "n_or_d": sso_name,
                 "withEphem": False,
@@ -649,7 +649,7 @@ def store_ztf_data(n_clicks, object_data):
         dec = pdf["r:dec"].mean()
 
         r = requests.post(
-            "https://api.fink-portal.org/api/v1/conesearch",
+            "https://api.ztf.fink-portal.org/api/v1/conesearch",
             json={
                 "ra": ra,
                 "dec": dec,

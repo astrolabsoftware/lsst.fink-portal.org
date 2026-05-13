@@ -40,7 +40,6 @@ from apps.plotting import (
     make_modal_stamps,
 )
 from apps.utils import (
-    cats_type_converter,
     class_colors,
     convert_time,
     create_button_for_external_conesearch,
@@ -61,6 +60,10 @@ def card_search_result(row, i):
     badges = []
 
     main_id, is_sso = is_row_static_or_moving(row)
+
+    # FIXME: needed for 1% filter
+    if main_id in [0, "0"]:
+        return None
     diasourceid = row["r:diaSourceId"]
 
     # FIXME: should be a call to the tag resolver, with all tags printed here.
@@ -170,7 +173,8 @@ def card_search_result(row, i):
     else:
         # FIXME: replace with MPCORB values when they will be up
         sso_data = rocks.Rock(
-            row["r:packed_primary_provisional_designation"], skip_id_check=False
+            row.get("r:packed_primary_provisional_designation", None),
+            skip_id_check=False,
         )
         semi_major = sso_data.a.value
         eccentricity = sso_data.e.value
@@ -560,7 +564,7 @@ def generate_generic_badges(row, variant="dot"):
             )
 
     gaianame = row.get("f:xm_vizier:I/355/gaiadr3_DR3Name")
-    if gaianame not in BAD_VALUES and not pd.isnull(gaianame):
+    if gaianame not in BAD_VALUES and not pd.isna(gaianame):
         badges.append(
             make_badge(
                 gaianame,
@@ -672,7 +676,7 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
     #     },
     # )
 
-    # FIXME: factorize the request-ztf-alert with apps/summary.py 
+    # FIXME: factorize the request-ztf-alert with apps/summary.py
     card = html.Div([
         dmc.Group([
             dbc.Popover(
@@ -1403,14 +1407,12 @@ def card_id_left(object_data):
     )
 
     if not is_sso:
-        cats_mapping = cats_type_converter()
-        cats_class = cats_mapping[pdf["f:clf_cats_class"].to_numpy()[0]]
         simbad_class = pdf["f:xm_simbad_otype"].to_numpy()[0]
-        if pd.isnull(simbad_class) or simbad_class in BAD_VALUES:
+        if pd.isna(simbad_class) or simbad_class in BAD_VALUES:
             simbad_class = "N/A"
 
         tns_class = pdf["f:xm_tns_fullname"].to_numpy()[0]
-        if pd.isnull(tns_class) or tns_class in BAD_VALUES:
+        if pd.isna(tns_class) or tns_class in BAD_VALUES:
             tns_class = "N/A"
 
         property_card = html.Div(
