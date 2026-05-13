@@ -40,7 +40,6 @@ from apps.plotting import (
     make_modal_stamps,
 )
 from apps.utils import (
-    cats_type_converter,
     class_colors,
     convert_time,
     create_button_for_external_conesearch,
@@ -565,7 +564,7 @@ def generate_generic_badges(row, variant="dot"):
             )
 
     gaianame = row.get("f:xm_vizier:I/355/gaiadr3_DR3Name")
-    if gaianame not in BAD_VALUES and not pd.isnull(gaianame):
+    if gaianame not in BAD_VALUES and not pd.isna(gaianame):
         badges.append(
             make_badge(
                 gaianame,
@@ -1408,14 +1407,12 @@ def card_id_left(object_data):
     )
 
     if not is_sso:
-        cats_mapping = cats_type_converter()
-        cats_class = cats_mapping[pdf["f:clf_cats_class"].to_numpy()[0]]
         simbad_class = pdf["f:xm_simbad_otype"].to_numpy()[0]
-        if pd.isnull(simbad_class) or simbad_class in BAD_VALUES:
+        if pd.isna(simbad_class) or simbad_class in BAD_VALUES:
             simbad_class = "N/A"
 
         tns_class = pdf["f:xm_tns_fullname"].to_numpy()[0]
-        if pd.isnull(tns_class) or tns_class in BAD_VALUES:
+        if pd.isna(tns_class) or tns_class in BAD_VALUES:
             tns_class = "N/A"
 
         property_card = html.Div(

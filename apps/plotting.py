@@ -134,14 +134,14 @@ def draw_cutouts_quickview(name, kinds=None):
     figs = []
     sizes = []
     for kind in kinds:
-        try:
+        try:  # noqa: PERF203
             # We may manually construct the payload to avoid extra API call
             object_data = f'{{"r:diaSourceId":{{"0": "{name}"}}}}'
             data = extract_cutout(object_data, None, kind=kind)
             shape = data.shape
             figs.append(draw_cutout(data, kind, zoom=False))
             sizes.append(f"{shape[0]}px / {shape[0] * PIXEL_SIZE:.1f}''")
-        except OSError:
+        except OSError:  # noqa: PERF203
             data = dcc.Markdown("Load fail, refresh the page")
             figs.append(data)
             sizes.append("")
@@ -949,7 +949,7 @@ def draw_lightcurve_preview(
     # indicators
     indicators = []
     colors = generate_rgb_color_sequence(color_scale)
-    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+    for fname in BANDS:
         idx = pdf["r:band"] == fname
 
         # initialise icon
@@ -1163,7 +1163,6 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
 
     deltaRAcosDEC = (pdf["r:ra"] - mean_ra) * np.cos(np.radians(pdf["r:dec"])) * 3600
     deltaDEC = (pdf["r:dec"] - mean_dec) * 3600
-    customdata = pdf["r:midpointMjdTai"]
 
     hovertemplate = r"""
     <b>%{yaxis.title.text}</b>: %{y:.2f}<br>

@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
 import os
 import base64
 import datetime
@@ -303,7 +304,7 @@ def create_tile(icon, heading, description, index, content):
     State("modal-datatransfer-1", "opened"),
     prevent_initial_call=True,
 )
-def modal_demo(nc1, opened):
+def modal_demo1(nc1, opened):
     return not opened
 
 
@@ -313,7 +314,7 @@ def modal_demo(nc1, opened):
     State("modal-datatransfer-2", "opened"),
     prevent_initial_call=True,
 )
-def modal_demo(nc1, opened):
+def modal_demo2(nc1, opened):
     return not opened
 
 
@@ -323,7 +324,7 @@ def modal_demo(nc1, opened):
     State("modal-datatransfer-3", "opened"),
     prevent_initial_call=True,
 )
-def modal_demo(nc1, opened):
+def modal_demo3(nc1, opened):
     return not opened
 
 

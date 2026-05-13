@@ -30,7 +30,6 @@ CONV = {
     "string": 8,
     "bytes": 3 * 4 * 40 * 40,
     "boolean": 1,
-    "long": 8,
 }
 
 FILTERS_AND_BLOCKS_YIELD = {
