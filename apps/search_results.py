@@ -228,7 +228,6 @@ def display_skymap(data, columns, is_open):
             for i in pdf["r:packed_primary_provisional_designation"].to_numpy()
         ]
         classes = ["SSO"] * len(pdf)
-        n_alert_per_class = {"SSO": len(pdf)}
     else:
         label = "diaObjectId"
         titles = [
@@ -241,9 +240,6 @@ def display_skymap(data, columns, is_open):
         ]
         pdf["f:xm_simbad_otype"] = pdf["f:xm_simbad_otype"].replace("*", "Star")
         classes = pdf["f:xm_simbad_otype"].to_numpy()
-        n_alert_per_class = (
-            pdf.groupby("f:xm_simbad_otype").count().to_dict()["r:diaObjectId"]
-        )
 
     # Coordinate
     ras = pdf["r:ra"].to_numpy()

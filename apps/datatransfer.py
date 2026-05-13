@@ -18,6 +18,7 @@ import datetime
 import io
 import textwrap
 
+from astropy.io import fits, votable
 import dash_mantine_components as dmc
 import pandas as pd
 import numpy as np

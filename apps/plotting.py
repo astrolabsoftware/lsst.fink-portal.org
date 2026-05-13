@@ -1175,7 +1175,7 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
     data = []
 
     colors = generate_rgb_color_sequence(color_scale)
-    for fid, fname, color in zip(range(1, 7), BANDS, colors):
+    for fname, color in zip(BANDS, colors):
         data.append({
             "x": deltaRAcosDEC[pdf["r:band"] == fname],
             "y": deltaDEC[pdf["r:band"] == fname],
@@ -2020,7 +2020,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
     dd.update({i: [""] * len(filts) for i in params})
     df_table = pd.DataFrame(
         dd,
-        index=[f for f in filts],
+        index=filts,
     )
 
     hovertemplate = r"""

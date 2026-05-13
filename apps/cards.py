@@ -62,7 +62,7 @@ def card_search_result(row, i):
 
     main_id, is_sso = is_row_static_or_moving(row)
 
-    # FIXME: needed for 1% filter 
+    # FIXME: needed for 1% filter
     if main_id in [0, "0"]:
         return None
     diasourceid = row["r:diaSourceId"]
@@ -174,7 +174,8 @@ def card_search_result(row, i):
     else:
         # FIXME: replace with MPCORB values when they will be up
         sso_data = rocks.Rock(
-            row.get("r:packed_primary_provisional_designation", None), skip_id_check=False
+            row.get("r:packed_primary_provisional_designation", None),
+            skip_id_check=False,
         )
         semi_major = sso_data.a.value
         eccentricity = sso_data.e.value
@@ -676,7 +677,7 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
     #     },
     # )
 
-    # FIXME: factorize the request-ztf-alert with apps/summary.py 
+    # FIXME: factorize the request-ztf-alert with apps/summary.py
     card = html.Div([
         dmc.Group([
             dbc.Popover(

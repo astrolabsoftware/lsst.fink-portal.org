@@ -126,9 +126,9 @@ def fields_for_data_transfer():
         # HTTP error usually
         return {}, {}
 
-    return {k: v for k, v in zip(all_lsst_fields, all_lsst_fields_types)}, {
-        k: v for k, v in zip(all_fink_fields, all_fink_fields_types)
-    }
+    return dict(zip(all_lsst_fields, all_lsst_fields_types)), dict(
+        zip(all_fink_fields, all_fink_fields_types)
+    )
 
 
 def create_datatransfer_schema_table(provenance="lsst", caption=""):
@@ -136,7 +136,7 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
     rows = []
 
     # Strict definition in apps/spark_lsst_transfer.py
-    light_static_fields = cols = [
+    light_static_fields = [
         "diaObjectId",
         "snr",
         "scienceFlux",
@@ -166,7 +166,7 @@ def create_datatransfer_schema_table(provenance="lsst", caption=""):
         "timestamp",
         "tns_type_recomputed",
     ]
-    light_sso_fields = cols = [
+    light_sso_fields = [
         "ssObjectId",
         "snr",
         "scienceFlux",
@@ -286,18 +286,18 @@ def format_type(t):
 
 def make_table_body_from_schema(schema):
     """ """
-    provenances = sorted(list(schema.keys()))
+    provenances = sorted(schema.keys())
     rows = []
     for prov in provenances:
         # Table candidates
 
-        labels = [k for k in schema[prov].keys()]
+        labels = list(schema[prov].keys())
         if CONV_NAMES.get(prov, prov) == "Fink":
             fink_broker_version = [
-                v["fink_broker_version"] for k, v in schema[prov].items()
+                v["fink_broker_version"] for v in schema[prov].values()
             ]
             fink_science_version = [
-                v["fink_science_version"] for k, v in schema[prov].items()
+                v["fink_science_version"] for v in schema[prov].values()
             ]
             msg = " Available from fink_broker_version {} and fink_science_version {}."
             docs = [
@@ -307,9 +307,9 @@ def make_table_body_from_schema(schema):
                 )
             ]
         else:
-            docs = [v["doc"] for k, v in schema[prov].items()]
+            docs = [v["doc"] for v in schema[prov].values()]
 
-        types = [format_type(v["type"]) for k, v in schema[prov].items()]
+        types = [format_type(v["type"]) for v in schema[prov].values()]
 
         [
             rows.append(
