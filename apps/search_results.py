@@ -849,7 +849,10 @@ def on_paginate(page, data, page_size):
     pdf_ = pdf.iloc[(page - 1) * page_size : min(page * page_size, len(pdf.index))]
 
     for i, row in pdf_.iterrows():
-        results.append(card_search_result(row, i))
+        card = card_search_result(row, i)
+        if card is not None:
+            # prevent objects with no ID (tag bug)
+            results.append(card)
 
     return results
 
