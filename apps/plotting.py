@@ -948,7 +948,13 @@ def draw_lightcurve_preview(
 
     # indicators
     indicators = []
+    trend_msgs = []
     colors = generate_rgb_color_sequence(color_scale)
+    trend_msgs.append(
+        dmc.Text(
+            "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison."
+        )
+    )
     for fname in BANDS:
         idx = pdf["r:band"] == fname
 
@@ -958,9 +964,18 @@ def draw_lightcurve_preview(
             color="grey",
             width=20,
         )
-        if len(pdf[idx]) > 1:
+        if idx.sum() > 1:
             # Last 2 measurements in 2 different nights
-            mean_values = pdf[idx].groupby("id")[flux_name].mean().reset_index()
+            pdf_tmp = pdf.copy()
+            pdf_tmp[flux_name] = flux
+            pdf_tmp[flux_err_name] = flux_err
+            pdf_band = pdf_tmp.loc[idx].copy()
+            pdf_band[flux_err_name] = pdf_band[flux_err_name] ** 2
+            id_grouped_alert = pdf_band.groupby("id")
+            mean_values = id_grouped_alert[flux_name].mean().reset_index()
+            time_values = id_grouped_alert["r:midpointMjdTai"].mean().reset_index()
+            err_values = np.sqrt(id_grouped_alert[flux_err_name].sum().reset_index())
+            count_values = id_grouped_alert[flux_name].count().reset_index()
             if len(mean_values) > 1:
                 arr = (
                     mean_values
@@ -968,7 +983,46 @@ def draw_lightcurve_preview(
                     .head(2)[flux_name]
                     .to_numpy()
                 )
-                diff = arr[0] - arr[1]
+                time_arr = (
+                    time_values
+                    .sort_values("id", ascending=False)
+                    .head(2)["r:midpointMjdTai"]
+                    .to_numpy()
+                )
+                err_arr = (
+                    err_values
+                    .sort_values("id", ascending=False)
+                    .head(2)[flux_err_name]
+                    .to_numpy()
+                )
+                count_arr = (
+                    count_values
+                    .sort_values("id", ascending=False)
+                    .head(2)[flux_name]
+                    .to_numpy()
+                )
+                err_arr /= count_arr
+                diff = (arr[0] - arr[1])
+                time_diff = time_arr[0] - time_arr[1]
+                err_on_diff = np.sqrt(err_arr[0] ** 2 + err_arr[1] ** 2)
+                if units == "magnitude":
+                    trend_msgs.append(
+                        dmc.Text(
+                            [
+                                html.Strong(f"{fname}:"), 
+                                f" {diff:.3f} " + "±" + f" {err_on_diff:.3f} in {time_diff:.1f} days"
+                            ]
+                        )
+                    )
+                if units == "flux":
+                    trend_msgs.append(
+                        dmc.Text(
+                            [
+                                html.Strong(f"{fname}:"), 
+                                f" {diff:.1f} " + "±" + f" {err_on_diff:.1f} in {time_diff:.1f} days"
+                            ]
+                        )
+                    )
                 if diff > 0:
                     # going up
                     icon_indicator = DashIconify(
@@ -994,6 +1048,7 @@ def draw_lightcurve_preview(
             ),
         )
 
+    # flags
     flags = []
     cols = [
         "r:pixelFlags_bad",
@@ -1045,7 +1100,7 @@ def draw_lightcurve_preview(
                 ])
             )
 
-    return fig, dmc.Group(indicators, gap="sm"), dmc.Group(flags, gap="sm")
+    return fig, dmc.Group(indicators, gap="sm"), dmc.Group(flags, gap="sm"), trend_msgs
 
 
 def make_sparkline(data):
@@ -1124,7 +1179,7 @@ def draw_lightcurve(
     else:
         pdf_ztf = None
 
-    fig, indicator, flags = draw_lightcurve_preview(
+    fig, indicator, flags, _ = draw_lightcurve_preview(
         pdf=pdf,
         pdf_ztf=pdf_ztf,
         is_sso=is_sso,

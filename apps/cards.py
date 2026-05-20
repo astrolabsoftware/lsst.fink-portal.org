@@ -278,7 +278,6 @@ def card_search_result(row, i):
                         # dmc.Space(w="sm"),
                         dmc.Space(w="sm"),
                         dbc.Popover(
-                            "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
                             target={
                                 "type": "indicator",
                                 "main_id": str(main_id),
@@ -288,6 +287,12 @@ def card_search_result(row, i):
                             body=True,
                             trigger="hover",
                             placement="top",
+                            id={
+                                "type": "popover_indicator",
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
+                                "index": i,
+                            },
                         ),
                         html.Div(
                             className="indicator",
