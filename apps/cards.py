@@ -69,7 +69,6 @@ def card_search_result(row, i):
     # FIXME: should be a call to the tag resolver, with all tags printed here.
     cdsxmatch = row.get("f:xm_simbad_otype")
     if cdsxmatch not in BAD_VALUES and not pd.isna(cdsxmatch):
-        print(cdsxmatch, type(cdsxmatch))
         badges.append(
             make_badge(
                 f"SIMBAD: {cdsxmatch}",
