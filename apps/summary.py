@@ -260,7 +260,7 @@ def tab_ssobject(pdf):
         [
             dmc.Group([
                 dbc.Popover(
-                    "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                    #"Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
                     target="indicator_lc",
                     body=True,
                     trigger="hover",

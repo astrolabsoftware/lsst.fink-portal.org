@@ -1019,7 +1019,7 @@ def draw_lightcurve_preview(
                         dmc.Text(
                             [
                                 html.Strong(f"{fname}:"), 
-                                f" {diff:.1f} " + "±" + f" {err_on_diff:.1f} in {time_diff:.1f} days"
+                                f" {diff:.1f} " + "±" + f" {err_on_diff:.1f} μJy in {time_diff:.1f} days"
                             ]
                         )
                     )
@@ -1119,6 +1119,7 @@ def make_sparkline(data):
         Output("lightcurve_object_page", "figure"),
         Output("indicator_lc", "children"),
         Output("flags_lc", "children"),
+        Output("popover_indicator_lc", "children"),
     ],
     [
         Input("select-lc-layout", "value"),
@@ -1179,7 +1180,7 @@ def draw_lightcurve(
     else:
         pdf_ztf = None
 
-    fig, indicator, flags, _ = draw_lightcurve_preview(
+    fig, indicator, flags, popover_text = draw_lightcurve_preview(
         pdf=pdf,
         pdf_ztf=pdf_ztf,
         is_sso=is_sso,
@@ -1190,7 +1191,7 @@ def draw_lightcurve(
         switch_layout=switch_layout,
     )
 
-    return fig, indicator, flags
+    return fig, indicator, flags, html.Div(popover_text)
 
 
 @app.callback(
