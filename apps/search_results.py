@@ -886,6 +886,10 @@ clientside_callback(
             {"type": "flags", "main_id": MATCH, "is_sso": MATCH, "index": MATCH},
             "children",
         ),
+        Output(
+            {"type": "popover_indicator", "main_id": MATCH, "is_sso": MATCH, "index": MATCH},
+            "children"
+        )
     ],
     [
         Input(
@@ -931,7 +935,7 @@ def on_load_lightcurve(lc_id, color_scale, units, measurement):
         },
     )
     if lc_id:
-        fig, indicator, flags = draw_lightcurve_preview(
+        fig, indicator, flags, popover_text = draw_lightcurve_preview(
             main_id=lc_id["main_id"],
             is_sso=lc_id["is_sso"],
             color_scale=color_scale,
@@ -950,6 +954,7 @@ def on_load_lightcurve(lc_id, color_scale, units, measurement):
             ),
             indicator,
             flags,
+            html.Div(popover_text)
         )
 
     return no_update, no_update
