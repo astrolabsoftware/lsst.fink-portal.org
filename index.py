@@ -107,6 +107,12 @@ navbar = html.Div(
                         make_navlink("Statistics", "ion:stats-chart-outline", "/stats"),
                         make_navlink("Schema", "ion:book-outline", "/schemas"),
                         make_navlink(
+                            "Broker",
+                            "ion:arrow-up-right-box-outline",
+                            "https://fink-broker.org/",
+                            target="_blank"
+                        ),
+                        make_navlink(
                             "Citing",
                             "ion:share-social",
                             "https://fink-broker.org/cite/",
