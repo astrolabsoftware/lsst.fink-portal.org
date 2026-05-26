@@ -1749,6 +1749,9 @@ def show_moon_data(
     ],
     [
         State("dateobs", "value"),
+        State("observatory", "value"),
+        State("longitude", "value"),
+        State("latitude", "value"),
     ],
     prevent_initial_call=True,
     background=True,
@@ -1762,6 +1765,9 @@ def show_observability_title(
     nclick,
     object_data,
     dateobs,
+    observatory_name,
+    longitude,
+    latitude,
 ):
     if summary_tab != "Observability":
         raise PreventUpdate
@@ -1770,6 +1776,14 @@ def show_observability_title(
     msg += (Time(dateobs) - 1 * u.day).to_value("iso", subfmt="date")
     msg += " and "
     msg += Time(dateobs).to_value("iso", subfmt="date")
+
+    if longitude and latitude:
+        msg += f" ({longitude}, {latitude})"
+    elif observatory_name in observability.additional_observatories:
+        msg += f" ({observatory_name})"
+    else:
+        msg += f" ({observatory_name})"
+
     return msg
 
 

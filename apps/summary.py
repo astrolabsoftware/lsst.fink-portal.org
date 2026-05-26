@@ -12,7 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import io
+import logging
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -39,6 +41,7 @@ from apps.sso.utils import is_packed_designation
 from apps.utils import flux_to_mag, loading
 
 dcc.Location(id="url", refresh=False)
+_LOG = logging.getLogger(__name__)
 
 
 def layout(name, is_sso):
@@ -1002,7 +1005,6 @@ def tab_observability(pdf):
 
     bhtom_parameters = dmc.Fieldset(
         [
-            # dmc.Divider(variant="solid", label="Coordinates"),
             dmc.TextInput(
                 id="name_bhtom",
                 label="Name",
@@ -1010,8 +1012,6 @@ def tab_observability(pdf):
                 size="sm",
                 radius="sm",
                 required=True,
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.TextInput(
                 id="ra_bhtom",
@@ -1021,8 +1021,6 @@ def tab_observability(pdf):
                 radius="sm",
                 value=pdf["r:ra"].mean(),
                 required=True,
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.TextInput(
                 id="dec_bhtom",
@@ -1032,8 +1030,6 @@ def tab_observability(pdf):
                 radius="sm",
                 value=pdf["r:dec"].mean(),
                 required=True,
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.TextInput(
                 id="epoch_bhtom",
@@ -1042,8 +1038,6 @@ def tab_observability(pdf):
                 radius="sm",
                 value="2000.0",
                 required=True,
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.TextInput(
                 id="class_bhtom",
@@ -1051,8 +1045,6 @@ def tab_observability(pdf):
                 description="Only if you know it. Leave blank otherwise.",
                 size="sm",
                 radius="sm",
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.NumberInput(
                 id="importance_bhtom",
@@ -1063,8 +1055,6 @@ def tab_observability(pdf):
                 min=0,
                 max=10,
                 value=0,
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.NumberInput(
                 id="cadence_bhtom",
@@ -1074,8 +1064,6 @@ def tab_observability(pdf):
                 radius="sm",
                 value=0,
                 min=0,
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.Textarea(
                 id="description_bhtom",
@@ -1083,9 +1071,6 @@ def tab_observability(pdf):
                 description="Short human readable description, and anything helping observers.",
                 size="sm",
                 radius="sm",
-                required=True,
-                persistence=True,
-                persistence_type="session",
             ),
             dmc.Space(h=10),
             dmc.Button(
@@ -1112,8 +1097,8 @@ def tab_observability(pdf):
                         "Check observability",
                         icon=[
                             DashIconify(
-                                icon="tabler:atom-2",
-                                color=dmc.DEFAULT_THEME["colors"]["green"][6],
+                                icon="solar:telescope-line-duotone",
+                                color=dmc.DEFAULT_THEME["colors"]["dark"][6],
                                 width=20,
                             ),
                         ],
@@ -1182,6 +1167,76 @@ def tab_observability(pdf):
         ),
     ])
     return tab_content_
+
+
+@app.callback(
+    Output("notification-container", "sendNotifications", allow_duplicate=True),
+    [
+        Input("name_bhtom", "value"),
+        Input("ra_bhtom", "value"),
+        Input("dec_bhtom", "value"),
+        Input("epoch_bhtom", "value"),
+        Input("class_bhtom", "value"),
+        Input("importance_bhtom", "value"),
+        Input("cadence_bhtom", "value"),
+        Input("description_bhtom", "value"),
+        Input("submit_bhtom_button", "n_clicks"),
+    ],
+    prevent_initial_call=True,
+    running=[
+        (
+            Output("submit_bhtom_button", "loading"),
+            True,
+            False,
+        ),
+    ],
+)
+def submit_bhtom(
+    name, ra, dec, epoch, classification, importance, cadence, description, nclicks
+):
+    """Submit target creation to BHTOM"""
+    if nclicks is None:
+        return no_update
+
+    headers = {"Authorization": "Token {}".format(os.environ.get("BHTOM_TOKEN", ""))}
+
+    data = {
+        "name": name,
+        "ra": ra,
+        "dec": dec,
+        "epoch": epoch,
+        "classification": classification,
+        "importance": int(importance),
+        "cadence": int(cadence),
+        "description": description,
+    }
+
+    response = requests.post(
+        url="https://bh-tom2.astrouw.edu.pl/targets/createTarget/",
+        headers=headers,
+        data=data,
+    )
+
+    if response.status_code in [200, 201]:
+        notification = dict(
+            title="Target created successfully",
+            message=f"https://bhtom.space/public/targets/{name}",
+            id="show-notify",
+            action="show",
+            color="green",
+            autoClose=False,
+        )
+    else:
+        notification = dict(
+            title="Error while submitting target",
+            message=response.text,
+            id="show-notify",
+            action="show",
+            color="red",
+            autoClose=False,
+        )
+        _LOG.warning("status: {} - {}".format(response.status_code, response.text))
+    return [notification]
 
 
 # def tab7_content():
