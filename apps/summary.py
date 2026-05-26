@@ -1024,6 +1024,7 @@ def tab_observability(pdf):
                 radius="sm",
                 value=pdf["r:ra"].mean(),
                 required=True,
+                disabled=True,
             ),
             dmc.TextInput(
                 id="dec_bhtom",
@@ -1033,6 +1034,7 @@ def tab_observability(pdf):
                 radius="sm",
                 value=pdf["r:dec"].mean(),
                 required=True,
+                disabled=True,
             ),
             dmc.TextInput(
                 id="epoch_bhtom",
@@ -1041,6 +1043,7 @@ def tab_observability(pdf):
                 radius="sm",
                 value="2000.0",
                 required=True,
+                disabled=True,
             ),
             dmc.TextInput(
                 id="class_bhtom",
@@ -1200,6 +1203,26 @@ def submit_bhtom(
     """Submit target creation to BHTOM"""
     if nclicks is None:
         return no_update
+
+    if name is None:
+        notification = dict(
+            title="You need to specify a target name",
+            id="show-notify",
+            action="show",
+            color="red",
+            autoClose=False,
+        )
+        return [notification]
+
+    if ra is None or dec is None:
+        notification = dict(
+            title="You need to specify ra/dec coordinates",
+            id="show-notify",
+            action="show",
+            color="red",
+            autoClose=False,
+        )
+        return [notification]
 
     headers = {"Authorization": "Token {}".format(os.environ.get("BHTOM_TOKEN", ""))}
 
