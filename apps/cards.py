@@ -684,12 +684,12 @@ def card_lightcurve_summary(diaObjectId, ra0, dec0, date_iso):
     card = html.Div([
         dmc.Group([
             dbc.Popover(
-                #"Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                # "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
                 target="indicator_lc",
                 body=True,
                 trigger="hover",
                 placement="top",
-                id="popover_indicator_lc"
+                id="popover_indicator_lc",
             ),
             html.Div(id="indicator_lc", className="indicator"),
             html.Div(id="flags_lc", className="indicator"),

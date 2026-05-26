@@ -260,7 +260,7 @@ def tab_ssobject(pdf):
         [
             dmc.Group([
                 dbc.Popover(
-                    #"Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
+                    # "Per-band evolution over the last two observation nights. Intra-night measurements are averaged before comparison.",
                     target="indicator_lc",
                     body=True,
                     trigger="hover",
@@ -1039,12 +1039,14 @@ def tab_observability(pdf):
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
-                        dmc.Group(
-                            [
-                                dmc.Avatar(src="https://bh-tom2.astrouw.edu.pl/static/logo.png"),
-                                html.Div(dmc.Text("Submit to BHTOM")),
-                            ]
-                        )
+                        dmc.Group([
+                            dmc.Avatar(
+                                src="https://bh-tom2.astrouw.edu.pl/static/logo.png",
+                                radius="xs",
+                                size=20,
+                            ),
+                            html.Div(dmc.Text("Submit to BHTOM")),
+                        ])
                     ),
                     dmc.AccordionPanel(
                         dmc.Stack(
