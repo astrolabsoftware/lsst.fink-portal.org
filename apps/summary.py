@@ -934,6 +934,7 @@ def tab_observability(pdf):
     nterms_base = dmc.Container(
         [
             dmc.Divider(variant="solid", label="Observatory location"),
+            dmc.Space(h=10),
             dmc.Select(
                 label="Select your Observatory",
                 placeholder="Select an observatory from the list",
@@ -1005,6 +1006,8 @@ def tab_observability(pdf):
 
     bhtom_parameters = dmc.Fieldset(
         [
+            dmc.Text("Target will be submitted under the Fink user.", fw=700),
+            dmc.Space(h=10),
             dmc.TextInput(
                 id="name_bhtom",
                 label="Name",
