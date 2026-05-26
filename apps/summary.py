@@ -918,9 +918,19 @@ def tab_observability(pdf):
             list(additional_observatories.keys()),
         ))
     )
+
+    submit_button = dmc.Button(
+        "Update plot",
+        id="submit_observability",
+        color="dark",
+        variant="outline",
+        fullWidth=True,
+        radius="xl",
+    )
+
     nterms_base = dmc.Container(
         [
-            dmc.Divider(variant="solid", label="Follow-up"),
+            dmc.Divider(variant="solid", label="Observatory location"),
             dmc.Select(
                 label="Select your Observatory",
                 placeholder="Select an observatory from the list",
@@ -930,43 +940,8 @@ def tab_observability(pdf):
                 searchable=True,
                 clearable=True,
             ),
-            dmc.DateInput(
-                id="dateobs",
-                label="Pick a date for the follow-up",
-                value=datetime.now().date(),
-            ),
             dmc.Space(h=10),
-            dmc.Switch(
-                id="moon_elevation", size="sm", radius="xl", label="Show moon elevation"
-            ),
-            dmc.Space(h=5),
-            dmc.Switch(
-                id="moon_phase", size="sm", radius="xl", label="Show moon phase"
-            ),
-            dmc.Space(h=5),
-            dmc.Switch(
-                id="moon_illumination",
-                size="sm",
-                radius="xl",
-                label="Show moon illumination",
-            ),
-        ],
-        className="mb-3",  # , style={'width': '100%', 'display': 'inline-block'}
-    )
-
-    card2 = dmc.Paper(
-        [
-            nterms_base,
-        ],
-        radius="sm",
-        p="xs",
-        shadow="sm",
-        withBorder=True,
-    )
-
-    nterms_base_custom_observatory = dmc.Container(
-        [
-            dmc.Divider(variant="solid", label="Coordinates"),
+            dmc.Divider(variant="solid", label="Or enter coordinates"),
             dmc.TextInput(
                 id="longitude",
                 label="Longitude",
@@ -987,29 +962,144 @@ def tab_observability(pdf):
                 persistence=True,
                 persistence_type="session",
             ),
-            dmc.Space(h=5),
-            html.Button(
-                "Clear",
-                id="clear_button",
-                style={
-                    "border": "none",
-                    "border-radius": "10px",
-                    "font-size": "15px",
-                    "float": "right",
-                },
+            dmc.Space(h=10),
+            dmc.Divider(variant="solid", label="Observation date"),
+            dmc.DateInput(
+                id="dateobs",
+                label="Pick a date for the follow-up",
+                value=datetime.now().date(),
             ),
+            dmc.Space(h=10),
+            dmc.Switch(
+                id="moon_elevation", size="sm", radius="xl", label="Show moon elevation"
+            ),
+            dmc.Space(h=5),
+            dmc.Switch(
+                id="moon_phase", size="sm", radius="xl", label="Show moon phase"
+            ),
+            dmc.Space(h=5),
+            dmc.Switch(
+                id="moon_illumination",
+                size="sm",
+                radius="xl",
+                label="Show moon illumination",
+            ),
+            dmc.Space(h=10),
+            submit_button,
         ],
         className="mb-3",  # , style={'width': '100%', 'display': 'inline-block'}
     )
 
-    card_custom_observatory = dmc.Paper(
+    card2 = dmc.Paper(
         [
-            nterms_base_custom_observatory,
+            nterms_base,
         ],
         radius="sm",
         p="xs",
         shadow="sm",
         withBorder=True,
+    )
+
+    bhtom_parameters = dmc.Fieldset(
+        [
+            # dmc.Divider(variant="solid", label="Coordinates"),
+            dmc.TextInput(
+                id="name_bhtom",
+                label="Name",
+                placeholder="Target name",
+                size="sm",
+                radius="sm",
+                required=True,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.TextInput(
+                id="ra_bhtom",
+                label="RA",
+                placeholder="in decimal degrees",
+                size="sm",
+                radius="sm",
+                value=pdf["r:ra"].mean(),
+                required=True,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.TextInput(
+                id="dec_bhtom",
+                label="Dec",
+                placeholder="in decimal degrees",
+                size="sm",
+                radius="sm",
+                value=pdf["r:dec"].mean(),
+                required=True,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.TextInput(
+                id="epoch_bhtom",
+                label="Epoch",
+                size="sm",
+                radius="sm",
+                value="2000.0",
+                required=True,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.TextInput(
+                id="class_bhtom",
+                label="Classification",
+                description="Only if you know it. Leave blank otherwise.",
+                size="sm",
+                radius="sm",
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.NumberInput(
+                id="importance_bhtom",
+                label="Importance",
+                description="0 (no priority, do not observe) to 10 (highest priority, observe now)",
+                size="sm",
+                radius="sm",
+                min=0,
+                max=10,
+                value=0,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.NumberInput(
+                id="cadence_bhtom",
+                label="Cadence",
+                description="In days, how frequently you want to repeat the observations",
+                size="sm",
+                radius="sm",
+                value=0,
+                min=0,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.Textarea(
+                id="description_bhtom",
+                label="Description",
+                description="Short human readable description, and anything helping observers.",
+                size="sm",
+                radius="sm",
+                required=True,
+                persistence=True,
+                persistence_type="session",
+            ),
+            dmc.Space(h=10),
+            dmc.Button(
+                "Submit",
+                leftSection=DashIconify(icon="ion:plus"),
+                size="xs",
+                radius="xl",
+                variant="outline",
+                id="submit_bhtom_button",
+                color=DEFAULT_FINK_COLORS[0],
+                style={"margin": "0px"},
+            ),
+        ],
+        className="mb-3",  # , style={'width': '100%', 'display': 'inline-block'}
     )
 
     card3 = dmc.Accordion(
@@ -1019,7 +1109,7 @@ def tab_observability(pdf):
             dmc.AccordionItem(
                 [
                     dmc.AccordionControl(
-                        "Custom Observatory",
+                        "Check observability",
                         icon=[
                             DashIconify(
                                 icon="tabler:atom-2",
@@ -1030,7 +1120,7 @@ def tab_observability(pdf):
                     ),
                     dmc.AccordionPanel(
                         dmc.Stack(
-                            card_custom_observatory,
+                            card2,
                         ),
                     ),
                 ],
@@ -1050,23 +1140,15 @@ def tab_observability(pdf):
                     ),
                     dmc.AccordionPanel(
                         dmc.Stack(
-                            html.Div(),
+                            bhtom_parameters,
                         ),
                     ),
                 ],
                 value="bhtom",
             ),
         ],
+        value="external",
         styles={"content": {"padding": "5px"}},
-    )
-
-    submit_button = dmc.Button(
-        "Update plot",
-        id="submit_observability",
-        color="dark",
-        variant="outline",
-        fullWidth=True,
-        radius="xl",
     )
 
     tab_content_ = html.Div([
@@ -1091,13 +1173,7 @@ def tab_observability(pdf):
                 ),
                 dbc.Col(
                     [
-                        html.Br(),
-                        card2,
-                        html.Br(),
-                        dmc.Divider(variant="solid"),
                         card3,
-                        html.Br(),
-                        submit_button,
                     ],
                     md=4,
                 ),
