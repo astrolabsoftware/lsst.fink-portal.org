@@ -1036,6 +1036,24 @@ def tab_observability(pdf):
                 ],
                 value="external",
             ),
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        dmc.Group(
+                            [
+                                dmc.Avatar(src="https://bh-tom2.astrouw.edu.pl/static/logo.png"),
+                                html.Div(dmc.Text("Submit to BHTOM")),
+                            ]
+                        )
+                    ),
+                    dmc.AccordionPanel(
+                        dmc.Stack(
+                            html.Div(),
+                        ),
+                    ),
+                ],
+                value="bhtom",
+            ),
         ],
         styles={"content": {"padding": "5px"}},
     )
