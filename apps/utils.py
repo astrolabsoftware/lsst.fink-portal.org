@@ -24,7 +24,6 @@ from dash import html
 from fink_utils.xmatch.simbad import get_simbad_labels
 
 from apps.api import request_api
-from apps.dataclasses import fink_tags
 
 # Colors for the Sky map & badges
 class_colors = {
@@ -594,32 +593,3 @@ def query_and_order_statistics(date="20", columns="*", index_by="f:night", drop=
         pdf = pdf.drop(columns=["key:time"])
 
     return pdf
-
-
-def unwrap_fink_tags():
-    """Method to properly decode fink_tags from an API call
-
-    Notes
-    -----
-    This is wanted to handle API migration change transparently
-    at the level of the portal
-
-    Returns
-    -------
-    tags: list of str
-    descriptions: list of str
-    api_support: list of bool
-    """
-    tags, descriptions, api_support = [], [], []
-
-    for tag, payload in fink_tags.items():
-        tags.append(tag)
-        # Handle API 3.3.0 migration
-        if isinstance(payload, dict):
-            descriptions.append(payload["description"])
-            api_support.append(payload["API support"])
-        elif isinstance(payload, str):
-            descriptions.append(payload)
-            api_support.append(True)
-
-    return tags, descriptions, api_support

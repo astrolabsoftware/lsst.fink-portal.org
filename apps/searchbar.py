@@ -14,6 +14,8 @@
 # limitations under the License.
 """Utilities for managing the Fink search bar"""
 
+from itertools import compress
+
 import dash
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -31,7 +33,7 @@ from dash_autocomplete_input import AutocompleteInput
 from dash_iconify import DashIconify
 
 from app import app
-from apps.dataclasses import fink_tags
+from apps.dataclasses import fink_tags, fink_tag_api_support
 from apps.helpers import help_popover, message_help
 from apps.parse import parse_query
 
@@ -155,8 +157,8 @@ fink_search_bar = (
                             "r=",
                         ],
                         options={
-                            "tag:": list(fink_tags.keys()),
-                            "tag=": list(fink_tags.keys()),
+                            "tag:": list(compress(fink_tags, fink_tag_api_support)),
+                            "tag=": list(compress(fink_tags, fink_tag_api_support)),
                             "last:": ["1", "10", "100", "1000"],
                             "last=": ["1", "10", "100", "1000"],
                             "radius:": ["10", "60", "10m", "30m"],

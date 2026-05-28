@@ -18,8 +18,7 @@ from dash_iconify import DashIconify
 
 from app import app
 from apps.api import request_api
-from apps.utils import unwrap_fink_tags
-from apps.dataclasses import fink_blocks
+from apps.dataclasses import unwrap_fink_tags
 from apps.plotting import DEFAULT_FINK_COLORS
 
 CONV_NAMES = {
@@ -376,13 +375,9 @@ def create_user_filterblocks_description(kind="filters"):
     """
     # header
     rows = []
-    if kind == "filters":
-        tags, descriptions, api_supports = unwrap_fink_tags()
-    elif kind == "blocks":
-        tags = list(fink_blocks.keys())
-        descriptions = list(fink_blocks.values())
-        api_supports = [False] * len(tags)
-
+    tags, descriptions, api_supports = unwrap_fink_tags(
+        kind=kind, default_support=(kind == "filters")
+    )
     for tag, description, api_support in zip(
         tags, descriptions, api_supports, strict=True
     ):
