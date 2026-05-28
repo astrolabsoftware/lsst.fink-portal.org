@@ -19,7 +19,7 @@ from dash_iconify import DashIconify
 from app import app
 from apps.api import request_api
 from apps.utils import unwrap_fink_tags
-from apps.dataclasses import fink_blocks, fink_tags
+from apps.dataclasses import fink_blocks
 from apps.plotting import DEFAULT_FINK_COLORS
 
 CONV_NAMES = {
@@ -377,11 +377,11 @@ def create_user_filterblocks_description(kind="filters"):
     # header
     rows = []
     if kind == "filters":
-        tags, descriptions, api_supports = unwrap_fink_tags(fink_tags)
+        tags, descriptions, api_supports = unwrap_fink_tags()
     elif kind == "blocks":
         tags = list(fink_blocks.keys())
         descriptions = list(fink_blocks.values())
-        api_support = [False] * len(tags)
+        api_supports = [False] * len(tags)
 
     for tag, description, api_support in zip(
         tags, descriptions, api_supports, strict=True
@@ -392,7 +392,7 @@ def create_user_filterblocks_description(kind="filters"):
             dmc.TableTr([
                 dmc.TableTd(tag),
                 dmc.TableTd(description),
-                dmc.TableTd(api_support),
+                dmc.TableTd(str(api_support)),  # make it str to display it
             ])
         )
 
@@ -532,7 +532,7 @@ def layout():
         chevronPosition="left",
         children=[
             dcc.Markdown(
-                "Filters are used to filter data during the night, and producing substreams for the Livestream and tags for the API. They can also be used in the Data Transfer to filter historical data and replay streams. Blocks are convenient small functions used for example to build larger filters."
+                "Filters are used to filter data during the night, and producing substreams for the Livestream and they can also be used in the Data Transfer to filter historical data and replay streams. Blocks are convenient small functions used for example to build larger filters. Some filters are also links to **tags** to conveniently access data from the Portal and the API. Check the **API support** below to know if you can access filtered data through a tag."
             ),
             dmc.AccordionItem(
                 [
