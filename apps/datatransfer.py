@@ -44,7 +44,6 @@ from dash.exceptions import PreventUpdate
 
 from app import app
 from apps.configuration import extract_configuration
-from apps.dataclasses import fink_blocks, fink_tags
 from apps.mining.utils import (
     estimate_alert_number_lsst,
     estimate_size_gb_lsst,
@@ -58,6 +57,7 @@ from apps.schema import (
     lsst_nested_fields_for_data_transfer,
 )
 from apps.utils import query_and_order_statistics
+from apps.dataclasses import unwrap_fink_tags
 
 args = extract_configuration("config.yml")
 APIURL = args["APIURL"]
@@ -328,11 +328,15 @@ def modal_demo3(nc1, opened):
     return not opened
 
 
-def create_user_filterblocks_description(items):
+def create_user_filterblocks_description(kind="filters"):
     """ """
+    tags, descriptions, api_supports = unwrap_fink_tags(
+        kind=kind, default_support=(kind == "filters")
+    )
+
     # header
     rows = []
-    for index, (tag, description) in enumerate(items.items()):
+    for index, tag, description in zip(range(len(tags)), tags, descriptions):
         if tag.startswith("b_"):
             classname = "button_blocks_transfer"
             symbol = "target"
@@ -688,9 +692,9 @@ def filter_number_tab():
             c="gray",
         ),
         dmc.Space(h=30),
-        create_user_filterblocks_description(fink_tags),
+        create_user_filterblocks_description(kind="filters"),
         dmc.Space(h=30),
-        create_user_filterblocks_description(fink_blocks),
+        create_user_filterblocks_description(kind="blocks"),
     ])
 
     option2 = upload_catalog()
