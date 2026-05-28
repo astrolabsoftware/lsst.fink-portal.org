@@ -1002,26 +1002,26 @@ def draw_lightcurve_preview(
                     .to_numpy()
                 )
                 err_arr /= count_arr
-                diff = (arr[0] - arr[1])
+                diff = arr[0] - arr[1]
                 time_diff = time_arr[0] - time_arr[1]
                 err_on_diff = np.sqrt(err_arr[0] ** 2 + err_arr[1] ** 2)
                 if units == "magnitude":
                     trend_msgs.append(
-                        dmc.Text(
-                            [
-                                html.Strong(f"{fname}:"), 
-                                f" {diff:.3f} " + "±" + f" {err_on_diff:.3f} in {time_diff:.1f} days"
-                            ]
-                        )
+                        dmc.Text([
+                            html.Strong(f"{fname}:"),
+                            f" {diff:.3f} "
+                            + "±"
+                            + f" {err_on_diff:.3f} in {time_diff:.1f} days",
+                        ])
                     )
                 if units == "flux":
                     trend_msgs.append(
-                        dmc.Text(
-                            [
-                                html.Strong(f"{fname}:"), 
-                                f" {diff:.1f} " + "±" + f" {err_on_diff:.1f} μJy in {time_diff:.1f} days"
-                            ]
-                        )
+                        dmc.Text([
+                            html.Strong(f"{fname}:"),
+                            f" {diff:.1f} "
+                            + "±"
+                            + f" {err_on_diff:.1f} μJy in {time_diff:.1f} days",
+                        ])
                     )
                 if diff > 0:
                     # going up

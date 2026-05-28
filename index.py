@@ -110,7 +110,7 @@ navbar = html.Div(
                             "Broker",
                             "ion:arrow-up-right-box-outline",
                             "https://fink-broker.org/",
-                            target="_blank"
+                            target="_blank",
                         ),
                         make_navlink(
                             "Citing",

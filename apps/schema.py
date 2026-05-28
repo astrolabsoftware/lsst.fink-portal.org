@@ -18,6 +18,7 @@ from dash_iconify import DashIconify
 
 from app import app
 from apps.api import request_api
+from apps.utils import unwrap_fink_tags
 from apps.dataclasses import fink_blocks, fink_tags
 from apps.plotting import DEFAULT_FINK_COLORS
 
@@ -357,27 +358,49 @@ def create_schema_table(endpoint="/api/v1/objects", caption=""):
 
 
 def create_user_filterblocks_description(kind="filters"):
-    """ """
+    """Create the schema table
+
+    Notes
+    -----
+    Support both API 3.3.0+ and before regarding tags structure
+    and API support.
+
+    Parameters
+    ----------
+    kind: str
+        filters or blocks
+
+    Returns
+    -------
+    dmc.TableScrollContainer
+    """
     # header
     rows = []
     if kind == "filters":
-        items = fink_tags
+        tags, descriptions, api_supports = unwrap_fink_tags(fink_tags)
     elif kind == "blocks":
-        items = fink_blocks
-    for tag, description in items.items():
+        tags = list(fink_blocks.keys())
+        descriptions = list(fink_blocks.values())
+        api_support = [False] * len(tags)
+
+    for tag, description, api_support in zip(
+        tags, descriptions, api_supports, strict=True
+    ):
         if kind == "filters":
             tag = "fink_" + tag + "_lsst"
         rows.append(
             dmc.TableTr([
                 dmc.TableTd(tag),
                 dmc.TableTd(description),
+                dmc.TableTd(api_support),
             ])
         )
 
     head = dmc.TableThead(
         dmc.TableTr([
             dmc.TableTh("Tag", w="35%"),
-            dmc.TableTh("Description", w="65%"),
+            dmc.TableTh("Description", w="45%"),
+            dmc.TableTh("API support", w="10%"),
         ])
     )
     body = dmc.TableTbody(rows)
