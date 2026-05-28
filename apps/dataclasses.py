@@ -19,6 +19,41 @@ from fink_utils.xmatch.simbad import get_simbad_labels
 
 from apps.api import request_api
 
+
+def unwrap_fink_tags(kind="filters", default_support=True):
+    """Method to properly decode fink_tags from an API call
+
+    Notes
+    -----
+    This is wanted to handle API migration change transparently
+    at the level of the portal
+
+    Returns
+    -------
+    tags: list of str
+    descriptions: list of str
+    api_support: list of bool
+    """
+    tags, descriptions, api_support = [], [], []
+
+    if kind == "filters":
+        elems = request_api("/api/v1/tags", output="json", method="GET")
+    elif kind == "blocks":
+        elems = request_api("/api/v1/blocks", output="json", method="GET")
+
+    for tag, payload in elems.items():
+        tags.append(tag)
+        # Handle API 3.3.0 migration
+        if isinstance(payload, dict):
+            descriptions.append(payload["description"])
+            api_support.append(payload["API support"])
+        elif isinstance(payload, str):
+            descriptions.append(payload)
+            api_support.append(default_support)
+
+    return tags, descriptions, api_support
+
+
 # TNS
 tns_types = pd.read_csv("assets/tns_types.csv", header=None)[0].to_numpy()
 tns_types = sorted(tns_types, key=lambda s: s.lower())
@@ -28,5 +63,9 @@ simbad_types = get_simbad_labels("old_and_new")
 simbad_types = sorted(simbad_types, key=lambda s: s.lower())
 
 # Fink
-fink_tags = request_api("/api/v1/tags", output="json", method="GET")
-fink_blocks = request_api("/api/v1/blocks", output="json", method="GET")
+fink_tags, fink_tag_description, fink_tag_api_support = unwrap_fink_tags(
+    kind="filters", default_support=True
+)
+fink_blocks, fink_block_description, fink_block_api_support = unwrap_fink_tags(
+    kind="blocks", default_support=False
+)

@@ -887,9 +887,14 @@ clientside_callback(
             "children",
         ),
         Output(
-            {"type": "popover_indicator", "main_id": MATCH, "is_sso": MATCH, "index": MATCH},
-            "children"
-        )
+            {
+                "type": "popover_indicator",
+                "main_id": MATCH,
+                "is_sso": MATCH,
+                "index": MATCH,
+            },
+            "children",
+        ),
     ],
     [
         Input(
@@ -954,7 +959,7 @@ def on_load_lightcurve(lc_id, color_scale, units, measurement):
             ),
             indicator,
             flags,
-            html.Div(popover_text)
+            html.Div(popover_text),
         )
 
     return no_update, no_update

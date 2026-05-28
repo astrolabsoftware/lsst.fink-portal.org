@@ -18,7 +18,7 @@ from dash_iconify import DashIconify
 
 from app import app
 from apps.api import request_api
-from apps.dataclasses import fink_blocks, fink_tags
+from apps.dataclasses import unwrap_fink_tags
 from apps.plotting import DEFAULT_FINK_COLORS
 
 CONV_NAMES = {
@@ -357,27 +357,45 @@ def create_schema_table(endpoint="/api/v1/objects", caption=""):
 
 
 def create_user_filterblocks_description(kind="filters"):
-    """ """
+    """Create the schema table
+
+    Notes
+    -----
+    Support both API 3.3.0+ and before regarding tags structure
+    and API support.
+
+    Parameters
+    ----------
+    kind: str
+        filters or blocks
+
+    Returns
+    -------
+    dmc.TableScrollContainer
+    """
     # header
     rows = []
-    if kind == "filters":
-        items = fink_tags
-    elif kind == "blocks":
-        items = fink_blocks
-    for tag, description in items.items():
+    tags, descriptions, api_supports = unwrap_fink_tags(
+        kind=kind, default_support=(kind == "filters")
+    )
+    for tag, description, api_support in zip(
+        tags, descriptions, api_supports, strict=True
+    ):
         if kind == "filters":
             tag = "fink_" + tag + "_lsst"
         rows.append(
             dmc.TableTr([
                 dmc.TableTd(tag),
                 dmc.TableTd(description),
+                dmc.TableTd(str(api_support)),  # make it str to display it
             ])
         )
 
     head = dmc.TableThead(
         dmc.TableTr([
             dmc.TableTh("Tag", w="35%"),
-            dmc.TableTh("Description", w="65%"),
+            dmc.TableTh("Description", w="45%"),
+            dmc.TableTh("API support", w="10%"),
         ])
     )
     body = dmc.TableTbody(rows)
@@ -509,7 +527,7 @@ def layout():
         chevronPosition="left",
         children=[
             dcc.Markdown(
-                "Filters are used to filter data during the night, and producing substreams for the Livestream and tags for the API. They can also be used in the Data Transfer to filter historical data and replay streams. Blocks are convenient small functions used for example to build larger filters."
+                "Filters are used to filter data during the night, and producing substreams for the Livestream and they can also be used in the Data Transfer to filter historical data and replay streams. Blocks are convenient small functions used for example to build larger filters. Some filters are also links to **tags** to conveniently access data from the Portal and the API. Check the **API support** below to know if you can access filtered data through a tag."
             ),
             dmc.AccordionItem(
                 [
