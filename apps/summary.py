@@ -1070,17 +1070,18 @@ which may result in less accurate predictions than those for a static object."""
         ]
 
     tab_content_ = html.Div([
-        dmc.Space(h=10),
+        dmc.Space(h=20),
         dbc.Row(
             [
                 dbc.Col(
                     dmc.Paper(
                         [
+                            dmc.Space(h=20),
                             dmc.Center(dcc.Markdown(id="observability_title")),
                             html.Div(
                                 dcc.Loading(
                                     children=html.Div(id="observability_plot"),
-                                    color="orange",
+                                    color="#f6612c",
                                     type="circle",
                                     id="observability_loader",
                                 ),

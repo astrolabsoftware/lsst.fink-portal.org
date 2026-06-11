@@ -353,7 +353,6 @@ def query_miriade_cached(
     shift=15.0,
     timeout=30,
     return_json=True,
-    iofile="ephemcc-photom.xml",
 ):
     return query_miriade(
         ssnamenr,
@@ -364,12 +363,11 @@ def query_miriade_cached(
         shift=shift,
         timeout=timeout,
         return_json=return_json,
-        iofile=iofile,
     )
 
 
 def sso_coordinates(pdf, time):
-    ssnamenr = pdf["i:ssnamenr"].unique().astype(str)
+    ssnamenr = pdf["f:sso_name"].unique().astype(str)
     if len(ssnamenr) > 1:
         print(
             f"""
@@ -389,7 +387,6 @@ Error: the object is associated to multiple known SSOs \
         shift=15.0,
         timeout=30,
         return_json=True,
-        iofile="ephemcc-photom.xml",
     )
     ra = np.full(len(time), np.nan)
     dec = np.full(len(time), np.nan)
