@@ -1074,18 +1074,27 @@ which may result in less accurate predictions than those for a static object."""
         dbc.Row(
             [
                 dbc.Col(
-                    loading(
-                        dmc.Paper(
-                            [
-                                dmc.Center(dcc.Markdown(id="observability_title")),
-                                html.Div(id="observability_plot"),
-                                dmc.Center(dcc.Markdown(id="moon_data")),
-                            ]
-                            + sso_observability_card
-                            + [
-                                card_explanation_observability(),
-                            ],
-                        ),
+                    dmc.Paper(
+                        [
+                            dmc.Center(dcc.Markdown(id="observability_title")),
+                            html.Div(
+                                dcc.Loading(
+                                    children=html.Div(id="observability_plot"),
+                                    color="orange",
+                                    type="circle",
+                                    id="observability_loader",
+                                ),
+                                style={
+                                    "paddingTop": "20px",
+                                    "paddingBottom": "20px",
+                                },
+                            ),
+                            dmc.Center(dcc.Markdown(id="moon_data")),
+                        ]
+                        + sso_observability_card
+                        + [
+                            card_explanation_observability(),
+                        ],
                     ),
                     md=8,
                 ),

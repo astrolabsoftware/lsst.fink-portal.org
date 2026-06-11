@@ -1480,6 +1480,7 @@ def integrate_aladin_lite(object_data):
     running=[
         (Output("submit_observability", "disabled"), True, False),
         (Output("submit_observability", "loading"), True, False),
+        (Output("observability_loader", "visible"), False, True),
     ],
 )
 def plot_observability(
@@ -1721,6 +1722,7 @@ def plot_observability(
     running=[
         (Output("submit_observability", "disabled"), True, False),
         (Output("submit_observability", "loading"), True, False),
+        (Output("observability_loader", "visible"), False, True),
     ],
 )
 def show_moon_data(
@@ -1755,6 +1757,7 @@ def show_moon_data(
     running=[
         (Output("submit_observability", "disabled"), True, False),
         (Output("submit_observability", "loading"), True, False),
+        (Output("observability_loader", "visible"), False, True),
     ],
 )
 def show_observability_title(
