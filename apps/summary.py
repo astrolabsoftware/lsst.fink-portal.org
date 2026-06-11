@@ -156,11 +156,10 @@ def tabs(pdf, is_sso):
             dmc.TabsPanel(children=[tab_diaobject(pdf)], value="diaObject")
         )
 
-    if not is_sso:
-        tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
-        tabs_panels.append(
-            dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
-        )
+    tabs_list.append(dmc.TabsTab("Observability", value="Observability"))
+    tabs_panels.append(
+        dmc.TabsPanel(children=[tab_observability(pdf)], value="Observability")
+    )
 
     # if len(pdf.index) > 1:
     #     tabs_list.append(dmc.TabsTab("Supernovae", value="Supernovae"))
