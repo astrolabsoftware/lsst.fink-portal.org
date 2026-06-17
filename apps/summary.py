@@ -268,6 +268,7 @@ def tab_ssobject(pdf):
                     body=True,
                     trigger="hover",
                     placement="top",
+                    id="popover_indicator_lc",
                 ),
                 html.Div(id="indicator_lc", className="indicator"),
                 html.Div(id="flags_lc", className="indicator"),
