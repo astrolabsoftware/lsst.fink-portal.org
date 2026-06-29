@@ -1568,8 +1568,8 @@ def plot_observability(
         dec0 = np.repeat(dec0, sso_precision)
     else:
         # For static object: use the mean of the known positions
-        ra0 = np.mean(pdf["i:ra"].to_numpy())
-        dec0 = np.mean(pdf["i:dec"].to_numpy())
+        ra0 = np.mean(pdf["r:ra"].to_numpy())
+        dec0 = np.mean(pdf["r:dec"].to_numpy())
 
     target_coordinates = observability.target_coordinates(
         ra0, dec0, observatory, UTC_time
