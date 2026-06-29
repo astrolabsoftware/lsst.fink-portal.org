@@ -100,7 +100,7 @@ name_patterns = [
 ]
 
 
-def parse_query(string, timeout=None, verbose=True):
+def parse_query(string, timeout=None, verbose=False):
     """Parse (probably incomplete) query
 
     Order is as follows:
