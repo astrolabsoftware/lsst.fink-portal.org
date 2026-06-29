@@ -100,7 +100,7 @@ name_patterns = [
 ]
 
 
-def parse_query(string, timeout=None, verbose=False):
+def parse_query(string, timeout=None, verbose=True):
     """Parse (probably incomplete) query
 
     Order is as follows:
@@ -225,9 +225,6 @@ def parse_query(string, timeout=None, verbose=False):
             query["params"][key] = value
         else:
             unparsed.append(token)
-
-    if verbose:
-        _LOG.info("Query: {}".format(query))
 
     string = " ".join(unparsed)
 
@@ -390,6 +387,8 @@ def parse_query(string, timeout=None, verbose=False):
 
     elif query["type"] == "sso" or "sso" in query["params"]:
         query["action"] = "sso"
+        # de-embed
+        query["params"]["sso"] = query["params"]["sso"].replace("%20", " ")
 
     elif query["params"].get("tag") == "Anomaly":
         query["action"] = "anomaly"
@@ -412,5 +411,8 @@ def parse_query(string, timeout=None, verbose=False):
 
     else:
         query["action"] = "unknown"
+
+    if verbose:
+        _LOG.info("Query: {}".format(query))
 
     return query
