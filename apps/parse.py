@@ -306,7 +306,6 @@ def parse_query(string, timeout=None):
         if "ra" not in query["params"] and query["object"][1].isalpha():
             # Simbad
             res = call_resolver(query["object"], "simbad", timeout=timeout)
-            print(res)
             if res:
                 query["object"] = res[0]["oname"]
                 query["type"] = "simbad"
