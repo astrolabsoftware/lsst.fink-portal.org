@@ -14,11 +14,15 @@
 # limitations under the License.
 import functools
 import shlex
+import logging
 
 import numpy as np
 import regex as re  # For partial matching
 
 from apps.api import request_api
+
+_LOG = logging.getLogger(__name__)
+logging.basicConfig(level="INFO")
 
 
 @functools.lru_cache(maxsize=320)
@@ -58,7 +62,7 @@ def call_resolver(data, kind, reverse=False, **kwargs):
         else:
             params = {
                 "resolver": kind,
-                "name_or_id": str(data),
+                "name_or_id": str(data).replace("%20", " "),  # de-embed
                 "reverse": reverse,
             }
             params.update(kwargs)
@@ -96,7 +100,7 @@ name_patterns = [
 ]
 
 
-def parse_query(string, timeout=None):
+def parse_query(string, timeout=None, verbose=False):
     """Parse (probably incomplete) query
 
     Order is as follows:
@@ -146,6 +150,9 @@ def parse_query(string, timeout=None):
     if not string:
         return query
 
+    if verbose:
+        _LOG.info("initial string to be parsed: {}".format(string))
+
     string = string.replace(",", " ")  # TODO: preserve quoted commas?..
 
     # Sanitize the times to ISO format so that they parse as single tokens
@@ -155,11 +162,25 @@ def parse_query(string, timeout=None):
         string,
     )
 
+    # Sanitize SSO names
+    if string.startswith("sso"):
+        m = re.match(r"^(\w+)[=:](.*?)$", string)
+        if m:
+            # embedding for white space to avoid the parser
+            # to think there are many tokens
+            string = m[1] + "=" + m[2].replace(" ", "%20")
+
+    if verbose:
+        _LOG.info("String with ISO time: {}".format(string))
+
     # Split the string into tokens
     try:
         tokens = shlex.split(string, posix=True)  # It will also handle quoted strings
     except AttributeError:
         return query
+
+    if verbose:
+        _LOG.info("tokens: {}".format(tokens))
 
     unparsed = []
 
@@ -205,7 +226,13 @@ def parse_query(string, timeout=None):
         else:
             unparsed.append(token)
 
+    if verbose:
+        _LOG.info("Query: {}".format(query))
+
     string = " ".join(unparsed)
+
+    if verbose:
+        _LOG.info("Final string: {}".format(string))
 
     # Parse the rest of the query string as coordinates, if any
     if len(string) and not query["object"]:
@@ -306,7 +333,6 @@ def parse_query(string, timeout=None):
         if "ra" not in query["params"] and query["object"][1].isalpha():
             # Simbad
             res = call_resolver(query["object"], "simbad", timeout=timeout)
-            print(res)
             if res:
                 query["object"] = res[0]["oname"]
                 query["type"] = "simbad"
