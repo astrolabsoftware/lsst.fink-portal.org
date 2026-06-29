@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
 import io
 import logging
 from datetime import datetime
@@ -1005,14 +1004,28 @@ def tab_observability(pdf):
         withBorder=True,
     )
 
+    if "r:diaObjectId" in pdf.columns:
+        target_name = "LSST-AP-DO-" + str(pdf["r:diaObjectId"].to_numpy()[0])
+    else:
+        target_name = None
+
     bhtom_parameters = dmc.Fieldset(
         [
-            dmc.Text("Target will be submitted under the Fink user.", fw=700),
+            dmc.Text("Target will be submitted under your user account.", fw=700),
             dmc.Space(h=10),
+            dmc.PasswordInput(
+                id="token_bhtom",
+                placeholder="Enter your token",
+                label="BHTOM token",
+                size="sm",
+                radius="sm",
+                required=True,
+            ),
             dmc.TextInput(
                 id="name_bhtom",
                 label="Name",
-                placeholder="Target name",
+                value=target_name,
+                placeholder="Enter a target name",
                 size="sm",
                 radius="sm",
                 required=True,
@@ -1046,13 +1059,6 @@ def tab_observability(pdf):
                 required=True,
                 disabled=True,
             ),
-            dmc.TextInput(
-                id="class_bhtom",
-                label="Classification",
-                description="Only if you know it. Leave blank otherwise.",
-                size="sm",
-                radius="sm",
-            ),
             dmc.NumberInput(
                 id="importance_bhtom",
                 label="Importance",
@@ -1069,7 +1075,7 @@ def tab_observability(pdf):
                 description="In days, how frequently you want to repeat the observations",
                 size="sm",
                 radius="sm",
-                value=0,
+                value=1,
                 min=0,
             ),
             dmc.Textarea(
@@ -1127,7 +1133,7 @@ def tab_observability(pdf):
                                 radius="xs",
                                 size=20,
                             ),
-                            html.Div(dmc.Text("Submit to BHTOM")),
+                            html.Div(dmc.Text("Request follow-up from BHTOM")),
                         ])
                     ),
                     dmc.AccordionPanel(
@@ -1179,11 +1185,11 @@ def tab_observability(pdf):
 @app.callback(
     Output("notification-container", "sendNotifications", allow_duplicate=True),
     [
+        Input("token_bhtom", "value"),
         Input("name_bhtom", "value"),
         Input("ra_bhtom", "value"),
         Input("dec_bhtom", "value"),
         Input("epoch_bhtom", "value"),
-        Input("class_bhtom", "value"),
         Input("importance_bhtom", "value"),
         Input("cadence_bhtom", "value"),
         Input("description_bhtom", "value"),
@@ -1199,11 +1205,21 @@ def tab_observability(pdf):
     ],
 )
 def submit_bhtom(
-    name, ra, dec, epoch, classification, importance, cadence, description, nclicks
+    token, name, ra, dec, epoch, importance, cadence, description, nclicks
 ):
     """Submit target creation to BHTOM"""
     if nclicks is None:
         return no_update
+
+    if (token is None) or (token == ""):
+        notification = dict(
+            title="You need to enter your BHTOM token",
+            id="show-notify",
+            action="show",
+            color="red",
+            autoClose=False,
+        )
+        return [notification]
 
     if name is None:
         notification = dict(
@@ -1225,14 +1241,13 @@ def submit_bhtom(
         )
         return [notification]
 
-    headers = {"Authorization": "Token {}".format(os.environ.get("BHTOM_TOKEN", ""))}
+    headers = {"Authorization": "Token {}".format(token)}
 
     data = {
         "name": name,
         "ra": ra,
         "dec": dec,
         "epoch": epoch,
-        "classification": classification,
         "importance": int(importance),
         "cadence": int(cadence),
         "description": description,
