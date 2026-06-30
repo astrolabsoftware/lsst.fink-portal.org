@@ -563,7 +563,10 @@ def main(args):
         # Wanted content from diaSource.
         cnames = [
             "diaSource.diaObjectId",
+            "diaSource.diaSourceId",
             "diaSource.snr",
+            "diaSource.psfFlux",
+            "diaSource.psfFluxErr",
             "diaSource.scienceFlux",
             "diaSource.scienceFluxErr",
             "diaSource.templateFlux",
@@ -601,6 +604,8 @@ def main(args):
             "ssSource.phaseAngle",
             "ssSource.diaDistanceRank",
             "diaSource.snr",
+            "diaSource.psfFlux",
+            "diaSource.psfFluxErr",
             "diaSource.scienceFlux",
             "diaSource.scienceFluxErr",
             "diaSource.templateFlux",
