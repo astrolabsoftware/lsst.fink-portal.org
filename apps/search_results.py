@@ -743,6 +743,11 @@ def results(
         pdf = pdf.drop_duplicates(["r:diaObjectId"], ignore_index=True, keep="first")
         units = "unique objects"
 
+    if query["action"] == "conesearch":
+        # For conesearch, we store only the last alert of
+        # each object -- which means effectively unique objects
+        units = "unique objects"
+
     msg = "{} - {} found".format(
         msg, "nothing" if pdf.empty else str(len(pdf.index)) + " {}".format(units)
     )
