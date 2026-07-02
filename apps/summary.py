@@ -1264,13 +1264,7 @@ which may result in less accurate predictions than those for a static object."""
                     ),
                     dbc.Col(
                         [
-                            html.Br(),
-                            card2,
-                            html.Br(),
-                            dmc.Divider(variant="solid"),
                             card3,
-                            html.Br(),
-                            submit_button,
                         ],
                         md=4,
                     ),
