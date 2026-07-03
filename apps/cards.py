@@ -521,7 +521,7 @@ def generate_generic_badges(row, variant="dot"):
 
     gcvs = row.get("f:xm_gcvs_type")
     if gcvs not in BAD_VALUES:
-        if ~np.isnan(gcvs):
+        if not pd.isna(gcvs):
             badges.append(
                 make_badge(
                     f"GCVS: {gcvs}",
@@ -533,7 +533,7 @@ def generate_generic_badges(row, variant="dot"):
 
     vsx = row.get("f:xm_vizier:B/vsx/vsx_Type")
     if vsx not in BAD_VALUES:
-        if ~np.isnan(vsx):
+        if not pd.isna(vsx):
             badges.append(
                 make_badge(
                     f"VSX: {vsx}",
@@ -545,7 +545,7 @@ def generate_generic_badges(row, variant="dot"):
 
     hsp = row.get("f:xm_x3hsp_type")
     if hsp not in BAD_VALUES:
-        if ~np.isnan(hsp):
+        if not pd.isna(hsp):
             badges.append(
                 make_badge(
                     f"3HSP: {hsp}",
@@ -557,7 +557,7 @@ def generate_generic_badges(row, variant="dot"):
 
     lac = row.get("f:xm_x4lac_type")
     if lac not in BAD_VALUES:
-        if ~np.isnan(lac):
+        if not pd.isna(lac):
             badges.append(
                 make_badge(
                     f"4LAC: {lac}",
