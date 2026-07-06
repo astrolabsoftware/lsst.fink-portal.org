@@ -2561,7 +2561,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
         title = "Reduced &#967;<sup>2</sup>: "
         for f in filts:
             title += " {}:{:.2f} ".format(f, outdic[f"chi2red_{f}"])
-    elif ~np.isnan(outdic["chi2red"]) and outdic["chi2red"] is not None:
+    elif not pd.isna(outdic["chi2red"]) and outdic["chi2red"] is not None:
         title = "Reduced &#967;<sup>2</sup>: {:.2f}".format(outdic["chi2red"])
     else:
         title = "Reduced &#967;<sup>2</sup>: NaN"
