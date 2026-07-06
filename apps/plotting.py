@@ -29,6 +29,7 @@ from astropy.coordinates import EarthLocation, Latitude, Longitude, SkyCoord
 from astropy.io import fits
 from astropy.time import Time
 from astropy.visualization import AsymmetricPercentileInterval, simple_norm
+from sbpy.photometry import HG, HG1G2
 from dash import (
     Input,
     Output,
@@ -1905,20 +1906,18 @@ def plot_observability_polar(
 
     # Custom layout
     for theta in [15 * (2 * i + 1) for i in range(12)]:
-        figure["data"].append(
-            {
-                "type": "scatterpolar",
-                "theta": [theta, theta],
-                "r": [0, 90],
-                "mode": "lines",
-                "line": {
-                    "color": "rgba(218, 223, 225, 0.8)",
-                    "width": 1,
-                },
-                "hoverinfo": "skip",
-                "showlegend": False,
-            }
-        )
+        figure["data"].append({
+            "type": "scatterpolar",
+            "theta": [theta, theta],
+            "r": [0, 90],
+            "mode": "lines",
+            "line": {
+                "color": "rgba(218, 223, 225, 0.8)",
+                "width": 1,
+            },
+            "hoverinfo": "skip",
+            "showlegend": False,
+        })
 
     # Trajectory
     hovertemplate_polar = textwrap.dedent(
@@ -1938,67 +1937,61 @@ def plot_observability_polar(
         mask_after = (UTC_time > twilights_time[-idx - 2]) & (
             UTC_time <= twilights_time[-idx - 1]
         )
-        figure["data"].append(
-            {
-                "type": "scatterpolar",
-                "theta": target_coordinates.az.value[mask_before],
-                "r": target_coordinates.alt.value[mask_before],
-                "mode": "lines",
-                "name": "Target trajectory",
-                "line": observability.polar_props[idx],
-                "customdata": np.stack(
-                    [
-                        UTC_axis[mask_before],
-                        airmass[mask_before],
-                    ],
-                    axis=-1,
-                ),
-                "legendgroup": "target",
-                "showlegend": False,
-                "hovertemplate": hovertemplate_polar,
-            }
-        )
-        figure["data"].append(
-            {
-                "type": "scatterpolar",
-                "theta": target_coordinates.az.value[mask_after],
-                "r": target_coordinates.alt.value[mask_after],
-                "mode": "lines",
-                "name": "Target trajectory",
-                "line": observability.polar_props[idx],
-                "customdata": np.stack(
-                    [
-                        UTC_axis[mask_after],
-                        airmass[mask_after],
-                    ],
-                    axis=-1,
-                ),
-                "legendgroup": "target",
-                "showlegend": False,
-                "hovertemplate": hovertemplate_polar,
-            }
-        )
-    mask_night = (UTC_time <= twilights_time[5]) & (UTC_time >= twilights_time[4])
-    figure["data"].append(
-        {
+        figure["data"].append({
             "type": "scatterpolar",
-            "theta": target_coordinates.az.value[mask_night],
-            "r": target_coordinates.alt.value[mask_night],
+            "theta": target_coordinates.az.value[mask_before],
+            "r": target_coordinates.alt.value[mask_before],
             "mode": "lines",
             "name": "Target trajectory",
-            "line": observability.polar_props[4],
+            "line": observability.polar_props[idx],
             "customdata": np.stack(
                 [
-                    UTC_axis[mask_night],
-                    airmass[mask_night],
+                    UTC_axis[mask_before],
+                    airmass[mask_before],
                 ],
                 axis=-1,
             ),
             "legendgroup": "target",
-            "showlegend": True,
+            "showlegend": False,
             "hovertemplate": hovertemplate_polar,
-        }
-    )
+        })
+        figure["data"].append({
+            "type": "scatterpolar",
+            "theta": target_coordinates.az.value[mask_after],
+            "r": target_coordinates.alt.value[mask_after],
+            "mode": "lines",
+            "name": "Target trajectory",
+            "line": observability.polar_props[idx],
+            "customdata": np.stack(
+                [
+                    UTC_axis[mask_after],
+                    airmass[mask_after],
+                ],
+                axis=-1,
+            ),
+            "legendgroup": "target",
+            "showlegend": False,
+            "hovertemplate": hovertemplate_polar,
+        })
+    mask_night = (UTC_time <= twilights_time[5]) & (UTC_time >= twilights_time[4])
+    figure["data"].append({
+        "type": "scatterpolar",
+        "theta": target_coordinates.az.value[mask_night],
+        "r": target_coordinates.alt.value[mask_night],
+        "mode": "lines",
+        "name": "Target trajectory",
+        "line": observability.polar_props[4],
+        "customdata": np.stack(
+            [
+                UTC_axis[mask_night],
+                airmass[mask_night],
+            ],
+            axis=-1,
+        ),
+        "legendgroup": "target",
+        "showlegend": True,
+        "hovertemplate": hovertemplate_polar,
+    })
 
     # Graph
     graph = dcc.Graph(
@@ -2322,6 +2315,8 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
         },
     )
 
+    phase = np.deg2rad(pdf["Phase"].to_numpy())
+
     if switch_func == "HG1G2":
         fitfunc = func_hg1g2
         params = ["H", "G1", "G2"]
@@ -2330,7 +2325,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
             [30, 1, 1],
         )
         p0 = [15.0, 0.15, 0.15]
-        x = np.deg2rad(pdf["Phase"].to_numpy())
+        phase_funcs = [HG1G2._phi1(phase), HG1G2._phi2(phase), HG1G2._phi3(phase)]
     elif switch_func == "HG12":
         fitfunc = func_hg12
         params = ["H", "G12"]
@@ -2339,7 +2334,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
             [30, 1],
         )
         p0 = [15.0, 0.15]
-        x = np.deg2rad(pdf["Phase"].to_numpy())
+        phase_funcs = [HG1G2._phi1(phase), HG1G2._phi2(phase), HG1G2._phi3(phase)]
     elif switch_func == "HG":
         fitfunc = func_hg
         params = ["H", "G"]
@@ -2348,7 +2343,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
             [30, 1],
         )
         p0 = [15.0, 0.15]
-        x = np.deg2rad(pdf["Phase"].to_numpy())
+        phase_funcs = [HG._hgphi(phase, 1), HG._hgphi(phase, 2)]
     elif switch_func == "SHG1G2":
         fitfunc = func_shg1g2
         params = ["H", "G1", "G2", "R", "alpha0", "delta0"]
@@ -2357,8 +2352,10 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
             [30, 1, 1, 1, 2 * np.pi, np.pi / 2],
         )
         p0 = [15.0, 0.15, 0.15, 0.8, np.pi, 0.0]
-        x = [
-            np.deg2rad(pdf["Phase"].to_numpy()),
+        phase_funcs = [
+            HG1G2._phi1(phase),
+            HG1G2._phi2(phase),
+            HG1G2._phi3(phase),
             np.deg2rad(pdf["r:ra"].to_numpy()),
             np.deg2rad(pdf["r:dec"].to_numpy()),
         ]
@@ -2368,7 +2365,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
         params = ["<H>", "G1", "G2"]
         bounds = None
         p0 = None
-        x = np.deg2rad(pdf["Phase"].to_numpy())
+        phase_funcs = [HG1G2._phi1(phase), HG1G2._phi2(phase), HG1G2._phi3(phase)]
 
     # Multi-band fit
     outdic = estimate_sso_params(
@@ -2494,14 +2491,11 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
         )
         figure.add_trace(trace)
 
-        if switch_func == "SHG1G2":
-            xx = np.array(x)[:, cond]
-        else:
-            xx = x[cond]
+        x = np.array(phase_funcs)[:, cond]
 
         trace_fit = go.Scatter(
             x=pdf.loc[cond, "Phase"].to_numpy(),
-            y=fitfunc(xx, *popt),
+            y=fitfunc(*x, *popt),
             mode="markers",
             name=f"fit {fname}",
             hovertemplate=hovertemplate,
@@ -2524,7 +2518,7 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
 
         trace_residuals = go.Scatter(
             x=pdf.loc[cond, "Phase"].to_numpy(),
-            y=ydata.to_numpy() - fitfunc(xx, *popt),
+            y=ydata.to_numpy() - fitfunc(*x, *popt),
             error_y={
                 "type": "data",
                 "array": pdf.loc[cond, "r:psfMagErr_red"].to_numpy(),
