@@ -1184,47 +1184,43 @@ which may result in less accurate predictions than those for a static object."""
     tabs_panels = [
         dmc.TabsPanel(
             children=[
-                dmc.Paper(
-                    [
-                        dmc.Space(h=20),
-                        dmc.Center(dcc.Markdown(id="observability_title_elevation")),
-                        html.Div(
-                            dcc.Loading(
-                                children=html.Div(id="observability_plot_elevation"),
-                                color="orange",
-                                type="circle",
-                                id="observability_loader",
-                            ),
-                            style={
-                                "paddingTop": "20px",
-                                "paddingBottom": "20px",
-                            },
+                dmc.Paper([
+                    dmc.Space(h=20),
+                    dmc.Center(dcc.Markdown(id="observability_title_elevation")),
+                    html.Div(
+                        dcc.Loading(
+                            children=html.Div(id="observability_plot_elevation"),
+                            color="orange",
+                            type="circle",
+                            id="observability_loader",
                         ),
-                    ]
-                ),
+                        style={
+                            "paddingTop": "20px",
+                            "paddingBottom": "20px",
+                        },
+                    ),
+                ]),
             ],
             value="elevation",
         ),
         dmc.TabsPanel(
             children=[
-                dmc.Paper(
-                    [
-                        dmc.Space(h=20),
-                        dmc.Center(dcc.Markdown(id="observability_title_polar")),
-                        html.Div(
-                            dcc.Loading(
-                                children=html.Div(id="observability_plot_polar"),
-                                color="orange",
-                                type="circle",
-                                id="observability_loader",
-                            ),
-                            style={
-                                "paddingTop": "20px",
-                                "paddingBottom": "20px",
-                            },
+                dmc.Paper([
+                    dmc.Space(h=20),
+                    dmc.Center(dcc.Markdown(id="observability_title_polar")),
+                    html.Div(
+                        dcc.Loading(
+                            children=html.Div(id="observability_plot_polar"),
+                            color="orange",
+                            type="circle",
+                            id="observability_loader",
                         ),
-                    ]
-                ),
+                        style={
+                            "paddingTop": "20px",
+                            "paddingBottom": "20px",
+                        },
+                    ),
+                ]),
             ],
             value="polar",
         ),
@@ -1241,38 +1237,36 @@ which may result in less accurate predictions than those for a static object."""
         id="observability_subtabs",
     )
 
-    tab_content_ = html.Div(
-        [
-            # dmc.Space(h=10),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        loading(
-                            dmc.Paper(
-                                [
-                                    dmc.Space(h=10),
-                                    subtabs,
-                                    dmc.Center(dcc.Markdown(id="moon_data")),
-                                ]
-                                + sso_observability_card
-                                + [
-                                    card_explanation_observability(),
-                                ],
-                            ),
+    tab_content_ = html.Div([
+        # dmc.Space(h=10),
+        dbc.Row(
+            [
+                dbc.Col(
+                    loading(
+                        dmc.Paper(
+                            [
+                                dmc.Space(h=10),
+                                subtabs,
+                                dmc.Center(dcc.Markdown(id="moon_data")),
+                            ]
+                            + sso_observability_card
+                            + [
+                                card_explanation_observability(),
+                            ],
                         ),
-                        md=8,
                     ),
-                    dbc.Col(
-                        [
-                            card3,
-                        ],
-                        md=4,
-                    ),
-                ],
-                className="g-1",
-            ),
-        ]
-    )
+                    md=8,
+                ),
+                dbc.Col(
+                    [
+                        card3,
+                    ],
+                    md=4,
+                ),
+            ],
+            className="g-1",
+        ),
+    ])
     return tab_content_
 
 
