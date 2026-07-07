@@ -50,6 +50,7 @@ from apps.utils import (
     is_row_static_or_moving,
     isoify_time,
     markdownify_objectid,
+    flux_to_mag,
 )
 
 
@@ -525,7 +526,6 @@ def results(
         "r:diaObjectId": "diaObjectId",
         "r:ra": "RA (deg)",
         "r:dec": "Dec (deg)",
-        "r:psfFlux": "Difference image flux (nJy)",
         # "r:nDiaSources": "Number of measurements",
     }
 
@@ -728,6 +728,12 @@ def results(
             no_update,
             no_update,
         )
+
+    # Add magnitudes to the table view
+    pdf["r:magdiff"], _ = flux_to_mag(pdf["r:psfFlux"], pdf["r:psfFluxErr"])
+    colnames_to_display.update({"r:magdiff": "Magnitude (diff)"})
+    pdf["r:magsci"], _ = flux_to_mag(pdf["r:scienceFlux"], pdf["r:scienceFluxErr"])
+    colnames_to_display.update({"r:magsci": "Magnitude (sci)"})
 
     # Add to history
     if not history:
