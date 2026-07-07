@@ -359,6 +359,13 @@ def card_search_result(row, i):
                                                                             html.Div(
                                                                                 className="subtitle",
                                                                                 children=[
+                                                                                    html.Div(
+                                                                                        children=[
+                                                                                            html.Span(
+                                                                                                "SCIENCE".capitalize()
+                                                                                            ),
+                                                                                        ],
+                                                                                    ),
                                                                                     html.Span(
                                                                                         id={
                                                                                             "type": "cutout-size",
