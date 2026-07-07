@@ -2259,10 +2259,13 @@ def draw_sso_astrometry(object_sso_ephem, color_scale) -> dict:
     [
         Input("switch-phase-curve-func", "value"),
         Input("object-sso-ephem", "data"),
+        Input("object-ztf", "data"),
         Input("color_scale", "value"),
     ],
 )
-def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
+def draw_sso_phasecurve(
+    switch_func: str, object_ephem, object_ztf, color_scale
+) -> dict:
     """Draw SSO object phase curve"""
     if object_ephem is None:
         raise PreventUpdate
@@ -2282,6 +2285,35 @@ def draw_sso_phasecurve(switch_func: str, object_ephem, color_scale) -> dict:
             ),
             color="danger",
         )
+
+    if (object_ztf is not None) and (object_ztf != "{}"):
+        pdf_ztf = pd.read_json(io.StringIO(object_ztf))
+
+        pdf_ztf["r:packed_primary_provisional_designation"] = pdf[
+            "r:packed_primary_provisional_designation"
+        ].to_numpy()[0]
+        # rename columns
+        pdf_ztf = pdf_ztf.rename(
+            columns={
+                "i:magpsf_red": "r:psfMag_red",
+                "i:sigmapsf": "r:psfMagErr_red",
+                "i:drb": "r:reliability",
+            }
+        )
+
+        # band conversion
+        bands = {1: "g", 2: "r"}
+        pdf_ztf["r:band"] = pdf_ztf["i:fid"].apply(lambda x: bands[x])
+
+        # Time conversion
+        pdf_ztf["r:midpointMjdTai"] = Time(
+            pdf_ztf["i:jd"].to_numpy(), format="jd", scale="utc"
+        ).tai.mjd
+
+        # SNR
+        pdf_ztf["r:snr"] = pdf_ztf["r:psfMag_red"] / pdf_ztf["r:psfMagErr_red"]
+
+        pdf = pd.concat((pdf, pdf_ztf)).reset_index(drop=True)
 
     pdf = pdf.sort_values("Phase")
 

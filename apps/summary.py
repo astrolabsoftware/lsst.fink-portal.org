@@ -485,6 +485,7 @@ def store_query(name):
         )
     elif is_packed_designation(oid):
         # ssObjectId
+        # defer ephemerides for later (background job)
         pdf = request_api(
             "/api/v1/sso",
             json={"n_or_d": oid, "columns": "*"},
@@ -635,7 +636,7 @@ def store_ztf_data(n_clicks, object_data):
             "https://api.ztf.fink-portal.org/api/v1/sso",
             json={
                 "n_or_d": sso_name,
-                "withEphem": False,
+                "withEphem": True,
                 "withResiduals": False,
                 "output-format": "json",
             },
