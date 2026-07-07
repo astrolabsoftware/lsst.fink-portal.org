@@ -50,6 +50,7 @@ from apps.utils import (
     is_row_static_or_moving,
     isoify_time,
     markdownify_objectid,
+    flux_to_mag,
 )
 
 
@@ -525,7 +526,6 @@ def results(
         "r:diaObjectId": "diaObjectId",
         "r:ra": "RA (deg)",
         "r:dec": "Dec (deg)",
-        "r:psfFlux": "Difference image flux (nJy)",
         # "r:nDiaSources": "Number of measurements",
     }
 
@@ -691,6 +691,22 @@ def results(
         pdf = request_api(endpoint, json=payload)
         main_id = "r:diaObjectId"
 
+        # If the returned payload is not empty, insert
+        # the number of measurements
+        if not pdf.empty:
+            unique_oids = [str(i) for i in pdf[main_id].unique()]
+            vals = request_api(
+                "/api/v1/objects",
+                json={
+                    "diaObjectId": ",".join(unique_oids),
+                    "columns": "r:nDiaSources,r:diaObjectId",
+                },
+                output="json",
+            )
+            converter = {v["r:diaObjectId"]: v["r:nDiaSources"] for v in vals}
+            pdf["r:nDiaSources"] = pdf[main_id].apply(lambda x: converter.get(x, -1))
+            colnames_to_display.update({"r:nDiaSources": "Number of measurements"})
+
     elif query["action"] == "anomaly":
         # Anomaly search
         n_last = int(query["params"].get("last", 100))
@@ -728,6 +744,13 @@ def results(
             no_update,
             no_update,
         )
+
+    # Add magnitudes to the table view
+    if "r:psfFlux" in pdf.columns:
+        pdf["r:magdiff"], _ = flux_to_mag(pdf["r:psfFlux"], pdf["r:psfFluxErr"])
+        colnames_to_display.update({"r:magdiff": "Magnitude (diff)"})
+        pdf["r:magsci"], _ = flux_to_mag(pdf["r:scienceFlux"], pdf["r:scienceFluxErr"])
+        colnames_to_display.update({"r:magsci": "Magnitude (sci)"})
 
     # Add to history
     if not history:
