@@ -52,6 +52,7 @@ from apps.utils import (
     markdownify_objectid,
     flux_to_mag,
 )
+from astropy.time import Time
 
 
 def display_table_results(table, endpoint):
@@ -699,13 +700,18 @@ def results(
                 "/api/v1/objects",
                 json={
                     "diaObjectId": ",".join(unique_oids),
-                    "columns": "r:nDiaSources,r:diaObjectId",
+                    "columns": "r:nDiaSources,r:diaObjectId,r:lastDiaSourceMjdTai",
                 },
                 output="json",
             )
-            converter = {v["r:diaObjectId"]: v["r:nDiaSources"] for v in vals}
-            pdf["r:nDiaSources"] = pdf[main_id].apply(lambda x: converter.get(x, -1))
+            nsources = {v["r:diaObjectId"]: v["r:nDiaSources"] for v in vals}
+            pdf["r:nDiaSources"] = pdf[main_id].apply(lambda x: nsources.get(x, -1))
             colnames_to_display.update({"r:nDiaSources": "Number of measurements"})
+
+            pdf["r:lastseen"] = pdf["r:midpointMjdTai"].apply(
+                lambda x: Time(x, format="mjd", scale="tai").utc.iso
+            )
+            colnames_to_display.update({"r:lastseen": "Last seen (UTC)"})
 
     elif query["action"] == "anomaly":
         # Anomaly search
