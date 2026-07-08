@@ -489,7 +489,7 @@ def store_catalog(content, filename):
     try:
         if ".csv" in filename:
             # Assume that the user uploaded a CSV file
-            pdf = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+            pdf = pd.read_csv(io.StringIO(decoded.decode("utf-8")), comment="#")
         elif ".parquet" in filename:
             # Assume that the user uploaded a parquet file
             pdf = pd.read_parquet(io.BytesIO(decoded))
