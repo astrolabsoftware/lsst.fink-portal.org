@@ -258,12 +258,6 @@
   font-weight: 900;
 }
 
-.card-flip:active {
-  border-radius: 15px;
-  cursor: pointer;
-  transform: scale(1.0);
-}
-
 .first-content {
   height: 100%;
   width: 100%;
@@ -273,78 +267,3 @@
   align-items: center;
   opacity: 1;
 }
-
-.card-flip:hover .first-content {
-  height: 0px;
-  opacity: 0;
-}
-
-.second-content {
-  height: 0%;
-  width: 100%;
-  opacity: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.4s ease-in-out 2s;
-  font-size: 0px;
-  transform: translateY(100px);
-}
-
-.card-flip:hover .second-content {
-  opacity: 1;
-  height: 100%;
-  font-size: 1.8rem;
-  transform: translateY(0px);
-}
-/*
-.card-flip {
-  width: 190px;
-  height: 254px;
-  transition: all 0.4s;
-  border-radius: 10px;
-  font-size: 30px;
-  font-weight: 900;
-  position: relative;
-  overflow: hidden;
-}
-
-.card-flip.active {
-  border-radius: 15px;
-  cursor: pointer;
-  transform: scale(1.0);
-}
-
-.first-content {
-  height: 100%;
-  width: 100%;
-  transition: all 0.4s;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 1;
-}
-
-.card-flip.active .first-content {
-  height: 0px;
-  opacity: 0;
-}
-
-.second-content {
-  height: 0%;
-  width: 100%;
-  opacity: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.4s;
-  font-size: 0px;
-  transform: translateY(100px);
-}
-
-.card-flip.active .second-content {
-  opacity: 1;
-  height: 100%;
-  font-size: 1.8rem;
-  transform: translateY(0px);
-} */
