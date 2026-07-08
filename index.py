@@ -52,23 +52,24 @@ def make_navlink(label, icon, href, target="_self"):
         leftSection=dmc.ThemeIcon(
             DashIconify(
                 icon=icon,
-                width=22,
+                width=18,
             ),
             radius=30,
             size=30,
             variant="outline",
-            color="gray",
+            color="#cccccc",
             id=f"navbar_button_{href}",
         ),
-        variant="subtle",
         active="exact",
         href=href,
         target=target,
         style={
-            "color": "gray",
-            "padding": "0px",
-            "padding-bottom": "5px",
+            "color": "white",
+            "padding": "5px",
+            "padding-left": "0px",
+            "padding-bottom": "0px",
             "background-color": "#15284F",
+            "font-weight": "bold",
         },
     )
 
@@ -76,14 +77,13 @@ def make_navlink(label, icon, href, target="_self"):
 navbar = html.Div(
     children=[
         # dmc.Space(h=10),
-        dmc.Stack(
-            # align="stretch",
-            justify="space-between",
+        html.Div(
+            # justify="flex-start",
             children=[
                 # Right menu
                 dmc.Stack(
-                    align="flex-start",
-                    justify="flex-start",
+                    # align="flex-start",
+                    # justify="flex-start",
                     gap="xs",
                     children=[
                         dmc.Space(h=20),
@@ -95,7 +95,7 @@ navbar = html.Div(
                             },
                             className="small-logo",
                         ),
-                        dmc.Space(h=30),
+                        dmc.Space(h=35),
                         make_navlink("Search", "ion:search-outline", "/"),
                         make_navlink(
                             "Transfer", "ion:cloud-download-outline", "/download"
@@ -103,11 +103,11 @@ navbar = html.Div(
                         # make_navlink(
                         #     "Xmatch", "material-symbols:join-right", "/xmatch"
                         # ),
-                        make_navlink("MMA", "ion:infinite-outline", "/gw"),
+                        # make_navlink("MMA", "ion:infinite-outline", "/gw"),
                         make_navlink("Statistics", "ion:stats-chart-outline", "/stats"),
                         make_navlink("Schema", "ion:book-outline", "/schemas"),
                         make_navlink(
-                            "Broker",
+                            "Website",
                             "ion:arrow-up-right-box-outline",
                             "https://fink-broker.org/",
                             target="_blank",
@@ -118,19 +118,33 @@ navbar = html.Div(
                             "https://fink-broker.org/cite/",
                             target="_blank",
                         ),
+                        make_navlink(
+                            "Status",
+                            "clarity:dashboard-line",
+                            "https://vdaraka.ijclab.in2p3.fr/public-dashboards/4f6faf056ad8452e9de2586275ba1f5a",
+                            target="_blank",
+                        ),
                     ],
                 ),
             ],
         ),
         dmc.Stack(
-            # align="stretch",
-            justify="space-between",
             children=dmc.Stack(
-                make_navlink(
-                    f"v{__version__}",
-                    "tabler:tag",
-                    "https://github.com/astrolabsoftware/lsst.fink-portal.org",
-                    target="_blank",
+                html.Div(
+                    dmc.NavLink(
+                        label=f"v{__version__}",
+                        active="exact",
+                        href="https://github.com/astrolabsoftware/lsst.fink-portal.org/releases",
+                        target="_blank",
+                        style={
+                            "color": "white",
+                            "padding": "5px",
+                            "padding-left": "0px",
+                            "padding-bottom": "0px",
+                            "background-color": "#15284F",
+                            "font-weight": "bold",
+                        },
+                    ),
                 ),
                 align="flex-start",
                 justify="flex-start",
@@ -149,18 +163,17 @@ navbar = html.Div(
     [
         Output("navbar_button_/", "color"),
         Output("navbar_button_/download", "color"),
-        # Output("navbar_button_/xmatch", "color"),
-        Output("navbar_button_/gw", "color"),
+        # Output("navbar_button_/gw", "color"),
         Output("navbar_button_/stats", "color"),
         Output("navbar_button_/schemas", "color"),
     ],
     Input("url", "pathname"),
 )
 def change_color(pathname):
-    buttons = ["/", "/download", "/gw", "/stats", "/schemas"]  # "/xmatch"
-    colors = ["#F5622E" if i == pathname else "gray" for i in buttons]
+    buttons = ["/", "/download", "/stats", "/schemas"]  # "/gw"
+    colors = ["#F5622E" if i == pathname else "#cccccc" for i in buttons]
 
-    if np.all([i == "gray" for i in colors]):
+    if np.all([i == "#cccccc" for i in colors]):
         colors[0] = "#F5622E"
     return colors
 
@@ -385,7 +398,7 @@ app.layout = dmc.MantineProvider(
             # header={"height": 20},
             padding="md",
             navbar={
-                "width": {"base": 60, "sm": 60, "lg": 60},
+                "width": {"base": 65, "sm": 65, "lg": 65},
             },
         ),
     ],
