@@ -419,6 +419,19 @@ def create_button_for_external_conesearch(
             ),
             width=width,
         )
+    elif kind == "legacy":
+        button = dbc.Col(
+            template_button_for_external_conesearch(
+                style={
+                    "background-image": "url(/assets/buttons/ls_logo.png)",
+                    "background-color": "black",
+                    "background-size": "cover",
+                },
+                title="Legacy Survey DR10",
+                href=f"https://www.legacysurvey.org/viewer?ra={ra0}&dec={dec0}&photozdr9&zoom=15&mark={ra0},{dec0}&layer=ls-dr10",
+            ),
+            width=width,
+        )
 
     return button
 
