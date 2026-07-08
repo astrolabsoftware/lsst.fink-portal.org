@@ -247,7 +247,7 @@ app.layout = dmc.MantineProvider(
                         dmc.Flex(
                             [
                                 dmc.ActionIcon(
-                                    DashIconify(icon="clarity:settings-line"),
+                                    DashIconify(icon="clarity:settings-line", width=20),
                                     variant="subtle",
                                     color="dark",
                                     size="lg",
