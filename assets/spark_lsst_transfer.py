@@ -563,7 +563,6 @@ def main(args):
         # Wanted content from diaSource.
         cnames = [
             "diaSource.diaObjectId",
-            "diaSource.diaSourceId",
             "diaSource.snr",
             "diaSource.psfFlux",
             "diaSource.psfFluxErr",
