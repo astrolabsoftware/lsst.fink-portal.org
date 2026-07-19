@@ -90,178 +90,178 @@ def card_search_result(row, i):
     else:
         corner_str = f"#{i!s}"
 
-        item = dbc.Card(
-            [
-                dbc.CardHeader(
-                    dmc.Group(
-                        [
-                            html.A(
-                                dmc.Text(
-                                    f"{main_id}",
-                                    style={"fontWeight": 700, "fontSize": 20},
-                                ),
-                                href=f"/{main_id}",
-                                target="_blank",
-                                className="text-decoration-none",
-                            ),
-                            # dmc.Space(w="sm"),
-                            dmc.Space(w="sm"),
-                            dbc.Popover(
-                                target={
-                                    "type": "indicator",
-                                    "main_id": str(main_id),
-                                    "is_sso": is_sso,
-                                    "index": i,
-                                },
-                                body=True,
-                                trigger="hover",
-                                placement="top",
-                                id={
-                                    "type": "popover_indicator",
-                                    "main_id": str(main_id),
-                                    "is_sso": is_sso,
-                                    "index": i,
-                                },
-                            ),
-                            html.Div(
-                                className="indicator",
-                                id={
-                                    "type": "indicator",
-                                    "main_id": str(main_id),
-                                    "is_sso": is_sso,
-                                    "index": i,
-                                },
-                            ),
-                            dmc.Space(w="sm"),
-                            html.Div(
-                                className="indicator",
-                                id={
-                                    "type": "flags",
-                                    "main_id": str(main_id),
-                                    "is_sso": is_sso,
-                                    "index": i,
-                                },
-                            ),
-                            dmc.Space(w="sm"),
-                            *badges,
-                        ],
-                        gap=3,
-                    ),
-                ),
-                dbc.CardBody(
+    item = dbc.Card(
+        [
+            dbc.CardHeader(
+                dmc.Group(
                     [
-                        dbc.Row(
-                            [
-                                html.Div(
-                                    className="card-flip",
-                                    id="card-flip",
-                                    children=[
-                                        html.Div(
-                                            className="first-content",
-                                            children=[
-                                                html.Div(
-                                                    className="container",
-                                                    children=[
-                                                        html.Div(
-                                                            children=[
-                                                                html.Div(
-                                                                    id="card",
-                                                                    children=[
-                                                                        html.Div(
-                                                                            className="card-content",
-                                                                            children=[
-                                                                                dbc.Col(
-                                                                                    dmc.Skeleton(
-                                                                                        style={
-                                                                                            "width": "12pc",
-                                                                                            "height": "12pc",
+                        html.A(
+                            dmc.Text(
+                                f"{main_id}",
+                                style={"fontWeight": 700, "fontSize": 20},
+                            ),
+                            href=f"/{main_id}",
+                            target="_blank",
+                            className="text-decoration-none",
+                        ),
+                        # dmc.Space(w="sm"),
+                        dmc.Space(w="sm"),
+                        dbc.Popover(
+                            target={
+                                "type": "indicator",
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
+                                "index": i,
+                            },
+                            body=True,
+                            trigger="hover",
+                            placement="top",
+                            id={
+                                "type": "popover_indicator",
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
+                                "index": i,
+                            },
+                        ),
+                        html.Div(
+                            className="indicator",
+                            id={
+                                "type": "indicator",
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
+                                "index": i,
+                            },
+                        ),
+                        dmc.Space(w="sm"),
+                        html.Div(
+                            className="indicator",
+                            id={
+                                "type": "flags",
+                                "main_id": str(main_id),
+                                "is_sso": is_sso,
+                                "index": i,
+                            },
+                        ),
+                        dmc.Space(w="sm"),
+                        *badges,
+                    ],
+                    gap=3,
+                ),
+            ),
+            dbc.CardBody(
+                [
+                    dbc.Row(
+                        [
+                            html.Div(
+                                className="card-flip",
+                                id="card-flip",
+                                children=[
+                                    html.Div(
+                                        className="first-content",
+                                        children=[
+                                            html.Div(
+                                                className="container",
+                                                children=[
+                                                    html.Div(
+                                                        children=[
+                                                            html.Div(
+                                                                id="card",
+                                                                children=[
+                                                                    html.Div(
+                                                                        className="card-content",
+                                                                        children=[
+                                                                            dbc.Col(
+                                                                                dmc.Skeleton(
+                                                                                    style={
+                                                                                        "width": "12pc",
+                                                                                        "height": "12pc",
+                                                                                    },
+                                                                                ),
+                                                                                id={
+                                                                                    "type": "search_results_cutouts",
+                                                                                    "diaSourceId": str(
+                                                                                        diasourceid
+                                                                                    ),
+                                                                                    "index": i,
+                                                                                },
+                                                                                width="auto",
+                                                                            ),
+                                                                            html.Div(
+                                                                                className="subtitle",
+                                                                                children=[
+                                                                                    html.Div(
+                                                                                        children=[
+                                                                                            html.Span(
+                                                                                                "SCIENCE".capitalize()
+                                                                                            ),
+                                                                                        ],
+                                                                                    ),
+                                                                                    html.Span(
+                                                                                        id={
+                                                                                            "type": "cutout-size",
+                                                                                            "diaSourceId": str(
+                                                                                                diasourceid
+                                                                                            ),
+                                                                                            "index": i,
                                                                                         },
                                                                                     ),
-                                                                                    id={
-                                                                                        "type": "search_results_cutouts",
-                                                                                        "diaSourceId": str(
-                                                                                            diasourceid
-                                                                                        ),
-                                                                                        "index": i,
-                                                                                    },
-                                                                                    width="auto",
-                                                                                ),
-                                                                                html.Div(
-                                                                                    className="subtitle",
-                                                                                    children=[
-                                                                                        html.Div(
-                                                                                            children=[
-                                                                                                html.Span(
-                                                                                                    "SCIENCE".capitalize()
-                                                                                                ),
-                                                                                            ],
-                                                                                        ),
-                                                                                        html.Span(
-                                                                                            id={
-                                                                                                "type": "cutout-size",
-                                                                                                "diaSourceId": str(
-                                                                                                    diasourceid
-                                                                                                ),
-                                                                                                "index": i,
-                                                                                            },
-                                                                                        ),
-                                                                                    ],
-                                                                                ),
-                                                                                html.Div(
-                                                                                    className="corner-elements",
-                                                                                    children=[
-                                                                                        html.Span(),
-                                                                                        html.Span(),
-                                                                                    ],
-                                                                                ),
-                                                                            ],
-                                                                        ),
-                                                                    ],
-                                                                ),
-                                                            ],
-                                                        ),
-                                                    ],
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                                dbc.Col(
-                                    dmc.Skeleton(
-                                        style={
-                                            "width": "100%",
-                                            "height": "15pc",
-                                        },
+                                                                                ],
+                                                                            ),
+                                                                            html.Div(
+                                                                                className="corner-elements",
+                                                                                children=[
+                                                                                    html.Span(),
+                                                                                    html.Span(),
+                                                                                ],
+                                                                            ),
+                                                                        ],
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
                                     ),
-                                    id={
-                                        "type": "search_results_lightcurve",
-                                        "main_id": str(main_id),
-                                        "is_sso": is_sso,
-                                        "index": i,
+                                ],
+                            ),
+                            dbc.Col(
+                                dmc.Skeleton(
+                                    style={
+                                        "width": "100%",
+                                        "height": "15pc",
                                     },
-                                    xs=12,
-                                    md=True,
                                 ),
-                            ],
-                            justify="start",
-                            className="g-2",
-                        ),
-                        # Upper right corner badge
-                        dbc.Badge(
-                            corner_str,
-                            color="light",
-                            pill=True,
-                            text_color="dark",
-                            className="position-absolute top-0 start-100 translate-middle border",
-                        ),
-                    ],
-                ),
-                # dbc.CardFooter("This is the footer"),
-            ],
-            color="light",
-            className="mb-2 border-1 rounded-1 box-shadow",
-            outline=True,
-        )
+                                id={
+                                    "type": "search_results_lightcurve",
+                                    "main_id": str(main_id),
+                                    "is_sso": is_sso,
+                                    "index": i,
+                                },
+                                xs=12,
+                                md=True,
+                            ),
+                        ],
+                        justify="start",
+                        className="g-2",
+                    ),
+                    # Upper right corner badge
+                    dbc.Badge(
+                        corner_str,
+                        color="light",
+                        pill=True,
+                        text_color="dark",
+                        className="position-absolute top-0 start-100 translate-middle border",
+                    ),
+                ],
+            ),
+            # dbc.CardFooter("This is the footer"),
+        ],
+        color="light",
+        className="mb-2 border-1 rounded-1 box-shadow",
+        outline=True,
+    )
 
     return item
 
