@@ -782,7 +782,10 @@ def draw_lightcurve_preview(
     flux = pdf[flux_name]
     flux_err = pdf[flux_err_name]
 
+    yscale = 1.0
     if units == "magnitude":
+        yscale = -1.0
+
         # Using same names as others despite being magnitudes
         flux, flux_err = flux_to_mag(flux, flux_err)
         layout["yaxis"]["autorange"] = "reversed"
@@ -1025,14 +1028,14 @@ def draw_lightcurve_preview(
                             + f" {err_on_diff:.1f} μJy in {time_diff:.1f} days",
                         ])
                     )
-                if diff > 0:
+                if yscale * diff > 0:
                     # going up
                     icon_indicator = DashIconify(
                         icon="tabler:arrow-up-right",
                         color=DEFAULT_FINK_COLORS[-1],
                         width=20,
                     )
-                elif diff <= 0:
+                elif yscale * diff <= 0:
                     icon_indicator = DashIconify(
                         icon="tabler:arrow-down-right",
                         color=DEFAULT_FINK_COLORS[0],
