@@ -243,7 +243,7 @@ def draw_cutout(data, title, lower_bound=0, upper_bound=1, zoom=True, id_type="s
     # Define the size and position for the reticle
     reticle_size = len(data) / 10  # Total size of the cross reticle
     inner_gap = len(data) / 12  # Size of the hole in the middle
-    center = len(data) // 2 - 1  # Center index for a square image
+    center = len(data) // 2  # Center index for a square image
 
     # Create the 'hole' in the middle by adding small squares around the center
     # Add horizontal lines for the top and bottom parts of the reticle
