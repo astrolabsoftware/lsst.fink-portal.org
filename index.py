@@ -68,8 +68,9 @@ def make_navlink(label, icon, href, target="_self"):
             "padding": "5px",
             "padding-left": "0px",
             "padding-bottom": "0px",
-            "background-color": "#15284F",
+            "background-color": "transparent",
             "font-weight": "bold",
+            "zIndex": 1e5,
         },
     )
 
