@@ -528,7 +528,7 @@ def card_sso_rocks_params(data):
     Parent body: `{data.parent}`
 
     ###### Physical parameters
-    Absolute magnitude (H mag): `{data.parameters.physical.absolute_magnitude.value:.2f}`
+    Absolute magnitude (H mag): `{data.parameters.physical.absolute_magnitude.H.value:.2f}`
     """
     text = textwrap.dedent(text)  # Remove indentation
     taxclass = data.parameters.physical.taxonomy.class_.value
