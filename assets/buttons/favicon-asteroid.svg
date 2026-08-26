@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5eead4"/>
+      <stop offset="50%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#99f6e4"/>
+      <stop offset="100%" stop-color="#5eead4"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+    <linearGradient id="g4" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#115e59"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Geometric asteroid - main body -->
+  <!-- Top highlight face -->
+  <polygon points="256,120 340,190 280,200" fill="url(#g2)" opacity="0.95"/>
+  <!-- Upper left face -->
+  <polygon points="256,120 180,175 220,210 280,200" fill="url(#g1)"/>
+  <!-- Upper right face -->
+  <polygon points="340,190 380,260 310,270 280,200" fill="url(#g1)" opacity="0.85"/>
+  <!-- Left face -->
+  <polygon points="180,175 150,280 200,310 220,210" fill="url(#g4)"/>
+  <!-- Center face -->
+  <polygon points="220,210 200,310 290,340 310,270 280,200" fill="url(#g1)" opacity="0.7"/>
+  <!-- Right face -->
+  <polygon points="380,260 360,340 290,340 310,270" fill="url(#g3)"/>
+  <!-- Bottom left face -->
+  <polygon points="200,310 230,380 290,340" fill="url(#g3)" opacity="0.9"/>
+  <!-- Bottom face -->
+  <polygon points="290,340 230,380 300,400 360,340" fill="url(#g4)" opacity="0.85"/>
+  
+  <!-- Edge highlights -->
+  <line x1="256" y1="120" x2="280" y2="200" stroke="#99f6e4" stroke-width="1.5" opacity="0.4"/>
+  <line x1="280" y1="200" x2="310" y2="270" stroke="#99f6e4" stroke-width="1" opacity="0.3"/>
+  <line x1="220" y1="210" x2="280" y2="200" stroke="#99f6e4" stroke-width="1" opacity="0.35"/>
+  <line x1="200" y1="310" x2="290" y2="340" stroke="#5eead4" stroke-width="1" opacity="0.2"/>
+  
+  <!-- Small crater detail facets -->
+  <polygon points="240,250 260,245 255,265 235,260" fill="#0d9488" opacity="0.5"/>
+  <polygon points="310,300 325,295 320,315" fill="#064e3b" opacity="0.4"/>
+  
+  <!-- Glow effect -->
+  <ellipse cx="256" cy="260" rx="130" ry="130" fill="#2dd4bf" opacity="0.04"/>
+</svg>

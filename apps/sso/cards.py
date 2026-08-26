@@ -235,7 +235,7 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 target="_blank",
                                                 href=f"https://ssp.imcce.fr/forms/ssocard/{data.id_}",
                                             ),
-                                            width=4,
+                                            width=3,
                                         ),
                                         dbc.Col(
                                             dbc.Button(
@@ -250,7 +250,7 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 target="_blank",
                                                 href=f"https://minorplanetcenter.net/db_search/show_object?utf8=%E2%9C%93&object_id={sso_name}",
                                             ),
-                                            width=4,
+                                            width=3,
                                         ),
                                         dbc.Col(
                                             dbc.Button(
@@ -265,7 +265,22 @@ curl -H "Content-Type: application/json" -X POST \\
                                                 target="_blank",
                                                 href=f"https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr={sso_name}",
                                             ),
-                                            width=4,
+                                            width=3,
+                                        ),
+                                        dbc.Col(
+                                            dbc.Button(
+                                                className="btn btn-default zoom btn-circle btn-lg",
+                                                style={
+                                                    "background-image": "url(/assets/buttons/favicon-asteroid.svg)",
+                                                    "background-size": "cover",
+                                                },
+                                                color="light",
+                                                outline=True,
+                                                id="SBE",
+                                                target="_blank",
+                                                href=f"https://sbx.dirac.dev/object/{sso_name}",
+                                            ),
+                                            width=3,
                                         ),
                                     ],
                                     justify="around",
