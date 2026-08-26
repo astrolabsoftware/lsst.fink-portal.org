@@ -45,7 +45,7 @@ def is_packed_designation(name: str) -> bool:
     """
     assert isinstance(name, str), "SSO name should be a string!"
 
-    c_start = name[0] in ["I", "J", "K"]
+    c_start = (name != "") and (name[0] in ["I", "J", "K"])
     c_length = len(name) == 7
     c_packed = " " not in name
 
