@@ -2301,6 +2301,8 @@ def draw_sso_phasecurve(
                 "i:magpsf_red": "r:psfMag_red",
                 "i:sigmapsf": "r:psfMagErr_red",
                 "i:drb": "r:reliability",
+                "i:ra": "r:ra",
+                "i:dec": "r:dec",
             }
         )
 
