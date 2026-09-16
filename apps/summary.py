@@ -543,8 +543,9 @@ def store_ephemerides(object_data):
 
             # Compute magnitude reduced to unit distance
             mag, info["r:psfMagErr_red"] = flux_to_mag(
-                info["r:psfFlux"], info["r:psfFluxErr"]
+                info["r:scienceFlux"], info["r:scienceFluxErr"]
             )
+            info["r:psfMagErr_red"] *= 10
             info["r:psfMag_red"] = mag - 5 * np.log10(info["Dobs"] * info["Dhelio"])
             infos.append(info)
         else:
