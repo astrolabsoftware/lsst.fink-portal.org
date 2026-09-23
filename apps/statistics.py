@@ -262,6 +262,7 @@ def plot_stat_evolution(data, param_name, switch_cumulative, switch_percentage):
         pdf[param_name] = (
             pdf[param_name].astype(int) / pdf["f:alerts"].astype(int) * 100
         )
+        long_description = long_description.replace("Number of", "Percentage of")
 
     pdf = pdf.rename(columns={param_name: long_description})
 
