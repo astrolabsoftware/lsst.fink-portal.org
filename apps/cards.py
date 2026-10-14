@@ -993,9 +993,10 @@ def alert_properties(object_data, clickData):
 
     if clickData is not None:
         time0 = clickData["points"][0]["x"]
+        pdf_ = pdf_.sort_values("r:midpointMjdTai", ascending=False)
         # Round to avoid numerical precision issues
-        mjds = pdf_["r:midpointMjdTai"].apply(lambda x: np.round(x, 3)).to_numpy()
-        mjd0 = np.round(Time(time0, format="iso").mjd, 3)
+        mjds = pdf_["r:midpointMjdTai"].apply(lambda x: np.round(x, 4)).to_numpy()
+        mjd0 = np.round(Time(time0, format="iso").mjd, 4)
         if mjd0 in mjds:
             pdf_ = pdf_[mjds == mjd0]
         else:
