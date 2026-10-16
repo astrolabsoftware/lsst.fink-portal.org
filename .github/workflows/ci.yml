@@ -44,7 +44,7 @@ jobs:
             -f Dockerfile .
 
       - name: Scan Docker Image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:${{ steps.image.outputs.tag }}
           format: table
