@@ -69,3 +69,5 @@ fink_tags, fink_tag_description, fink_tag_api_support = unwrap_fink_tags(
 fink_blocks, fink_block_description, fink_block_api_support = unwrap_fink_tags(
     kind="blocks", default_support=False
 )
+
+explore_classes = request_api("/api/v1/explore", output="json", method="GET")

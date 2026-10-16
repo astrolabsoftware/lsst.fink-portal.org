@@ -402,6 +402,12 @@ def parse_query(string, timeout=None, verbose=False):
         query["action"] = "tag"
         query["hint"] = "Tag based search / {}".format(query["params"]["tag"])
 
+    elif "explore" in query["params"]:
+        query["action"] = "explore"
+        query["hint"] = "Exploration based on catalogs / {}".format(
+            query["params"]["explore"]
+        )
+
     elif "last" in query["params"]:
         query["action"] = "unknown"
 

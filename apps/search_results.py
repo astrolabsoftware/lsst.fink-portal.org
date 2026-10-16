@@ -584,6 +584,7 @@ def results(
             "partial" if query.get("partial") else "exact", query["object"]
         )
         endpoint = "/api/v1/sources"
+        # FIXME: we query entire LC to finally get the idmax...
         pdf = request_api(
             endpoint,
             json={
@@ -601,7 +602,13 @@ def results(
         pdf = request_api(endpoint, json={"n_or_d": query["params"]["sso"]})
         if not pdf.empty:
             pdf = pdf.loc[pdf.groupby("r:ssObjectId")["r:midpointMjdTai"].idxmax()]
-        main_id = "r:ssObjectId"
+        main_id = "r:packed_primary_provisional_designation"
+        colnames_to_display.pop("r:diaObjectId")
+        colnames_to_display.pop("r:ra")
+        colnames_to_display.pop("r:dec")
+        colnames_to_display.update({main_id: "Packed name"})
+        colnames_to_display.update({"f:sso_name": "Designation"})
+        colnames_to_display.update({"r:extendedness": "Extendedness"})
 
     elif query["action"] == "tracklet":
         # Tracklet by (partial) name
@@ -713,6 +720,54 @@ def results(
             )
             colnames_to_display.update({"r:lastseen": "Last seen (UTC)"})
 
+    elif query["action"] == "explore":
+        # Class-based search
+        alert_class = query["params"].get("explore")
+        msg = f"Last 10 objects from '{alert_class}'"
+        payload = {"class": alert_class}
+        endpoint = "/api/v1/explore"
+
+        pdf = request_api(endpoint, json=payload)
+
+        # If the returned payload is not empty, insert
+        # the number of measurements
+        if alert_class.startswith("SSO"):
+            main_id = "r:packed_primary_provisional_designation"
+            # This is required for table view (where to take the schema from)
+            endpoint = "/api/v1/sso"
+            colnames_to_display.pop("r:diaObjectId")
+            colnames_to_display.pop("r:ra")
+            colnames_to_display.pop("r:dec")
+            colnames_to_display.update({main_id: "Packed name"})
+            # colnames_to_display.update({"f:sso_name": 'Designation'})
+            colnames_to_display.update({"r:extendedness": "Extendedness"})
+        else:
+            main_id = "r:diaObjectId"
+
+        # For static sources, insert the number of sources
+        if not pdf.empty and not alert_class.startswith("SSO"):
+            unique_oids = [str(i) for i in pdf[main_id]]
+            endpoint = "/api/v1/objects"
+            json_payload = {
+                "diaObjectId": ",".join(unique_oids),
+                "columns": "r:nDiaSources,r:diaObjectId,r:lastDiaSourceMjdTai",
+            }
+            unique_oids = [str(i) for i in pdf[main_id]]
+            vals = request_api(
+                endpoint,
+                json=json_payload,
+                output="json",
+            )
+
+            nsources = {v["r:diaObjectId"]: v["r:nDiaSources"] for v in vals}
+            pdf["r:nDiaSources"] = pdf[main_id].apply(lambda x: nsources.get(x, -1))
+            colnames_to_display.update({"r:nDiaSources": "Number of measurements"})
+
+            pdf["r:lastseen"] = pdf["r:midpointMjdTai"].apply(
+                lambda x: Time(x, format="mjd", scale="tai").utc.iso
+            )
+            colnames_to_display.update({"r:lastseen": "Last seen (UTC)"})
+
     elif query["action"] == "anomaly":
         # Anomaly search
         n_last = int(query["params"].get("last", 100))
@@ -811,7 +866,7 @@ def results(
                     "type": "numeric",
                     "format": dash_table.Format.Format(precision=8),
                     # 'hideable': True,
-                    "presentation": "markdown" if c == "r:diaObjectId" else "input",
+                    "presentation": "markdown" if c == main_id else "input",
                 }
                 for c in colnames_to_display.keys()
             ]
