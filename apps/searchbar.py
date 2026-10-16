@@ -34,11 +34,13 @@ from dash_iconify import DashIconify
 
 from app import app
 from apps.dataclasses import fink_tags, fink_tag_api_support
+from apps.dataclasses import explore_classes
 from apps.helpers import help_popover, message_help
 from apps.parse import parse_query
 
 # Smart search field
 quick_fields = [
+    ["explore", "Explore last alerts from various catalogs"],
     ["tag", "Search last alerts by user-defined tags"],
     ["last", "Number of latest alerts to show. Must be used with the `tag` keyword."],
     [
@@ -147,6 +149,8 @@ fink_search_bar = (
                         placeholder="Search, and you will find",
                         component="input",
                         trigger=[
+                            "explore:",
+                            "explore=",
                             "tag:",
                             "tag=",
                             "last:",
@@ -157,6 +161,8 @@ fink_search_bar = (
                             "r=",
                         ],
                         options={
+                            "explore:": list(explore_classes.keys()),
+                            "explore=": list(explore_classes.keys()),
                             "tag:": list(compress(fink_tags, fink_tag_api_support)),
                             "tag=": list(compress(fink_tags, fink_tag_api_support)),
                             "last:": ["1", "10", "100", "1000"],

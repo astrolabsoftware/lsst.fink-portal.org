@@ -79,6 +79,10 @@ the `Quick fields` above the search bar. Supported formats for the options are b
 
 The search bar has a button (on the left) to show you the list of your latest search queries so that you may re-use them, and a switch (on the right, right above the search field) to choose the format of results - either card-based (default, shows the previews of object latest cutout and light curve), or tabular (allows to see all the fields of objects).
 
+##### Explore the dataset
+
+The keyword `explore=` would open a list of object classes from various astronomical database and catalogs: SIMBAD, TNS, and VSX. Each night, we randomly take up to 10 alerts matching objects from catalogs that you can query to quickly explore these known objects from the dataset. In addition, the class `SSO/MPC` would give access to last 10 Solar System objects. For SIMBAD, taxonomy is defined at https://simbad.cds.unistra.fr/guide/otypes.htx. For VSX, taxonomy is defined at https://vsx.aavso.org/index.php?view=about.vartypes.
+
 ##### Search for specific LSST objects
 
 To search for specific object, just use its name.
