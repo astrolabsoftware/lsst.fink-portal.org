@@ -44,7 +44,14 @@ jobs:
             -f Dockerfile .
 
       - name: Scan Docker Image with Trivy
-        run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:${{ steps.image.outputs.tag }}
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:${{ steps.image.outputs.tag }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
 
       - name: Log in to Fink GitLab Container Registry
         env:
