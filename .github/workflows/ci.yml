@@ -1,0 +1,68 @@
+
+name: Build and Push Portal docker image to GitLab Registry
+
+on:
+  # Execute on every published release
+  release:
+    types: [published]
+
+  # First manual execution
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Define image tags
+        id: image
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            TAG="$RELEASE_TAG"
+          else
+            TAG="manual-${SHA::12}"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:${{ steps.image.outputs.tag }} \
+            -t gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:latest \
+            -f Dockerfile .
+
+      - name: Scan Docker Image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:${{ steps.image.outputs.tag }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Log in to Fink GitLab Container Registry
+        env:
+          GITLAB_REGISTRY_USER: ${{ secrets.GITLAB_REGISTRY_USER }}
+          GITLAB_REGISTRY_TOKEN: ${{ secrets.GITLAB_REGISTRY_TOKEN }}
+        run: |
+          echo "$GITLAB_REGISTRY_TOKEN" | docker login gitlab-registry.in2p3.fr \
+            -u "$GITLAB_REGISTRY_USER" \
+            --password-stdin
+
+      - name: Push Docker image to GitLab
+        run: |
+          docker push gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:${{ steps.image.outputs.tag }}
+          docker push gitlab-registry.in2p3.fr/astrolabsoftware/fink/lsst.fink-portal:latest
