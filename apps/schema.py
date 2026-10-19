@@ -514,6 +514,7 @@ def get_api_background(url):
                 "tags",
                 "cutouts",
                 "statistics",
+                "explore",
             ]
         ],
     )
