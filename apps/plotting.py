@@ -1377,6 +1377,7 @@ def draw_alert_astrometry(object_data, kind, color_scale) -> dict:
     Output("aladin-lite-runner", "run"),
     Input("object-data", "data"),
     prevent_initial_call=True,
+    background=True,
 )
 def integrate_aladin_lite(object_data):
     """Integrate aladin light in the 2nd Tab of the dashboard.

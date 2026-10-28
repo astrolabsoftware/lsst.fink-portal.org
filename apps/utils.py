@@ -21,7 +21,6 @@ import pandas as pd
 from astropy.time import Time
 from astroquery.mpc import MPC
 from dash import html
-from fink_utils.xmatch.simbad import get_simbad_labels
 
 from apps.api import request_api
 
@@ -41,7 +40,7 @@ class_colors = {
     "Fail": "gray",
 }
 
-simbad_types = get_simbad_labels("old_and_new")
+simbad_types = []  # get_simbad_labels("old_and_new")
 simbad_types = sorted(simbad_types, key=lambda s: s.lower())
 
 

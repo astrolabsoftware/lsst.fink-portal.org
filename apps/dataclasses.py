@@ -15,7 +15,6 @@
 """Definition of labels from user-defined filters, SIMBAD, and TNS"""
 
 import pandas as pd
-from fink_utils.xmatch.simbad import get_simbad_labels
 
 from apps.api import request_api
 
@@ -59,7 +58,7 @@ tns_types = pd.read_csv("assets/tns_types.csv", header=None)[0].to_numpy()
 tns_types = sorted(tns_types, key=lambda s: s.lower())
 
 # SIMBAD
-simbad_types = get_simbad_labels("old_and_new")
+simbad_types = []  # get_simbad_labels("old_and_new")
 simbad_types = sorted(simbad_types, key=lambda s: s.lower())
 
 # Fink

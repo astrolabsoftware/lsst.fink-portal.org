@@ -175,6 +175,7 @@ def display_cards_results(pdf, page_size=10):
         Input("result_table", "columns"),
         Input("modal_skymap", "is_open"),
     ],
+    background=True,
 )
 def display_skymap(data, columns, is_open):
     """Display explorer result on a sky map (Aladin lite). Limited to 1000 sources total.
