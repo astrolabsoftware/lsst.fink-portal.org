@@ -723,7 +723,7 @@ def results(
     elif query["action"] == "explore":
         # Class-based search
         alert_class = query["params"].get("explore")
-        msg = f"Last 10 objects from '{alert_class}'"
+        msg = f"Last 10 alerts from '{alert_class}'"
         payload = {"class": alert_class}
         endpoint = "/api/v1/explore"
 
