@@ -42,6 +42,52 @@ from apps.utils import flux_to_mag, loading
 dcc.Location(id="url", refresh=False)
 _LOG = logging.getLogger(__name__)
 
+DIA_OBJECT_DATA_COLUMNS = [
+    "r:diaObjectId",
+    "r:diaSourceId",
+    "r:midpointMjdTai",
+    "r:ra",
+    "r:dec",
+    "r:band",
+    "r:scienceFlux",
+    "r:scienceFluxErr",
+    "r:templateFlux",
+    "r:templateFluxErr",
+    "r:psfFlux",
+    "r:psfFluxErr",
+    "r:snr",
+    "r:reliability",
+    "r:pixelFlags_bad",
+    "r:pixelFlags_cr",
+    "r:pixelFlags_saturatedCenter",
+    "r:pixelFlags_streakCenter",
+    "f:xm_simbad_otype",
+    "f:xm_tns_fullname",
+]
+
+SSO_DATA_COLUMNS = [
+    "r:ssObjectId",
+    "r:diaSourceId",
+    "r:packed_primary_provisional_designation",
+    "f:sso_name",
+    "r:midpointMjdTai",
+    "r:ra",
+    "r:dec",
+    "r:band",
+    "r:scienceFlux",
+    "r:scienceFluxErr",
+    "r:templateFlux",
+    "r:templateFluxErr",
+    "r:psfFlux",
+    "r:psfFluxErr",
+    "r:snr",
+    "r:reliability",
+    "r:pixelFlags_bad",
+    "r:pixelFlags_cr",
+    "r:pixelFlags_saturatedCenter",
+    "r:pixelFlags_streakCenter",
+]
+
 
 def layout(name, is_sso):
     if not is_sso:
@@ -476,8 +522,10 @@ def store_query(name):
         # diaObjectId
         pdf = request_api(
             "/api/v1/sources",
-            json={"diaObjectId": oid, "columns": "*"},
-            # output="json", # should inspect this possibility
+            json={
+                "diaObjectId": oid,
+                "columns": ",".join(DIA_OBJECT_DATA_COLUMNS),
+            },
             dtype={
                 "r:diaObjectId": np.int64,
                 "r:diaSourceId": np.int64,
@@ -488,8 +536,7 @@ def store_query(name):
         # defer ephemerides for later (background job)
         pdf = request_api(
             "/api/v1/sso",
-            json={"n_or_d": oid, "columns": "*"},
-            # output="json", # should inspect this possibility
+            json={"n_or_d": oid, "columns": ",".join(SSO_DATA_COLUMNS)},
             dtype={
                 "r:ssObjectId": np.int64,
                 "r:diaSourceId": np.int64,

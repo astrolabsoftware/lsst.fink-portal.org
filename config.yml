@@ -1,3 +1,4 @@
 APIURL: https://api.lsst.fink-portal.org/
 HOST: localhost
 PORT: 24000
+DEBUG: True
