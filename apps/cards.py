@@ -725,6 +725,7 @@ curl -H "Content-Type: application/json" -X POST \\
     )
 
     card = dmc.Accordion(
+        id="summary-accordion",
         multiple=True,
         children=[
             dmc.AccordionItem(
@@ -982,10 +983,14 @@ curl -H "Content-Type: application/json" -X POST \\
     [
         Input("object-data", "data"),
         Input("lightcurve_object_page", "clickData"),
+        Input("summary-accordion", "value"),
     ],
     prevent_initial_call=True,
 )
-def alert_properties(object_data, clickData):
+def alert_properties(object_data, clickData, active_panels):
+    if "last_alert" not in (active_panels or []):
+        return no_update
+
     pdf_ = pd.read_json(
         io.StringIO(object_data),
         dtype={"r:diaObjectId": str, "r:diaSourceId": str},
@@ -1002,7 +1007,31 @@ def alert_properties(object_data, clickData):
         else:
             return no_update
 
-    pdf = pdf_.head(1)
+    source_id = pdf_["r:diaSourceId"].iloc[0]
+    if "r:packed_primary_provisional_designation" in pdf_.columns:
+        details = request_api(
+            "/api/v1/sso",
+            json={
+                "n_or_d": pdf_["r:packed_primary_provisional_designation"].iloc[0],
+            },
+        )
+    else:
+        details = request_api(
+            "/api/v1/sources",
+            json={"diaObjectId": pdf_["r:diaObjectId"].iloc[0]},
+        )
+
+    if details.empty or "r:diaSourceId" not in details.columns:
+        return dbc.Alert(
+            "Unable to load alert details from the Fink API.", color="danger"
+        )
+
+    pdf = details.loc[details["r:diaSourceId"].astype(str) == str(source_id)].head(1)
+    if pdf.empty:
+        return dbc.Alert(
+            "Alert details were not returned by the Fink API.", color="danger"
+        )
+
     pdf = pd.DataFrame({"Name": pdf.columns, "Value": pdf.to_numpy()[0]})
     columns = [
         {
@@ -1249,11 +1278,11 @@ def card_id_left(object_data):
     )
 
     if not is_sso:
-        simbad_class = pdf["f:xm_simbad_otype"].to_numpy()[0]
+        simbad_class = get_first_value(pdf, "f:xm_simbad_otype", "N/A")
         if pd.isna(simbad_class) or simbad_class in BAD_VALUES:
             simbad_class = "N/A"
 
-        tns_class = pdf["f:xm_tns_fullname"].to_numpy()[0]
+        tns_class = get_first_value(pdf, "f:xm_tns_fullname", "N/A")
         if pd.isna(tns_class) or tns_class in BAD_VALUES:
             tns_class = "N/A"
 

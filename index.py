@@ -558,5 +558,7 @@ if __name__ == "__main__":
 
     host = os.getenv("HOST", config_args["HOST"])
     port = int(os.getenv("PORT", config_args["PORT"]))
+    debug_value = os.getenv("DEBUG", str(config_args["DEBUG"]))
+    debug = str(debug_value).lower() == "true"
 
-    app.run(host=host, debug=True, port=port)
+    app.run(host=host, debug=debug, port=port)
